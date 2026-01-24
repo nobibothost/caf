@@ -2,48 +2,65 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
     <title>Admin Login</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
     <style>
-        body { display: flex; justify-content: center; align-items: center; height: 100vh; background: #f1f5f9; }
-        .login-card { background: white; padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
-        .login-header { text-align: center; margin-bottom: 25px; }
-        .login-header i { font-size: 3rem; color: #4f46e5; }
-        .btn-login { width: 100%; background: #4f46e5; color: white; padding: 12px; border: none; border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer; margin-top: 15px; }
-        .remember-box { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 0.9rem; color: #64748b; }
-        .error-msg { background: #fee2e2; color: #991b1b; padding: 10px; border-radius: 8px; margin-bottom: 15px; text-align: center; font-size: 0.9rem; }
+        body { 
+            display: flex; justify-content: center; align-items: center; 
+            height: 100vh; background: #f1f5f9; 
+            background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .login-card { 
+            background: rgba(255, 255, 255, 0.95); 
+            padding: 35px; border-radius: 20px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1); 
+            width: 90%; max-width: 380px; 
+            border: 1px solid white;
+        }
+        .login-header { text-align: center; margin-bottom: 30px; }
+        .login-header i { font-size: 3.5rem; color: #4f46e5; filter: drop-shadow(0 4px 6px rgba(79, 70, 229, 0.3)); }
+        .btn-login { 
+            width: 100%; background: #4f46e5; color: white; padding: 14px; border: none;
+            border-radius: 10px; font-weight: 600; font-size: 1rem; cursor: pointer; margin-top: 20px;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); transition: transform 0.2s;
+        }
+        .btn-login:active { transform: scale(0.98); }
+        .remember-box { display: flex; align-items: center; gap: 8px; margin-top: 15px; font-size: 0.9rem; color: #64748b; }
+        .error-msg { background: #fee2e2; color: #991b1b; padding: 12px; border-radius: 8px; margin-bottom: 20px; text-align: center; font-size: 0.9rem; border: 1px solid #fecaca; }
     </style>
 </head>
 <body>
 
     <div class="login-card">
         <div class="login-header">
-            <i class="ri-shield-keyhole-line"></i>
-            <h2>Admin Login</h2>
-            <p style="color: #64748b;">Secure Access Portal</p>
+            <i class="ri-shield-keyhole-fill"></i>
+            <h2 style="margin-top: 10px;">Admin Login</h2>
+            <p style="color: #64748b; font-size: 0.9rem;">Secure Access Portal</p>
         </div>
 
         <% if (error) { %>
-            <div class="error-msg"><%= error %></div>
+            <div class="error-msg"><i class="ri-error-warning-fill"></i> <%= error %></div>
         <% } %>
 
-        <form action="/login" method="POST">
+        <form action="/login" method="POST" id="loginForm" onsubmit="handleLoginSubmit()">
             <div class="input-group">
                 <label>Username</label>
                 <div class="input-wrapper">
-                    <i class="ri-user-line"></i>
-                    <input type="text" name="username" required placeholder="Enter Username">
+                    <i class="ri-user-3-line icon-left"></i>
+                    <input type="text" name="username" required placeholder="Enter Username" autofocus>
                 </div>
             </div>
 
             <div class="input-group">
                 <label>Password</label>
                 <div class="input-wrapper">
-                    <i class="ri-lock-password-line"></i>
-                    <input type="password" name="Vpassword" required placeholder="Enter Password">
+                    <i class="ri-lock-password-line icon-left"></i>
+                    <input type="password" name="Vpassword" id="passwordInput" required placeholder="Enter Password" autocomplete="current-password">
+                    <i class="ri-eye-off-line password-toggle" onclick="togglePassword(event)"></i>
                 </div>
             </div>
 
@@ -52,9 +69,41 @@
                 <label for="remember">Remember me</label>
             </div>
 
-            <button type="submit" class="btn-login">Login & Send OTP</button>
+            <button type="submit" class="btn-login" id="loginBtn">
+                <span id="btnText">Login & Send OTP</span>
+            </button>
         </form>
     </div>
 
+    <script>
+        function togglePassword(e) {
+            // Stop form interaction/submit
+            e.preventDefault();
+            
+            const input = document.getElementById('passwordInput');
+            const icon = document.querySelector('.password-toggle');
+            
+            if (input.type === "password") {
+                input.type = "text";
+                icon.classList.replace('ri-eye-off-line', 'ri-eye-line');
+                icon.style.color = "#4f46e5";
+            } else {
+                input.type = "password";
+                icon.classList.replace('ri-eye-line', 'ri-eye-off-line');
+                icon.style.color = "var(--text-muted)";
+            }
+            // Keep keyboard open or focus on input
+            input.focus();
+        }
+
+        function handleLoginSubmit() {
+            const btn = document.getElementById('loginBtn');
+            const btnText = document.getElementById('btnText');
+            
+            btn.classList.add('btn-loading');
+            btn.disabled = true;
+            btnText.innerHTML = '<span class="spinner"></span> Sending OTP...';
+        }
+    </script>
 </body>
 </html>
