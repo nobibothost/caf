@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verification Hub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    
+    <nav class="navbar">
+        <div class="logo">
+            <i class="ri-shield-check-fill"></i> Verify<span class="highlight">Hub</span>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="section-title">
+            <h2><i class="ri-time-line"></i> Due Today</h2>
+            <p class="subtitle">Your pending tasks list.</p>
+        </div>
+
+        <% if (error) { %>
+            <div class="alert error"><i class="ri-wifi-off-line"></i> <%= error %></div>
+        <% } %>
+
+        <div class="grid-layout">
+            <% if (customers.length === 0 && !error) { %>
+                <div class="empty-state">
+                    <div class="icon-box"><i class="ri-checkbox-circle-line"></i></div>
+                    <h3>All Caught Up!</h3>
+                    <p>Tap the + button to add new.</p>
+                </div>
+            <% } else { %>
+                <% customers.forEach(customer => { %>
+                    <div class="card">
+                        <div class="card-top">
+                            <span class="badge badge-<%= customer.category %>"><%= customer.category %></span>
+                        </div>
+                        <div class="card-body">
+                            <h3 class="customer-name"><%= customer.name %></h3>
+                            <p class="meta-info" style="color: var(--text-main); font-weight: 500; margin-bottom: 4px;">
+                                <i class="ri-smartphone-line"></i> <%= customer.mobile %>
+                            </p>
+                            <p class="meta-info">
+                                <i class="ri-calendar-check-line"></i> 
+                                Activation: <%= (customer.activationDate || customer.createdAt).toLocaleDateString('en-GB') %>
+                            </p>
+                            <% if(customer.category === 'MNP') { %>
+                                <p class="meta-info"><i class="ri-map-pin-line"></i> <%= customer.region %></p>
+                            <% } %>
+                        </div>
+                        <div class="card-actions">
+                            <a href="tel:<%= customer.mobile %>" class="btn-call"><i class="ri-phone-fill"></i> Call</a>
+                            <form action="/complete/<%= customer._id %>" method="POST" style="flex: 1;">
+                                <button type="submit" class="btn-check"><i class="ri-check-line"></i> Done</button>
+                            </form>
+                        </div>
+                    </div>
+                <% }) %>
+            <% } %>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <a href="/" class="nav-item active">
+            <i class="ri-home-4-fill"></i>
+            <span>Home</span>
+        </a>
+
+        <a href="/all" class="nav-item">
+            <i class="ri-list-check"></i>
+            <span>All</span>
+        </a>
+
+        <div class="nav-fab" onclick="openModal()">
+            <i class="ri-add-line"></i>
+        </div>
+
+        <a href="/manage" class="nav-item">
+            <i class="ri-edit-2-line"></i>
+            <span>Edit</span>
+        </a>
+
+        <a href="/analytics" class="nav-item">
+            <i class="ri-pie-chart-line"></i>
+            <span>Analysis</span>
+        </a>
+    </div>
+
+    <div id="addModal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>New Verification</h3>
+                <button onclick="closeModal()" class="icon-btn"><i class="ri-close-line"></i></button>
+            </div>
+            <form action="/add" method="POST">
+                <div class="input-group">
+                    <label>Activation Date</label>
+                    <div class="input-wrapper">
+                        <i class="ri-calendar-line"></i>
+                        <input type="date" name="customDate" id="customDate" required>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Category</label>
+                    <div class="input-wrapper">
+                        <i class="ri-list-check"></i>
+                        <select name="category" id="category" onchange="toggleRegion()" required>
+                            <option value="" disabled selected>Select Category</option>
+                            <option value="NC">NC</option>
+                            <option value="P2P">P2P</option>
+                            <option value="MNP">MNP</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="input-group" id="region-group" style="display: none;">
+                    <label>Region</label>
+                    <div class="input-wrapper">
+                        <i class="ri-map-pin-user-line"></i>
+                        <select name="region" id="region">
+                            <option value="Delhi">Delhi</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Name</label>
+                    <div class="input-wrapper">
+                        <i class="ri-user-smile-line"></i>
+                        <input type="text" name="name" required>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Mobile</label>
+                    <div class="input-wrapper">
+                        <i class="ri-smartphone-line"></i>
+                        <input type="tel" name="mobile" pattern="[0-9]{10}" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn-submit">Save Record</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const modal = document.getElementById("addModal");
+        function openModal() {
+            modal.classList.add('active');
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById("customDate").value = today;
+        }
+        function closeModal() { modal.classList.remove('active'); }
+        window.onclick = function(event) { if (event.target == modal) closeModal(); }
+        function toggleRegion() {
+            const category = document.getElementById('category').value;
+            document.getElementById('region-group').style.display = (category === 'MNP') ? 'block' : 'none';
+        }
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monthly Analysis</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+        .stat-card.full-width { grid-column: 1 / -1; background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); color: white; }
+        .stat-number { font-size: 2rem; font-weight: 700; margin-bottom: 5px; display: block; }
+        .stat-label { font-size: 0.9rem; opacity: 0.9; }
+        
+        .stat-card.nc { border-left: 4px solid var(--nc-color); }
+        .stat-card.p2p { border-left: 4px solid var(--p2p-color); }
+        .stat-card.mnp { border-left: 4px solid var(--mnp-color); }
+        
+        .progress-section { background: white; padding: 20px; border-radius: 12px; border: 1px solid var(--border); }
+        .progress-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: 600; }
+        .progress-bar { height: 10px; background: #f1f5f9; border-radius: 5px; overflow: hidden; display: flex; }
+        .bar-done { background: #10b981; height: 100%; }
+        .bar-pending { background: #f59e0b; height: 100%; }
+    </style>
+</head>
+<body>
+    
+    <nav class="navbar">
+        <div class="logo">
+            <i class="ri-pie-chart-2-fill"></i> Monthly<span class="highlight">Analysis</span>
+        </div>
+    </nav>
+
+    <div class="container">
+        
+        <div class="stats-grid">
+            <div class="stat-card full-width">
+                <span class="stat-number"><%= stats.total %></span>
+                <span class="stat-label">Total Activations (This Month)</span>
+            </div>
+        </div>
+
+        <div class="section-title">
+            <h2><i class="ri-list-settings-line"></i> Category Breakdown</h2>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card nc">
+                <span class="stat-number" style="color: var(--nc-color);"><%= stats.nc %></span>
+                <span class="stat-label">NC (New)</span>
+            </div>
+            <div class="stat-card p2p">
+                <span class="stat-number" style="color: var(--p2p-color);"><%= stats.p2p %></span>
+                <span class="stat-label">P2P</span>
+            </div>
+            <div class="stat-card mnp">
+                <span class="stat-number" style="color: var(--mnp-color);"><%= stats.mnp %></span>
+                <span class="stat-label">MNP</span>
+            </div>
+        </div>
+
+        <div class="section-title">
+            <h2><i class="ri-verified-badge-line"></i> Verification Status</h2>
+        </div>
+
+        <div class="progress-section">
+            <div class="progress-row">
+                <span style="color: #10b981;"><i class="ri-check-double-line"></i> Verified: <%= stats.completed %></span>
+                <span style="color: #f59e0b;"><i class="ri-loader-4-line"></i> Pending: <%= stats.pending %></span>
+            </div>
+            <div class="progress-bar">
+                <% 
+                   const total = stats.total || 1; 
+                   const donePercent = (stats.completed / total) * 100;
+                   const pendingPercent = (stats.pending / total) * 100;
+                %>
+                <div class="bar-done" style="width: <%= donePercent %>%;"></div>
+                <div class="bar-pending" style="width: <%= pendingPercent %>%;"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="bottom-nav">
+        <a href="/" class="nav-item">
+            <i class="ri-home-4-line"></i>
+            <span>Home</span>
+        </a>
+
+        <a href="/all" class="nav-item">
+            <i class="ri-list-check"></i>
+            <span>All</span>
+        </a>
+
+        <div class="nav-fab" onclick="window.location.href='/'">
+            <i class="ri-add-line"></i>
+        </div>
+
+        <a href="/manage" class="nav-item">
+            <i class="ri-edit-2-line"></i>
+            <span>Edit</span>
+        </a>
+
+        <a href="/analytics" class="nav-item active">
+            <i class="ri-pie-chart-fill"></i>
+            <span>Analysis</span>
+        </a>
+    </div>
+
+</body>
+</html>
+

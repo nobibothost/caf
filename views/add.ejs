@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Customer</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Add New Verification</h1>
+            <a href="/" class="btn-back">← Back</a>
+        </header>
+
+        <form action="/add" method="POST" class="form-box">
+            <div class="form-group">
+                <label>Category</label>
+                <select name="category" id="category" onchange="toggleRegion()" required>
+                    <option value="" disabled selected>Select Category</option>
+                    <option value="NC">NC (New Connection)</option>
+                    <option value="P2P">P2P</option>
+                    <option value="MNP">MNP</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="region-group" style="display: none;">
+                <label>Region (For MNP)</label>
+                <select name="region" id="region">
+                    <option value="Delhi">Delhi (Default)</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Customer Name</label>
+                <input type="text" name="name" placeholder="Enter Name" required>
+            </div>
+
+            <div class="form-group">
+                <label>Mobile Number</label>
+                <input type="tel" name="mobile" placeholder="Enter Mobile Number" required pattern="[0-9]{10}">
+            </div>
+
+            <button type="submit" class="btn-submit">Save Data</button>
+        </form>
+    </div>
+
+    <script>
+        // Logic to show/hide Region based on Category selection
+        function toggleRegion() {
+            const category = document.getElementById('category').value;
+            const regionGroup = document.getElementById('region-group');
+            
+            if (category === 'MNP') {
+                regionGroup.style.display = 'block';
+            } else {
+                regionGroup.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
+

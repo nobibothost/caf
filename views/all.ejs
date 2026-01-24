@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Records</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    
+    <nav class="navbar">
+        <div class="logo">
+            <i class="ri-folder-history-line"></i> All<span class="highlight">Records</span>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="section-title">
+            <h2><i class="ri-database-2-line"></i> History</h2>
+            <p class="subtitle">All activation records (Pending & Completed).</p>
+        </div>
+
+        <div class="grid-layout">
+            <% if (customers.length === 0) { %>
+                <div class="empty-state">
+                    <div class="icon-box"><i class="ri-file-search-line"></i></div>
+                    <h3>No Records</h3>
+                    <p>Start adding numbers.</p>
+                </div>
+            <% } else { %>
+                <% customers.forEach(customer => { %>
+                    <div class="card" style="<%= customer.status === 'completed' ? 'opacity: 0.6; background: #f8fafc;' : '' %>">
+                        <div class="card-top">
+                            <span class="badge badge-<%= customer.category %>"><%= customer.category %></span>
+                            <% if (customer.status === 'completed') { %>
+                                <span class="badge" style="background: #dcfce7; color: #166534;"><i class="ri-check-double-line"></i> Done</span>
+                            <% } else { %>
+                                <span class="badge" style="background: #fef9c3; color: #854d0e;"><i class="ri-loader-4-line"></i> Pending</span>
+                            <% } %>
+                        </div>
+                        <div class="card-body">
+                            <h3 class="customer-name"><%= customer.name %></h3>
+                            <p class="meta-info" style="color: var(--text-main); font-weight: 500; margin-bottom: 4px;">
+                                <i class="ri-smartphone-line"></i> <%= customer.mobile %>
+                            </p>
+                            <p class="meta-info">
+                                <i class="ri-calendar-check-line"></i> 
+                                Activation: <%= (customer.activationDate || customer.createdAt).toLocaleDateString('en-GB') %>
+                            </p>
+                            <% if(customer.category === 'MNP') { %>
+                                <p class="meta-info"><i class="ri-map-pin-line"></i> <%= customer.region %></p>
+                            <% } %>
+                        </div>
+                        <div class="card-actions">
+                            <a href="tel:<%= customer.mobile %>" class="btn-call" style="width: 100%;"><i class="ri-phone-fill"></i> Call</a>
+                        </div>
+                    </div>
+                <% }) %>
+            <% } %>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <a href="/" class="nav-item">
+            <i class="ri-home-4-line"></i>
+            <span>Home</span>
+        </a>
+
+        <a href="/all" class="nav-item active">
+            <i class="ri-list-check-2"></i>
+            <span>All</span>
+        </a>
+
+        <div class="nav-fab" onclick="window.location.href='/'">
+            <i class="ri-add-line"></i>
+        </div>
+
+        <a href="/manage" class="nav-item">
+            <i class="ri-edit-2-line"></i>
+            <span>Edit</span>
+        </a>
+
+        <a href="/analytics" class="nav-item">
+            <i class="ri-pie-chart-line"></i>
+            <span>Analysis</span>
+        </a>
+    </div>
+
+</body>
+</html>
+
