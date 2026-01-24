@@ -3,14 +3,44 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const path = require('path');
+const session = require('express-session');
+const axios = require('axios'); // API calls ke liye
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
+// --- CONFIGURATION ---
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+// Email website ka URL jahan request bhejni hai
+const EMAIL_SERVICE_URL = process.env.EMAIL_SERVICE_URL || 'http://localhost:5000'; 
+// Jis email par OTP receive karna hai (Admin Email)
+const ADMIN_EMAIL_RECEIVER = process.env.ADMIN_EMAIL_RECEIVER || 'your-email@gmail.com'; 
+const SESSION_SECRET = process.env.SESSION_SECRET || 'supersecretkey';
+
+// --- MIDDLEWARE ---
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
+
+// Session Setup
+app.use(session({
+    secret: SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: { 
+        maxAge: 24 * 60 * 60 * 1000 // Default: 24 hours
+    }
+}));
+
+// --- AUTH MIDDLEWARE ---
+const isAuthenticated = (req, res, next) => {
+    if (req.session.isLoggedIn) {
+        return next();
+    }
+    res.redirect('/login');
+};
 
 // --- DATABASE SCHEMA ---
 const customerSchema = new mongoose.Schema({
@@ -20,10 +50,9 @@ const customerSchema = new mongoose.Schema({
     region: String,   // Delhi / Other
     status: { type: String, default: 'pending' },
     createdAt: { type: Date, default: Date.now },
-    activationDate: Date, // User selected date
-    verificationDate: Date // System calculated reminder date
+    activationDate: Date,
+    verificationDate: Date
 });
-
 const Customer = mongoose.model('Customer', customerSchema);
 
 // --- DATABASE CONNECTION ---
@@ -33,7 +62,7 @@ const connectDB = async () => {
             useNewUrlParser: true,
             useUnifiedTopology: true,
             serverSelectionTimeoutMS: 5000,
-            family: 4 // Force IPv4 for stable mobile connection
+            family: 4
         });
         console.log('✅ MongoDB Connected Successfully');
     } catch (err) {
@@ -42,51 +71,128 @@ const connectDB = async () => {
 };
 connectDB();
 
-// --- ROUTES ---
+// --- AUTH ROUTES ---
 
-// 1. HOME PAGE (Due Reminders - Pending & Due Today/Past)
-app.get('/', async (req, res) => {
+// 1. LOGIN PAGE
+app.get('/login', (req, res) => {
+    if (req.session.isLoggedIn) return res.redirect('/');
+    res.render('login', { error: null });
+});
+
+// 2. PROCESS LOGIN & CALL EMAIL API
+app.post('/login', async (req, res) => {
+    const { username, Vpassword, remember } = req.body;
+
+    // Check Credentials
+    if (username === ADMIN_USERNAME && Vpassword === ADMIN_PASSWORD) {
+        // Generate OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        
+        // Save to session temporarily
+        req.session.otp = otp;
+        req.session.tempUser = { username, remember };
+
+        console.log(`🔐 OTP Generated: ${otp}`);
+
+        // --- CALL EXTERNAL EMAIL SERVICE ---
+        try {
+            // Email Website (Port 5000) ko request bhejo
+            await axios.post(`${EMAIL_SERVICE_URL}/send-email`, {
+                recipient: ADMIN_EMAIL_RECEIVER,
+                subject: '🔐 Your Login OTP',
+                message: `Hello Admin, Your login OTP is: ${otp}. Valid for this session.`
+            });
+
+            console.log('✅ API Call Success: OTP request sent to Email Service');
+            res.redirect('/otp');
+
+        } catch (error) {
+            console.error('❌ Email Service API Error:', error.message);
+            // Agar Email service down hai, toh error dikhao
+            res.render('login', { error: 'Email Service Unreachable. Is port 5000 running?' });
+        }
+
+    } else {
+        res.render('login', { error: 'Invalid Username or Password' });
+    }
+});
+
+// 3. OTP PAGE
+app.get('/otp', (req, res) => {
+    if (!req.session.otp) return res.redirect('/login');
+    res.render('otp', { error: null });
+});
+
+// 4. VERIFY OTP
+app.post('/verify-otp', (req, res) => {
+    const { otp } = req.body;
+
+    if (req.session.otp && otp === req.session.otp) {
+        // Login Success
+        req.session.isLoggedIn = true;
+        
+        // Handle "Remember Me"
+        const remember = req.session.tempUser.remember;
+        if (remember === 'on') {
+            req.session.cookie.maxAge = 365 * 24 * 60 * 60 * 1000; // 1 Year
+        } else {
+            req.session.cookie.maxAge = 24 * 60 * 60 * 1000; // 24 Hours
+        }
+
+        // Cleanup
+        delete req.session.otp;
+        delete req.session.tempUser;
+
+        res.redirect('/');
+    } else {
+        res.render('otp', { error: 'Invalid OTP. Try again.' });
+    }
+});
+
+// 5. LOGOUT
+app.get('/logout', (req, res) => {
+    req.session.destroy(() => {
+        res.redirect('/login');
+    });
+});
+
+
+// --- PROTECTED ROUTES (Requires Login) ---
+
+app.get('/', isAuthenticated, async (req, res) => {
     try {
         const tomorrow = new Date();
         tomorrow.setHours(0, 0, 0, 0);
         tomorrow.setDate(tomorrow.getDate() + 1);
 
-        // Show pending items where Verification Date is < Tomorrow
         const customers = await Customer.find({
             verificationDate: { $lt: tomorrow },
             status: 'pending'
         }).sort({ verificationDate: 1 });
 
-        // Pass 'page' variable for Nav highlighting
         res.render('index', { customers, error: null, page: 'home' });
     } catch (err) {
         res.render('index', { customers: [], error: "Connection Error", page: 'home' });
     }
 });
 
-// 2. ALL RECORDS (History)
-app.get('/all', async (req, res) => {
+app.get('/all', isAuthenticated, async (req, res) => {
     try {
-        const allCustomers = await Customer.find({}).sort({ activationDate: -1 }); // Newest first
+        const allCustomers = await Customer.find({}).sort({ activationDate: -1 });
         res.render('all', { customers: allCustomers, page: 'all' });
     } catch (err) {
         res.redirect('/');
     }
 });
 
-// 3. ANALYTICS PAGE (Monthly Stats)
-app.get('/analytics', async (req, res) => {
+app.get('/analytics', isAuthenticated, async (req, res) => {
     try {
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-        // Filter data for Current Month
         const monthlyData = await Customer.find({
-            activationDate: {
-                $gte: startOfMonth,
-                $lte: endOfMonth
-            }
+            activationDate: { $gte: startOfMonth, $lte: endOfMonth }
         });
 
         const stats = {
@@ -100,13 +206,11 @@ app.get('/analytics', async (req, res) => {
 
         res.render('analytics', { stats, page: 'analytics' });
     } catch (err) {
-        console.log(err);
         res.redirect('/');
     }
 });
 
-// 4. MANAGE PAGE (Edit & Search List)
-app.get('/manage', async (req, res) => {
+app.get('/manage', isAuthenticated, async (req, res) => {
     try {
         const allCustomers = await Customer.find({}).sort({ activationDate: -1 });
         res.render('manage', { customers: allCustomers, page: 'manage' });
@@ -115,31 +219,22 @@ app.get('/manage', async (req, res) => {
     }
 });
 
-// 5. ADD DATA ROUTE
-app.post('/add', async (req, res) => {
+app.post('/add', isAuthenticated, async (req, res) => {
     try {
         const { name, mobile, category, region, customDate } = req.body;
         
-        // Logic: Calculate Days
-        let daysToAdd = 3; // Default for NC/P2P
+        let daysToAdd = 3; 
         if (category === 'MNP') {
-            if (region === 'Delhi') {
-                daysToAdd = 6; 
-            } else {
-                daysToAdd = 8; 
-            }
+            if (region === 'Delhi') { daysToAdd = 6; } else { daysToAdd = 8; }
         }
 
         const baseDate = customDate ? new Date(customDate) : new Date();
-        
         const verificationDate = new Date(baseDate);
         verificationDate.setDate(verificationDate.getDate() + daysToAdd);
         verificationDate.setHours(0, 0, 0, 0);
 
         const newCustomer = new Customer({
-            name,
-            mobile,
-            category,
+            name, mobile, category,
             region: category === 'MNP' ? region : 'NA',
             activationDate: baseDate,
             verificationDate,
@@ -149,24 +244,17 @@ app.post('/add', async (req, res) => {
         await newCustomer.save();
         res.redirect('/');
     } catch (err) {
-        console.log("Save Error:", err);
         res.redirect('/');
     }
 });
 
-// 6. EDIT DATA ROUTE
-app.post('/edit/:id', async (req, res) => {
+app.post('/edit/:id', isAuthenticated, async (req, res) => {
     try {
         const { name, mobile, category, region, activationDate } = req.body;
         
-        // Recalculate Verification Date
         let daysToAdd = 3; 
         if (category === 'MNP') {
-            if (region === 'Delhi') {
-                daysToAdd = 6; 
-            } else {
-                daysToAdd = 8; 
-            }
+            if (region === 'Delhi') { daysToAdd = 6; } else { daysToAdd = 8; }
         }
 
         const baseDate = new Date(activationDate);
@@ -175,9 +263,7 @@ app.post('/edit/:id', async (req, res) => {
         verificationDate.setHours(0, 0, 0, 0);
 
         await Customer.findByIdAndUpdate(req.params.id, {
-            name,
-            mobile,
-            category,
+            name, mobile, category,
             region: category === 'MNP' ? region : 'NA',
             activationDate: baseDate,
             verificationDate
@@ -185,40 +271,35 @@ app.post('/edit/:id', async (req, res) => {
 
         res.redirect('/manage');
     } catch (err) {
-        console.log(err);
         res.redirect('/manage');
     }
 });
 
-// 7. DELETE DATA ROUTE
-app.post('/delete/:id', async (req, res) => {
+app.post('/delete/:id', isAuthenticated, async (req, res) => {
     try {
         await Customer.findByIdAndDelete(req.params.id);
-        console.log("Deleted Record:", req.params.id);
         res.redirect('/manage');
     } catch (err) {
-        console.log("Delete Error:", err);
         res.redirect('/manage');
     }
 });
 
-// 8. MARK COMPLETE ROUTE
-app.post('/complete/:id', async (req, res) => {
+app.post('/complete/:id', isAuthenticated, async (req, res) => {
     try {
         await Customer.findByIdAndUpdate(req.params.id, { status: 'completed' });
-        res.redirect('back'); // Reloads current page
+        res.redirect('back');
     } catch (err) {
         res.redirect('/');
     }
 });
 
-// 9. CATCH-ALL (Redirect 404 to Home)
 app.get('*', (req, res) => {
     res.redirect('/');
 });
 
-// Start Server
 app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`🚀 Verification Server running on http://localhost:${PORT}`);
+    if(!process.env.ADMIN_USERNAME || !process.env.ADMIN_PASSWORD) {
+        console.log('⚠️ Warning: .env variables for Login are missing!');
+    }
 });
-
