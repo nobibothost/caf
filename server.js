@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const path = require('path');
 const session = require('express-session');
+const MongoStore = require('connect-mongo'); // Session Persistence ke liye
 const axios = require('axios'); // API calls
 const helmet = require('helmet'); // Secure Headers
 const rateLimit = require('express-rate-limit');
@@ -18,6 +19,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const EMAIL_SERVICE_URL = process.env.EMAIL_SERVICE_URL || 'http://localhost:5000';
 const ADMIN_EMAIL_RECEIVER = process.env.ADMIN_EMAIL_RECEIVER || 'your-email@gmail.com';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'supersecretkey';
+const MONGO_URI = process.env.MONGO_URI; // Explicitly defined for Store
 
 // --- HELPER: IMPROVED STYLISH EMAIL TEMPLATE ---
 const getEmailTemplate = (otp, type = 'Login') => {
@@ -110,17 +112,24 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
-// Session Setup
+
+// --- SESSION SETUP (UPDATED FOR PERSISTENCE) ---
 app.use(session({
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
+    store: MongoStore.create({
+        mongoUrl: MONGO_URI,
+        collectionName: 'sessions', // Database me 'sessions' collection banega
+        ttl: 14 * 24 * 60 * 60 // 14 Days expiration default
+    }),
     cookie: { 
         httpOnly: true, 
-        maxAge: 24 * 60 * 60 * 1000, 
+        maxAge: 24 * 60 * 60 * 1000, // Default 1 day (Login pe change hoga)
         sameSite: 'strict', 
     }
 }));
+
 // --- AUTH MIDDLEWARE ---
 const isAuthenticated = (req, res, next) => {
     if (req.session && req.session.isLoggedIn) {
@@ -145,7 +154,7 @@ const Customer = mongoose.model('Customer', customerSchema);
 
 const connectDB = async () => {
     try {
-        await mongoose.connect(process.env.MONGO_URI, {
+        await mongoose.connect(MONGO_URI, {
             useNewUrlParser: true, useUnifiedTopology: true, serverSelectionTimeoutMS: 5000, family: 4
         });
         console.log('✅ MongoDB Connected Successfully');
@@ -212,9 +221,9 @@ app.post('/verify-otp', otpLimiter, (req, res) => {
         
         const remember = req.session.tempUser.remember;
         if (remember === 'on') {
-            req.session.cookie.maxAge = 365 * 24 * 60 * 60 * 1000; 
+            req.session.cookie.maxAge = 365 * 24 * 60 * 60 * 1000; // 1 Year
         } else {
-            req.session.cookie.maxAge = 24 * 60 * 60 * 1000; 
+            req.session.cookie.maxAge = 24 * 60 * 60 * 1000; // 24 Hours
         }
 
         delete req.session.otp;
