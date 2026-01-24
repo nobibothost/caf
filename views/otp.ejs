@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify OTP</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        body { display: flex; justify-content: center; align-items: center; height: 100vh; background: #f1f5f9; }
+        .otp-card { background: white; padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
+        .otp-icon { font-size: 3rem; color: #10b981; margin-bottom: 15px; }
+        .btn-verify { width: 100%; background: #10b981; color: white; padding: 12px; border: none; border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer; margin-top: 20px; }
+        .error-msg { background: #fee2e2; color: #991b1b; padding: 8px; border-radius: 8px; margin-bottom: 15px; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+    <div class="otp-card">
+        <div class="otp-icon"><i class="ri-mail-send-line"></i></div>
+        <h2>OTP Sent</h2>
+        <p style="color: #64748b; margin-bottom: 20px; font-size: 0.9rem;">Check your admin email for code.</p>
+
+        <% if (error) { %>
+            <div class="error-msg"><%= error %></div>
+        <% } %>
+
+        <form action="/verify-otp" method="POST">
+            <div class="input-group">
+                <label style="text-align: left;">One Time Password</label>
+                <div class="input-wrapper">
+                    <i class="ri-key-2-line"></i>
+                    <input type="text" name="otp" required placeholder="XXXXXX" pattern="[0-9]{6}" style="text-align: center; letter-spacing: 5px; font-size: 1.2rem;">
+                </div>
+            </div>
+
+            <button type="submit" class="btn-verify">Verify & Access</button>
+        </form>
+    </div>
+
+</body>
+</html>
