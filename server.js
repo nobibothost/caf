@@ -4,9 +4,10 @@ const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const path = require('path');
 const session = require('express-session');
-const axios = require('axios'); // API calls ke liye
+const axios = require('axios'); // API calls
 const helmet = require('helmet'); // Secure Headers
-const rateLimit = require('express-rate-limit'); // Brute Force Protection
+const rateLimit = require('express-rate-limit');
+// Brute Force Protection
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -15,14 +16,13 @@ const PORT = process.env.PORT || 3000;
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const EMAIL_SERVICE_URL = process.env.EMAIL_SERVICE_URL || 'http://localhost:5000';
-const ADMIN_EMAIL_RECEIVER = process.env.ADMIN_EMAIL_RECEIVER || 'your-email@gmail.com'; 
+const ADMIN_EMAIL_RECEIVER = process.env.ADMIN_EMAIL_RECEIVER || 'your-email@gmail.com';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'supersecretkey';
 
 // --- HELPER: IMPROVED STYLISH EMAIL TEMPLATE ---
 const getEmailTemplate = (otp, type = 'Login') => {
-    // OTP ko readable banana (e.g., "123 456")
+    // Make OTP readable (e.g., "123 456")
     const formattedOtp = otp.toString().split('').join(' ');
-
     return `
     <!DOCTYPE html>
     <html>
@@ -41,14 +41,14 @@ const getEmailTemplate = (otp, type = 'Login') => {
             /* OTP BOX - Revised for No Line Breaks */
             .otp-container { margin: 25px 0; }
             .otp-box { 
-                background-color: #f8fafc; 
+                background-color: #f8fafc;
                 color: #4f46e5; 
                 font-size: 28px; /* Reduced from 36px */
-                font-weight: 700; 
+                font-weight: 700;
                 padding: 15px 25px; 
                 border-radius: 12px; 
                 letter-spacing: 4px; /* Slightly reduced */
-                border: 2px dashed #cbd5e1; 
+                border: 2px dashed #cbd5e1;
                 display: inline-block;
                 white-space: nowrap; /* Prevents line break */
             }
@@ -67,7 +67,7 @@ const getEmailTemplate = (otp, type = 'Login') => {
                 <div class="content">
                     <div class="title">${type} Verification</div>
                     <p class="text">Hello Admin, use the secure code below to access your dashboard.</p>
-                    
+                   
                     <div class="otp-container">
                         <div class="otp-box">${formattedOtp}</div>
                     </div>
@@ -93,7 +93,6 @@ const getEmailTemplate = (otp, type = 'Login') => {
 app.use(helmet({
     contentSecurityPolicy: false,
 }));
-
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, 
     max: 5, 
@@ -101,19 +100,16 @@ const loginLimiter = rateLimit({
     standardHeaders: true, 
     legacyHeaders: false,
 });
-
 const otpLimiter = rateLimit({
     windowMs: 10 * 60 * 1000, 
     max: 10, 
     message: "Too many OTP attempts, please wait.",
 });
-
 // --- BASIC MIDDLEWARE ---
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
-
 // Session Setup
 app.use(session({
     secret: SESSION_SECRET,
@@ -125,7 +121,6 @@ app.use(session({
         sameSite: 'strict', 
     }
 }));
-
 // --- AUTH MIDDLEWARE ---
 const isAuthenticated = (req, res, next) => {
     if (req.session && req.session.isLoggedIn) {
@@ -162,12 +157,16 @@ connectDB();
 
 // --- ROUTES ---
 
+// 0. HEALTH CHECK (For Pinger)
+app.get('/health', (req, res) => {
+    res.status(200).send('OK');
+});
+
 // 1. LOGIN PAGE
 app.get('/login', (req, res) => {
     if (req.session.isLoggedIn) return res.redirect('/');
     res.render('login', { error: null });
 });
-
 // 2. PROCESS LOGIN (Updated Email Logic)
 app.post('/login', loginLimiter, async (req, res) => {
     const { username, Vpassword, remember } = req.body;
@@ -202,7 +201,6 @@ app.get('/otp', (req, res) => {
     if (!req.session.otp) return res.redirect('/login');
     res.render('otp', { error: null });
 });
-
 // 4. VERIFY OTP
 app.post('/verify-otp', otpLimiter, (req, res) => {
     const { otp } = req.body;
@@ -248,7 +246,6 @@ app.post('/resend-otp', async (req, res) => {
         res.status(500).json({ success: false, message: 'Failed to send email.' });
     }
 });
-
 // 6. LOGOUT
 app.get('/logout', (req, res) => {
     req.session.destroy(() => {
@@ -256,7 +253,6 @@ app.get('/logout', (req, res) => {
         res.redirect('/login');
     });
 });
-
 // --- PROTECTED ROUTES ---
 
 app.get('/', isAuthenticated, async (req, res) => {
@@ -272,14 +268,12 @@ app.get('/', isAuthenticated, async (req, res) => {
         res.render('index', { customers: [], error: "Connection Error", page: 'home' });
     }
 });
-
 app.get('/all', isAuthenticated, async (req, res) => {
     try {
         const allCustomers = await Customer.find({}).sort({ activationDate: -1 });
         res.render('all', { customers: allCustomers, page: 'all' });
     } catch (err) { res.redirect('/'); }
 });
-
 app.get('/analytics', isAuthenticated, async (req, res) => {
     try {
         const now = new Date();
@@ -297,14 +291,12 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
         res.render('analytics', { stats, page: 'analytics' });
     } catch (err) { res.redirect('/'); }
 });
-
 app.get('/manage', isAuthenticated, async (req, res) => {
     try {
         const allCustomers = await Customer.find({}).sort({ activationDate: -1 });
         res.render('manage', { customers: allCustomers, page: 'manage' });
     } catch (err) { res.redirect('/'); }
 });
-
 app.post('/add', isAuthenticated, async (req, res) => {
     try {
         const { name, mobile, category, region, customDate } = req.body;
@@ -339,17 +331,14 @@ app.post('/edit/:id', isAuthenticated, async (req, res) => {
         res.redirect('/manage');
     } catch (err) { res.redirect('/manage'); }
 });
-
 app.post('/delete/:id', isAuthenticated, async (req, res) => {
     try { await Customer.findByIdAndDelete(req.params.id); res.redirect('/manage'); } 
     catch (err) { res.redirect('/manage'); }
 });
-
 app.post('/complete/:id', isAuthenticated, async (req, res) => {
     try { await Customer.findByIdAndUpdate(req.params.id, { status: 'completed' }); res.redirect('back'); } 
     catch (err) { res.redirect('/'); }
 });
-
 app.get('*', (req, res) => { res.redirect('/'); });
 
 app.listen(PORT, () => {
@@ -357,4 +346,18 @@ app.listen(PORT, () => {
     if(!process.env.ADMIN_USERNAME || !process.env.ADMIN_PASSWORD) {
         console.log('⚠️ Warning: .env variables for Login are missing!');
     }
+
+    // --- 5 MINUTE SELF PINGER (KEEP ALIVE) ---
+    const PING_INTERVAL = 5 * 60 * 1000; // 5 Minutes in milliseconds
+    const TARGET_URL = process.env.PUBLIC_URL || `http://localhost:${PORT}`; // Default to localhost
+
+    setInterval(async () => {
+        try {
+            await axios.get(`${TARGET_URL}/health`);
+            // LOG UPDATED TO SHOW TARGET URL
+            console.log(`✅ [${new Date().toLocaleTimeString()}] Pinged ${TARGET_URL}/health`);
+        } catch (err) {
+            console.error(`❌ [${new Date().toLocaleTimeString()}] Keep-Alive Ping Failed: ${err.message}`);
+        }
+    }, PING_INTERVAL);
 });
