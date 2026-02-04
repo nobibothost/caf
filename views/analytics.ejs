@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monthly Analysis</title>
+    <title>Analytics</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
@@ -22,26 +22,57 @@
             border: 1px solid var(--border);
             text-align: center;
         }
-        .stat-card.full-width { grid-column: 1 / -1; background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); color: white; }
-        .stat-number { font-size: 2rem; font-weight: 700; margin-bottom: 5px; display: block; }
-        .stat-label { font-size: 0.9rem; opacity: 0.9; }
+        .stat-card.full-width { grid-column: 1 / -1; background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+            color: white; }
+        .stat-number { font-size: 2rem; font-weight: 700; margin-bottom: 5px; display: block;
+        }
+        .stat-label { font-size: 0.9rem; opacity: 0.9;
+        }
         
-        .stat-card.nc { border-left: 4px solid var(--nc-color); }
-        .stat-card.p2p { border-left: 4px solid var(--p2p-color); }
-        .stat-card.mnp { border-left: 4px solid var(--mnp-color); }
+        .stat-card.nc { border-left: 4px solid var(--nc-color);
+        }
+        .stat-card.p2p { border-left: 4px solid var(--p2p-color);
+        }
+        .stat-card.mnp { border-left: 4px solid var(--mnp-color);
+        }
         
-        .progress-section { background: white; padding: 20px; border-radius: 12px; border: 1px solid var(--border); }
-        .progress-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: 600; }
-        .progress-bar { height: 10px; background: #f1f5f9; border-radius: 5px; overflow: hidden; display: flex; }
-        .bar-done { background: #10b981; height: 100%; }
-        .bar-pending { background: #f59e0b; height: 100%; }
+        .progress-section { background: white;
+            padding: 20px; border-radius: 12px; border: 1px solid var(--border); }
+        .progress-row { display: flex;
+            justify-content: space-between; margin-bottom: 10px; font-weight: 600; }
+        .progress-bar { height: 10px; background: #f1f5f9;
+            border-radius: 5px; overflow: hidden; display: flex; }
+        .bar-done { background: #10b981; height: 100%;
+        }
+        .bar-pending { background: #f59e0b; height: 100%;
+        }
+
+        /* Filter Styles */
+        .filter-form { margin-bottom: 20px; }
+        .filter-select { 
+            width: 100%; 
+            padding: 12px 12px 12px 45px; 
+            border: 1px solid var(--border); 
+            border-radius: 12px; 
+            font-size: 0.95rem; 
+            background: white; 
+            outline: none; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            appearance: none;
+            cursor: pointer;
+        }
+        .filter-wrapper { position: relative; }
+        .filter-wrapper i {
+            position: absolute; left: 15px; top: 50%; transform: translateY(-50%);
+            color: var(--primary); font-size: 1.2rem; pointer-events: none;
+        }
     </style>
 </head>
 <body>
     
     <nav class="navbar">
         <div class="logo">
-            <i class="ri-pie-chart-2-fill"></i> Monthly<span class="highlight">Analysis</span>
+            <i class="ri-pie-chart-2-fill"></i> Data<span class="highlight">Analysis</span>
         </div>
         <a href="/logout" class="logout-btn" onclick="return confirm('Securely Logout?');">
             <i class="ri-logout-box-r-line"></i>
@@ -49,11 +80,28 @@
     </nav>
 
     <div class="container">
+
+        <div class="section-title">
+            <h2><i class="ri-bar-chart-grouped-line"></i> <%= headerTitle %></h2>
+            <p class="subtitle">Performance overview for selected period.</p>
+        </div>
         
+        <form action="/analytics" method="GET" class="filter-form">
+            <div class="filter-wrapper">
+                <i class="ri-filter-3-line"></i>
+                <select name="month" class="filter-select" onchange="this.form.submit()">
+                    <option value="0" <%= monthOffset == 0 ? 'selected' : '' %>>This Month</option>
+                    <option value="1" <%= monthOffset == 1 ? 'selected' : '' %>>Last Month</option>
+                    <option value="2" <%= monthOffset == 2 ? 'selected' : '' %>>2 Months Ago</option>
+                    <option value="all" <%= monthOffset === 'all' ? 'selected' : '' %>>Show All Time</option>
+                </select>
+            </div>
+        </form>
+    
         <div class="stats-grid">
             <div class="stat-card full-width">
                 <span class="stat-number"><%= stats.total %></span>
-                <span class="stat-label">Total Activations (This Month)</span>
+                <span class="stat-label">Total Activations</span>
             </div>
         </div>
 

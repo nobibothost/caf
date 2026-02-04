@@ -42,17 +42,18 @@
     <div class="container">
         
         <div class="section-title">
-            <h2><i class="ri-calendar-check-line"></i> <%= currentMonthName %></h2>
-            <p class="subtitle">Showing pending tasks for selected month.</p>
+            <h2><i class="ri-calendar-check-line"></i> <%= headerTitle %></h2>
+            <p class="subtitle">Showing pending tasks for selected period.</p>
         </div>
 
         <form action="/" method="GET" class="filter-form">
             <div class="filter-wrapper">
                 <i class="ri-filter-3-line"></i>
                 <select name="month" class="filter-select" onchange="this.form.submit()">
-                    <option value="0" <%= monthOffset === 0 ? 'selected' : '' %>>This Month (Default)</option>
-                    <option value="1" <%= monthOffset === 1 ? 'selected' : '' %>>Last Month</option>
-                    <option value="2" <%= monthOffset === 2 ? 'selected' : '' %>>2 Months Ago</option>
+                    <option value="0" <%= monthOffset == 0 ? 'selected' : '' %>>This Month (Default)</option>
+                    <option value="1" <%= monthOffset == 1 ? 'selected' : '' %>>Last Month</option>
+                    <option value="2" <%= monthOffset == 2 ? 'selected' : '' %>>2 Months Ago</option>
+                    <option value="all" <%= monthOffset === 'all' ? 'selected' : '' %>>Show All Pending</option>
                 </select>
             </div>
         </form>
@@ -66,7 +67,7 @@
                 <div class="empty-state">
                     <div class="icon-box"><i class="ri-checkbox-circle-line"></i></div>
                     <h3>No Pendings!</h3>
-                    <p>All clear for <%= currentMonthName %>.</p>
+                    <p>No pending tasks found for this period.</p>
                 </div>
             <% } else { %>
                 <% customers.forEach(customer => { %>
@@ -105,21 +106,17 @@
             <i class="ri-home-4-fill"></i>
             <span>Home</span>
         </a>
-
         <a href="/all" class="nav-item">
             <i class="ri-list-check"></i>
             <span>All</span>
         </a>
-
         <div class="nav-fab" onclick="openModal()">
             <i class="ri-add-line"></i>
         </div>
-
         <a href="/manage" class="nav-item">
             <i class="ri-edit-2-line"></i>
             <span>Edit</span>
         </a>
-
         <a href="/analytics" class="nav-item">
             <i class="ri-pie-chart-line"></i>
             <span>Analysis</span>
@@ -188,10 +185,8 @@
             const today = new Date().toISOString().split('T')[0];
             document.getElementById("customDate").value = today;
         }
-        function closeModal() { modal.classList.remove('active');
-        }
-        window.onclick = function(event) { if (event.target == modal) closeModal();
-        }
+        function closeModal() { modal.classList.remove('active'); }
+        window.onclick = function(event) { if (event.target == modal) closeModal(); }
         function toggleRegion() {
             const category = document.getElementById('category').value;
             document.getElementById('region-group').style.display = (category === 'MNP') ? 'block' : 'none';

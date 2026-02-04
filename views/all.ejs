@@ -7,6 +7,27 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
+    <style>
+        /* Filter Styles Copy from Index */
+        .filter-form { margin-bottom: 20px; }
+        .filter-select { 
+            width: 100%; 
+            padding: 12px 12px 12px 45px; 
+            border: 1px solid var(--border); 
+            border-radius: 12px; 
+            font-size: 0.95rem; 
+            background: white; 
+            outline: none; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            appearance: none;
+            cursor: pointer;
+        }
+        .filter-wrapper { position: relative; }
+        .filter-wrapper i {
+            position: absolute; left: 15px; top: 50%; transform: translateY(-50%);
+            color: var(--primary); font-size: 1.2rem; pointer-events: none;
+        }
+    </style>
 </head>
 <body>
     
@@ -20,17 +41,30 @@
     </nav>
 
     <div class="container">
+        
         <div class="section-title">
-            <h2><i class="ri-database-2-line"></i> History</h2>
-            <p class="subtitle">All activation records (Pending & Completed).</p>
+            <h2><i class="ri-database-2-line"></i> <%= headerTitle %></h2>
+            <p class="subtitle">Activation records history.</p>
         </div>
+
+        <form action="/all" method="GET" class="filter-form">
+            <div class="filter-wrapper">
+                <i class="ri-filter-3-line"></i>
+                <select name="month" class="filter-select" onchange="this.form.submit()">
+                    <option value="0" <%= monthOffset == 0 ? 'selected' : '' %>>This Month</option>
+                    <option value="1" <%= monthOffset == 1 ? 'selected' : '' %>>Last Month</option>
+                    <option value="2" <%= monthOffset == 2 ? 'selected' : '' %>>2 Months Ago</option>
+                    <option value="all" <%= monthOffset === 'all' ? 'selected' : '' %>>Show All History</option>
+                </select>
+            </div>
+        </form>
 
         <div class="grid-layout">
             <% if (customers.length === 0) { %>
                 <div class="empty-state">
                     <div class="icon-box"><i class="ri-file-search-line"></i></div>
                     <h3>No Records</h3>
-                    <p>Start adding numbers.</p>
+                    <p>No data found for this period.</p>
                 </div>
             <% } else { %>
                 <% customers.forEach(customer => { %>

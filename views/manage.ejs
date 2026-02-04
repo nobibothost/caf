@@ -7,6 +7,26 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
+    <style>
+        .filter-form { margin-bottom: 20px; }
+        .filter-select { 
+            width: 100%; 
+            padding: 12px 12px 12px 45px; 
+            border: 1px solid var(--border); 
+            border-radius: 12px; 
+            font-size: 0.95rem; 
+            background: white; 
+            outline: none; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            appearance: none;
+            cursor: pointer;
+        }
+        .filter-wrapper { position: relative; }
+        .filter-wrapper i {
+            position: absolute; left: 15px; top: 50%; transform: translateY(-50%);
+            color: var(--primary); font-size: 1.2rem; pointer-events: none;
+        }
+    </style>
 </head>
 <body>
     
@@ -21,9 +41,26 @@
 
     <div class="container">
         
+        <div class="section-title">
+            <h2><i class="ri-settings-4-line"></i> <%= headerTitle %></h2>
+            <p class="subtitle">Search, edit or delete records.</p>
+        </div>
+
+        <form action="/manage" method="GET" class="filter-form">
+            <div class="filter-wrapper">
+                <i class="ri-filter-3-line"></i>
+                <select name="month" class="filter-select" onchange="this.form.submit()">
+                    <option value="0" <%= monthOffset == 0 ? 'selected' : '' %>>This Month</option>
+                    <option value="1" <%= monthOffset == 1 ? 'selected' : '' %>>Last Month</option>
+                    <option value="2" <%= monthOffset == 2 ? 'selected' : '' %>>2 Months Ago</option>
+                    <option value="all" <%= monthOffset === 'all' ? 'selected' : '' %>>Show All History</option>
+                </select>
+            </div>
+        </form>
+
         <div class="search-box">
             <i class="ri-search-line"></i>
-            <input type="text" id="searchInput" onkeyup="filterList()" placeholder="Search by Name or Mobile...">
+            <input type="text" id="searchInput" onkeyup="filterList()" placeholder="Search in this list...">
         </div>
 
         <div class="grid-layout" id="customerList">
@@ -126,7 +163,6 @@
                     <i class="ri-delete-bin-line"></i> Delete Record
                 </button>
             </form>
-
         </div>
     </div>
 
@@ -172,7 +208,6 @@
         const regionGroup = document.getElementById('edit-region-group');
 
         function openEditModal(id, name, mobile, category, region, date) {
-            // Update Action URLs for both forms
             document.getElementById('editForm').action = "/edit/" + id;
             document.getElementById('deleteForm').action = "/delete/" + id; 
 
@@ -180,7 +215,6 @@
             document.getElementById('editMobile').value = mobile;
             document.getElementById('editCategory').value = category;
             document.getElementById('editDate').value = date;
-            
             if(category === 'MNP') {
                 regionGroup.style.display = 'block';
                 document.getElementById('editRegion').value = region;
