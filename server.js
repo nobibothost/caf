@@ -150,7 +150,7 @@ app.get('/logout', (req, res) => {
 
 // --- MAIN FEATURES ---
 
-// 1. HOME: PENDING (Filter: Verification Date)
+// 1. HOME: PENDING TASKS (Filter: Verification Date)
 app.get('/', isAuthenticated, async (req, res) => {
     try {
         const monthQuery = req.query.month;
@@ -167,13 +167,18 @@ app.get('/', isAuthenticated, async (req, res) => {
             const now = new Date();
             const startData = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1);
             const endData = new Date(now.getFullYear(), now.getMonth() - monthOffset + 1, 1);
+            
+            // Filter: Verification Date
             query.verificationDate = { $gte: startData, $lt: endData };
-            headerTitle = "Pending: " +qh_monthNames[startData.getMonth()] + " " + startData.getFullYear();
+            
+            // Fixed Typo Here: monthNames instead of qh_monthNames
+            headerTitle = "Pending: " + monthNames[startData.getMonth()] + " " + startData.getFullYear();
         }
 
         const customers = await Customer.find(query).sort({ verificationDate: 1 });
         res.render('index', { customers, error: null, page: 'home', monthOffset, headerTitle });
     } catch (err) {
+        console.error("Home Route Error:", err);
         res.render('index', { customers: [], error: "Connection Error", page: 'home', monthOffset: 0, headerTitle: "Error" });
     }
 });
@@ -215,14 +220,12 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
         if (monthOffset === 'all') {
-            query = {}; // No Filter, fetch all time stats
+            query = {}; 
             headerTitle = "All Time Analysis";
         } else {
             monthOffset = parseInt(monthOffset);
             const now = new Date();
-            // Start of Target Month
             const startData = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1);
-            // Start of Next Month (so < EndData covers full target month)
             const endData = new Date(now.getFullYear(), now.getMonth() - monthOffset + 1, 1);
             
             query = { activationDate: { $gte: startData, $lt: endData } };
