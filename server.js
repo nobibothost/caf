@@ -5,7 +5,8 @@ const bodyParser = require('body-parser');
 const path = require('path');
 const session = require('express-session');
 const MongoStore = require('connect-mongo'); // Session Persistence ke liye
-const axios = require('axios'); // API calls
+const axios = require('axios');
+// API calls
 const helmet = require('helmet'); // Secure Headers
 const rateLimit = require('express-rate-limit');
 // Brute Force Protection
@@ -31,17 +32,28 @@ const getEmailTemplate = (otp, type = 'Login') => {
     <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
-            body { margin: 0; padding: 0; background-color: #f1f5f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-            .wrapper { width: 100%; table-layout: fixed; background-color: #f1f5f9; padding-bottom: 40px; }
-            .webkit { max-width: 500px; background-color: #ffffff; margin: 0 auto; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
-            .header { background-color: #4f46e5; padding: 30px 20px; text-align: center; }
-            .header h1 { margin: 0; color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: 1px; }
-            .content { padding: 30px 25px; text-align: center; }
-            .title { font-size: 18px; color: #1e293b; font-weight: 600; margin-bottom: 10px; }
-            .text { font-size: 15px; color: #475569; line-height: 1.6; margin: 0 0 20px; }
+            body { margin: 0;
+                padding: 0; background-color: #f1f5f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            }
+            .wrapper { width: 100%; table-layout: fixed; background-color: #f1f5f9;
+                padding-bottom: 40px; }
+            .webkit { max-width: 500px; background-color: #ffffff;
+                margin: 0 auto; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;
+            }
+            .header { background-color: #4f46e5; padding: 30px 20px;
+                text-align: center; }
+            .header h1 { margin: 0;
+                color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: 1px; }
+            .content { padding: 30px 25px;
+                text-align: center; }
+            .title { font-size: 18px; color: #1e293b;
+                font-weight: 600; margin-bottom: 10px; }
+            .text { font-size: 15px;
+                color: #475569; line-height: 1.6; margin: 0 0 20px; }
             
             /* OTP BOX - Revised for No Line Breaks */
-            .otp-container { margin: 25px 0; }
+            .otp-container { margin: 25px 0;
+            }
             .otp-box { 
                 background-color: #f8fafc;
                 color: #4f46e5; 
@@ -55,8 +67,11 @@ const getEmailTemplate = (otp, type = 'Login') => {
                 white-space: nowrap; /* Prevents line break */
             }
             
-            .warning { background-color: #fff1f2; color: #be123c; font-size: 13px; padding: 12px; border-radius: 8px; margin-top: 25px; border: 1px solid #ffe4e6; }
-            .footer { background-color: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+            .warning { background-color: #fff1f2;
+                color: #be123c; font-size: 13px; padding: 12px; border-radius: 8px; margin-top: 25px; border: 1px solid #ffe4e6;
+            }
+            .footer { background-color: #f8fafc; padding: 20px; text-align: center;
+                font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
         </style>
     </head>
     <body>
@@ -81,7 +96,8 @@ const getEmailTemplate = (otp, type = 'Login') => {
                     </div>
                 </div>
                 <div class="footer">
-                    &copy; ${new Date().getFullYear()} VerifyHub Security. All rights reserved.
+                    &copy;
+                    ${new Date().getFullYear()} VerifyHub Security. All rights reserved.
                 </div>
             </div>
             <br>
@@ -112,7 +128,6 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
-
 // --- SESSION SETUP (UPDATED FOR PERSISTENCE) ---
 app.use(session({
     secret: SESSION_SECRET,
@@ -129,7 +144,6 @@ app.use(session({
         sameSite: 'strict', 
     }
 }));
-
 // --- AUTH MIDDLEWARE ---
 const isAuthenticated = (req, res, next) => {
     if (req.session && req.session.isLoggedIn) {
@@ -170,7 +184,6 @@ connectDB();
 app.get('/health', (req, res) => {
     res.status(200).send('OK');
 });
-
 // 1. LOGIN PAGE
 app.get('/login', (req, res) => {
     if (req.session.isLoggedIn) return res.redirect('/');
@@ -221,7 +234,7 @@ app.post('/verify-otp', otpLimiter, (req, res) => {
         
         const remember = req.session.tempUser.remember;
         if (remember === 'on') {
-            req.session.cookie.maxAge = 365 * 24 * 60 * 60 * 1000; // 1 Year
+             req.session.cookie.maxAge = 365 * 24 * 60 * 60 * 1000; // 1 Year
         } else {
             req.session.cookie.maxAge = 24 * 60 * 60 * 1000; // 24 Hours
         }
@@ -233,7 +246,6 @@ app.post('/verify-otp', otpLimiter, (req, res) => {
         res.render('otp', { error: 'Invalid OTP. Try again.' });
     }
 });
-
 // 5. RESEND OTP (Updated Email Logic)
 app.post('/resend-otp', async (req, res) => {
     if (!req.session.tempUser) {
@@ -266,15 +278,42 @@ app.get('/logout', (req, res) => {
 
 app.get('/', isAuthenticated, async (req, res) => {
     try {
-        const tomorrow = new Date();
-        tomorrow.setHours(0, 0, 0, 0);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        // Parse filter from query (default to 0 = This Month)
+        const monthOffset = parseInt(req.query.month) || 0;
+        
+        // Calculate Date Range based on Offset
+        const now = new Date();
+        // Start date is 1st of the target month
+        const startData = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1);
+        // End date is 1st of the next month (to include all days of target month)
+        const endData = new Date(now.getFullYear(), now.getMonth() - monthOffset + 1, 1);
+
+        // Helper for Month Name Display
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        const currentMonthName = monthNames[startData.getMonth()] + " " + startData.getFullYear();
+
+        // Fetch Data
         const customers = await Customer.find({
-            verificationDate: { $lt: tomorrow }, status: 'pending'
+            verificationDate: { $gte: startData, $lt: endData }, 
+            status: 'pending'
         }).sort({ verificationDate: 1 });
-        res.render('index', { customers, error: null, page: 'home' });
+
+        res.render('index', { 
+            customers, 
+            error: null, 
+            page: 'home', 
+            monthOffset,
+            currentMonthName 
+        });
     } catch (err) {
-        res.render('index', { customers: [], error: "Connection Error", page: 'home' });
+        console.error(err);
+        res.render('index', { 
+            customers: [], 
+            error: "Connection Error", 
+            page: 'home', 
+            monthOffset: 0,
+            currentMonthName: "Error" 
+        });
     }
 });
 app.get('/all', isAuthenticated, async (req, res) => {
