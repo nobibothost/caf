@@ -7,6 +7,26 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
+    <style>
+        .filter-form { margin-bottom: 20px; }
+        .filter-select { 
+            width: 100%; 
+            padding: 12px 12px 12px 45px; 
+            border: 1px solid var(--border); 
+            border-radius: 12px; 
+            font-size: 0.95rem; 
+            background: white; 
+            outline: none; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            appearance: none;
+            cursor: pointer;
+        }
+        .filter-wrapper { position: relative; }
+        .filter-wrapper i {
+            position: absolute; left: 15px; top: 50%; transform: translateY(-50%);
+            color: var(--primary); font-size: 1.2rem; pointer-events: none;
+        }
+    </style>
 </head>
 <body>
     
@@ -20,10 +40,22 @@
     </nav>
 
     <div class="container">
+        
         <div class="section-title">
-            <h2><i class="ri-time-line"></i> Due Today</h2>
-            <p class="subtitle">Your pending tasks list.</p>
+            <h2><i class="ri-calendar-check-line"></i> <%= currentMonthName %></h2>
+            <p class="subtitle">Showing pending tasks for selected month.</p>
         </div>
+
+        <form action="/" method="GET" class="filter-form">
+            <div class="filter-wrapper">
+                <i class="ri-filter-3-line"></i>
+                <select name="month" class="filter-select" onchange="this.form.submit()">
+                    <option value="0" <%= monthOffset === 0 ? 'selected' : '' %>>This Month (Default)</option>
+                    <option value="1" <%= monthOffset === 1 ? 'selected' : '' %>>Last Month</option>
+                    <option value="2" <%= monthOffset === 2 ? 'selected' : '' %>>2 Months Ago</option>
+                </select>
+            </div>
+        </form>
 
         <% if (error) { %>
             <div class="alert error"><i class="ri-wifi-off-line"></i> <%= error %></div>
@@ -33,14 +65,15 @@
             <% if (customers.length === 0 && !error) { %>
                 <div class="empty-state">
                     <div class="icon-box"><i class="ri-checkbox-circle-line"></i></div>
-                    <h3>All Caught Up!</h3>
-                    <p>Tap the + button to add new.</p>
+                    <h3>No Pendings!</h3>
+                    <p>All clear for <%= currentMonthName %>.</p>
                 </div>
             <% } else { %>
                 <% customers.forEach(customer => { %>
                     <div class="card">
                         <div class="card-top">
                             <span class="badge badge-<%= customer.category %>"><%= customer.category %></span>
+                            <span class="date-tag">Due: <%= (customer.verificationDate).getDate() %></span>
                         </div>
                         <div class="card-body">
                             <h3 class="customer-name"><%= customer.name %></h3>
@@ -155,8 +188,10 @@
             const today = new Date().toISOString().split('T')[0];
             document.getElementById("customDate").value = today;
         }
-        function closeModal() { modal.classList.remove('active'); }
-        window.onclick = function(event) { if (event.target == modal) closeModal(); }
+        function closeModal() { modal.classList.remove('active');
+        }
+        window.onclick = function(event) { if (event.target == modal) closeModal();
+        }
         function toggleRegion() {
             const category = document.getElementById('category').value;
             document.getElementById('region-group').style.display = (category === 'MNP') ? 'block' : 'none';
