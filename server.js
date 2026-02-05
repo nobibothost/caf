@@ -21,16 +21,16 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'supersecretkey';
 const MONGO_URI = process.env.MONGO_URI;
 
 /* ==========================================================================
-   🔥 BUSINESS LOGIC & RULES (PERMANENT CONFIG) 🔥
+   🔥 BUSINESS LOGIC & RULES 🔥
    ==========================================================================
 */
 const RULES = {
     ACTIVATION_DELAY: {
-        'NC': 0,
-        'P2P': 0,
-        'MNP_Delhi': 3,
-        'MNP_Other': 5,
-        'Existing': 0
+        'NC': 0,          // Instant Activation
+        'P2P': 0,         // Instant Activation
+        'MNP_Delhi': 3,   // 3 Days Delay
+        'MNP_Other': 5,   // 5 Days Delay
+        'Existing': 0     // Already Active
     },
     VERIFICATION_DELAY: 3
 };
@@ -78,7 +78,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 
-// --- SESSION SETUP (Optimized) ---
+// --- SESSION SETUP ---
 app.use(session({
     secret: SESSION_SECRET,
     resave: false,
@@ -88,8 +88,7 @@ app.use(session({
         collectionName: 'sessions',
         ttl: 14 * 24 * 60 * 60, 
         autoRemove: 'native',
-        touchAfter: 24 * 3600 // Update session only once per 24h
-        // Removed deprecated mongoOptions
+        touchAfter: 24 * 3600
     }),
     cookie: { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'strict' }
 }));
@@ -108,9 +107,9 @@ const customerSchema = new mongoose.Schema({
     name: String, 
     mobile: String, 
     category: String, 
-    subType: String, 
+    subType: String, // Stores: NC, P2P, MNP, Existing
     region: String,  
-    familyRole: { type: String, default: 'Secondary' }, 
+    familyRole: { type: String, default: 'Secondary' }, // 'Primary' or 'Secondary'
     linkedPrimaryName: String, 
     linkedPrimaryNumber: String, 
     linkedPrimaryStatus: String, 
@@ -122,40 +121,34 @@ const customerSchema = new mongoose.Schema({
 });
 const Customer = mongoose.model('Customer', customerSchema);
 
-// --- 🔥 24x7 PERSISTENT DATABASE CONNECTION 🔥 ---
+// --- DB CONNECTION ---
 const connectDB = async () => {
     try { 
         await mongoose.connect(MONGO_URI, { 
-            // New Options for "Always On" Speed (Deprecated options removed)
-            maxPoolSize: 10,       
-            minPoolSize: 2,        
-            socketTimeoutMS: 45000,
-            serverSelectionTimeoutMS: 5000, 
-            family: 4              
+            maxPoolSize: 10, minPoolSize: 2, socketTimeoutMS: 45000, serverSelectionTimeoutMS: 5000, family: 4              
         }); 
-        console.log('✅ MongoDB Connected (Persistent Pool Active)'); 
+        console.log('✅ MongoDB Connected'); 
     } 
-    catch (err) { 
-        console.error('❌ MongoDB Error:', err.message);
-        setTimeout(connectDB, 5000); 
-    }
+    catch (err) { console.error('❌ MongoDB Error:', err.message); setTimeout(connectDB, 5000); }
 };
-
-mongoose.connection.on('connected', () => { console.log('🟢 Mongoose connected to DB Cluster'); });
-mongoose.connection.on('error', (err) => { console.log('🔴 Mongoose connection error:', err); });
+mongoose.connection.on('connected', () => { console.log('🟢 Mongoose connected'); });
+mongoose.connection.on('error', (err) => { console.log('🔴 Mongoose error:', err); });
 mongoose.connection.on('disconnected', () => { console.log('🟠 Mongoose disconnected'); });
-
 connectDB();
 
 // --- LOGIC CALCULATOR ---
 function calculateLogic(baseDate, type, region, primaryStatus = null) {
     let delay = 0;
+    
+    // 1. Primary Delay (Wait for Primary to be active)
     if (primaryStatus) {
         if (primaryStatus.includes('Existing')) delay += RULES.ACTIVATION_DELAY.Existing;
         else if (primaryStatus.includes('MNP') && primaryStatus.includes('Delhi')) delay += RULES.ACTIVATION_DELAY.MNP_Delhi;
         else if (primaryStatus.includes('MNP') && primaryStatus.includes('Other')) delay += RULES.ACTIVATION_DELAY.MNP_Other;
-        else delay += RULES.ACTIVATION_DELAY.NC;
+        else delay += RULES.ACTIVATION_DELAY.NC; // For New NC/P2P Primary
     }
+
+    // 2. Own Delay (Secondary's own activation time)
     if (type === 'MNP') delay += (region === 'Delhi') ? RULES.ACTIVATION_DELAY.MNP_Delhi : RULES.ACTIVATION_DELAY.MNP_Other;
     else if (type === 'NC' || type === 'P2P') delay += RULES.ACTIVATION_DELAY.NC;
     else delay += RULES.ACTIVATION_DELAY.Existing;
@@ -165,6 +158,7 @@ function calculateLogic(baseDate, type, region, primaryStatus = null) {
     realActivationDate.setHours(0,0,0,0);
 
     const realVerificationDate = new Date(realActivationDate);
+    // Standard delay for verification after activation
     if (type !== 'Existing') realVerificationDate.setDate(realVerificationDate.getDate() + RULES.VERIFICATION_DELAY);
     realVerificationDate.setHours(0,0,0,0);
 
@@ -203,15 +197,10 @@ app.get('/logout', (req, res) => { req.session.destroy(() => { res.clearCookie('
 // --- PAGES ---
 app.get('/', isAuthenticated, async (req, res) => {
     try {
-        const monthQuery = req.query.month;
-        let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
+        const monthQuery = req.query.month; let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        
-        const now = new Date();
-        const startData = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1);
-        const endData = new Date(now.getFullYear(), now.getMonth() - monthOffset + 1, 1);
+        const now = new Date(); const startData = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1); const endData = new Date(now.getFullYear(), now.getMonth() - monthOffset + 1, 1);
         const tomorrow = new Date(); tomorrow.setHours(23, 59, 59, 999);
-        
         const query = { verificationDate: { $gte: startData, $lt: endData, $lte: tomorrow }, status: 'pending' };
         const headerTitle = "Pending: " + monthNames[startData.getMonth()] + " " + startData.getFullYear();
         const customers = await Customer.find(query).sort({ verificationDate: 1 });
@@ -221,14 +210,10 @@ app.get('/', isAuthenticated, async (req, res) => {
 
 app.get('/all', isAuthenticated, async (req, res) => {
     try {
-        const monthQuery = req.query.month;
-        let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
+        const monthQuery = req.query.month; let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
         let query = {}; let headerTitle = "All History";
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        if (monthQuery !== 'all') {
-            const now = new Date(); const startData = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1); const endData = new Date(now.getFullYear(), now.getMonth() - monthOffset + 1, 1);
-            query = { createdAt: { $gte: startData, $lt: endData } }; headerTitle = "History: " + monthNames[startData.getMonth()] + " " + startData.getFullYear();
-        }
+        if (monthQuery !== 'all') { const now = new Date(); const startData = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1); const endData = new Date(now.getFullYear(), now.getMonth() - monthOffset + 1, 1); query = { createdAt: { $gte: startData, $lt: endData } }; headerTitle = "History: " + monthNames[startData.getMonth()] + " " + startData.getFullYear(); }
         const customers = await Customer.find(query).sort({ createdAt: -1 });
         res.render('all', { customers, page: 'all', monthOffset, headerTitle });
     } catch (err) { res.redirect('/'); }
@@ -236,30 +221,33 @@ app.get('/all', isAuthenticated, async (req, res) => {
 
 app.get('/analytics', isAuthenticated, async (req, res) => {
     try {
-        const monthQuery = req.query.month;
-        let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
+        const monthQuery = req.query.month; let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
         let query = {}; let headerTitle = "All Time Analysis";
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         const now = new Date(); const startOfMonth = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1); const endOfMonth = new Date(now.getFullYear(), now.getMonth() - monthOffset + 1, 1);
-
-        if (req.query.month !== 'all') {
-            query = { createdAt: { $gte: startOfMonth, $lt: endOfMonth } };
-            headerTitle = "Analysis: " + monthNames[startOfMonth.getMonth()] + " " + startOfMonth.getFullYear();
-        }
+        
+        if (req.query.month !== 'all') { query = { createdAt: { $gte: startOfMonth, $lt: endOfMonth } }; headerTitle = "Analysis: " + monthNames[startOfMonth.getMonth()] + " " + startOfMonth.getFullYear(); }
+        
         const monthlyData = await Customer.find(query);
         
         let activatedCount = 0;
-        if (req.query.month !== 'all') {
-            const actQuery = { 
-                activationDate: { $gte: startOfMonth, $lt: endOfMonth, $lte: now } 
-            };
-            activatedCount = await Customer.countDocuments(actQuery);
-        } else { activatedCount = monthlyData.length; }
+        // Count Actually Activated (Date Passed)
+        if (req.query.month !== 'all') { 
+            const actQuery = { activationDate: { $gte: startOfMonth, $lt: endOfMonth, $lte: now } }; 
+            activatedCount = await Customer.countDocuments(actQuery); 
+        } else { 
+            activatedCount = await Customer.countDocuments({ activationDate: { $lte: now } }); 
+        }
 
-        const stats = {
-            total: monthlyData.length, activated: activatedCount,
-            nc: monthlyData.filter(c => c.category === 'NC').length, p2p: monthlyData.filter(c => c.category === 'P2P').length, mnp: monthlyData.filter(c => c.category === 'MNP').length, family: monthlyData.filter(c => c.category === 'Family').length,
-            completed: monthlyData.filter(c => c.status === 'completed').length, pending: monthlyData.filter(c => c.status === 'pending').length
+        const stats = { 
+            total: monthlyData.length, // Counts every DB entry (Double Entry = 2 Sales)
+            activated: activatedCount, 
+            nc: monthlyData.filter(c => c.subType === 'NC').length,
+            p2p: monthlyData.filter(c => c.subType === 'P2P').length,
+            mnp: monthlyData.filter(c => c.subType === 'MNP').length,
+            family: monthlyData.filter(c => c.category === 'Family').length,
+            completed: monthlyData.filter(c => c.status === 'completed').length, 
+            pending: monthlyData.filter(c => c.status === 'pending').length 
         };
         res.render('analytics', { stats, page: 'analytics', monthOffset, headerTitle });
     } catch (err) { res.redirect('/'); }
@@ -267,42 +255,156 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
 
 app.get('/manage', isAuthenticated, async (req, res) => {
     try {
-        const monthQuery = req.query.month; let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery); let query = {}; let headerTitle = "Managing All Records";
+        const monthQuery = req.query.month; let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
+        let query = {}; let headerTitle = "Managing All Records";
         if (monthQuery !== 'all') { const now = new Date(); const startData = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1); const endData = new Date(now.getFullYear(), now.getMonth() - monthOffset + 1, 1); query = { createdAt: { $gte: startData, $lt: endData } }; }
         const allCustomers = await Customer.find(query).sort({ createdAt: -1 });
         res.render('manage', { customers: allCustomers, page: 'manage', monthOffset, headerTitle });
     } catch (err) { res.redirect('/'); }
 });
 
-// --- ACTIONS ---
+// --- ACTIONS (DOUBLE ENTRY LOGIC) ---
 app.post('/add', isAuthenticated, async (req, res) => {
     try {
         const { category, customDate, remarks, p_type, p_name, p_mobile, p_region, s_type, s_name, s_mobile, s_region, n_name, n_mobile, n_region } = req.body;
         const entryDate = customDate ? new Date(customDate) : new Date();
-        let finalName = '', finalMobile = '', finalSubType = '', finalRegion = 'NA', finalLinkedName = '', finalLinkedNumber = '', finalLinkedStatus = '', primaryStatusRef = null;
 
         if (category === 'Family') {
-            finalName = s_name; finalMobile = s_mobile; finalSubType = s_type; finalRegion = s_region || 'NA';
-            finalLinkedName = p_name; finalLinkedNumber = p_mobile; finalLinkedStatus = `Type: ${p_type}` + (p_type === 'MNP' ? ` (${p_region})` : '');
-            if (p_type === 'Existing') primaryStatusRef = 'Existing'; else if (p_type === 'NC' || p_type === 'P2P') primaryStatusRef = 'NC'; else if (p_type === 'MNP') primaryStatusRef = `MNP_${p_region}`;
+            
+            // 1. CREATE PRIMARY (Only if NOT Existing) -> This counts as 1 activation (Sale)
+            if (p_type !== 'Existing') {
+                // Force NA if not MNP
+                const pRegionFinal = (p_type === 'MNP') ? (p_region || 'NA') : 'NA';
+                const pLogic = calculateLogic(entryDate, p_type, pRegionFinal, null);
+                
+                const primaryCustomer = new Customer({
+                    name: p_name,
+                    mobile: p_mobile,
+                    category: 'Family',
+                    subType: p_type, // Stores: NC, P2P, MNP
+                    region: pRegionFinal,
+                    familyRole: 'Primary', // Mark as Primary
+                    linkedPrimaryName: 'Self',
+                    linkedPrimaryNumber: p_mobile,
+                    linkedPrimaryStatus: 'Primary Account',
+                    remarks: remarks || '',
+                    createdAt: entryDate,
+                    activationDate: pLogic.realActivationDate,
+                    verificationDate: pLogic.realVerificationDate,
+                    status: 'pending'
+                });
+                await primaryCustomer.save();
+            }
+
+            // 2. CREATE SECONDARY (Always) -> This counts as 2nd activation (Sale)
+            // Force NA if not MNP
+            const sRegionFinal = (s_type === 'MNP') ? (s_region || 'NA') : 'NA';
+            let primaryStatusRef = null;
+            if (p_type === 'Existing') primaryStatusRef = 'Existing'; 
+            else if (p_type === 'NC' || p_type === 'P2P') primaryStatusRef = 'NC'; 
+            else if (p_type === 'MNP') primaryStatusRef = `MNP_${p_region}`;
+
+            const sLogic = calculateLogic(entryDate, s_type, sRegionFinal, primaryStatusRef);
+            
+            const secondaryCustomer = new Customer({
+                name: s_name,
+                mobile: s_mobile,
+                category: 'Family',
+                subType: s_type, // Stores: NC, P2P, MNP, Existing
+                region: sRegionFinal,
+                familyRole: 'Secondary', // Mark as Secondary
+                linkedPrimaryName: p_name,
+                linkedPrimaryNumber: p_mobile,
+                linkedPrimaryStatus: `Type: ${p_type}` + (p_type === 'MNP' ? ` (${p_region})` : ''),
+                remarks: remarks || '',
+                createdAt: entryDate,
+                activationDate: sLogic.realActivationDate,
+                verificationDate: sLogic.realVerificationDate,
+                status: 'pending'
+            });
+            await secondaryCustomer.save();
+
         } else {
-            finalName = n_name; finalMobile = n_mobile; finalSubType = category; finalRegion = n_region || 'NA';
+            // Normal Entry
+            // Force NA if not MNP
+            const nRegionFinal = (category === 'MNP') ? (n_region || 'NA') : 'NA';
+            const nLogic = calculateLogic(entryDate, category, nRegionFinal, null);
+            
+            const newCustomer = new Customer({
+                name: n_name,
+                mobile: n_mobile,
+                category: category,
+                subType: category,
+                region: nRegionFinal,
+                familyRole: '',
+                linkedPrimaryName: '',
+                linkedPrimaryNumber: '',
+                linkedPrimaryStatus: '',
+                remarks: remarks || '',
+                createdAt: entryDate,
+                activationDate: nLogic.realActivationDate,
+                verificationDate: nLogic.realVerificationDate,
+                status: 'pending'
+            });
+            await newCustomer.save();
         }
 
-        const { realActivationDate, realVerificationDate } = calculateLogic(entryDate, finalSubType, finalRegion, primaryStatusRef);
-        const newCustomer = new Customer({ name: finalName, mobile: finalMobile, category, subType: finalSubType, region: finalRegion, familyRole: (category === 'Family' ? 'Secondary' : ''), linkedPrimaryName: finalLinkedName, linkedPrimaryNumber: finalLinkedNumber, linkedPrimaryStatus: finalLinkedStatus, remarks: remarks || '', createdAt: entryDate, activationDate: realActivationDate, verificationDate: realVerificationDate, status: 'pending' });
-        await newCustomer.save(); res.redirect('/');
+        res.redirect('/');
     } catch (err) { res.redirect('/'); }
 });
 
+// --- EDIT ACTION (Updated for Family Fields) ---
 app.post('/edit/:id', isAuthenticated, async (req, res) => {
     try {
-        const { name, mobile, category, region, remarks, activationDate } = req.body;
+        const { 
+            category, activationDate, remarks,
+            p_type, p_name, p_mobile, p_region, 
+            s_type, s_name, s_mobile, s_region,
+            n_name, n_mobile, n_region 
+        } = req.body;
+
         const entryDate = new Date(activationDate);
-        const { realActivationDate, realVerificationDate } = calculateLogic(entryDate, category, region);
-        let updateData = { name, mobile, category, region, remarks, activationDate: realActivationDate, verificationDate: realVerificationDate };
-        if (category !== 'Family') updateData.subType = category;
-        await Customer.findByIdAndUpdate(req.params.id, updateData); res.redirect('/manage');
+        let updateData = { category, remarks };
+        let finalSubType = category, finalRegion = 'NA', primaryStatusRef = null;
+
+        if (category === 'Family') {
+            // Family Data
+            updateData.name = s_name; 
+            updateData.mobile = s_mobile;
+            updateData.subType = s_type;
+            
+            finalRegion = (s_type === 'MNP') ? (s_region || 'NA') : 'NA';
+            updateData.region = finalRegion;
+            
+            updateData.familyRole = 'Secondary'; // Assume secondary for editing flow context
+            updateData.linkedPrimaryName = p_name;
+            updateData.linkedPrimaryNumber = p_mobile;
+            updateData.linkedPrimaryStatus = `Type: ${p_type}` + (p_type === 'MNP' ? ` (${p_region})` : '');
+            
+            finalSubType = s_type;
+            if (p_type === 'Existing') primaryStatusRef = 'Existing'; 
+            else if (p_type === 'NC' || p_type === 'P2P') primaryStatusRef = 'NC'; 
+            else if (p_type === 'MNP') primaryStatusRef = `MNP_${p_region}`;
+
+        } else {
+            // Normal Data
+            updateData.name = n_name; 
+            updateData.mobile = n_mobile;
+            updateData.subType = category;
+            
+            finalRegion = (category === 'MNP') ? (n_region || 'NA') : 'NA';
+            updateData.region = finalRegion;
+            
+            updateData.familyRole = ''; updateData.linkedPrimaryName = ''; updateData.linkedPrimaryNumber = ''; updateData.linkedPrimaryStatus = '';
+            finalSubType = category;
+        }
+
+        const { realActivationDate, realVerificationDate } = calculateLogic(entryDate, finalSubType, finalRegion, primaryStatusRef);
+        updateData.activationDate = realActivationDate;
+        updateData.verificationDate = realVerificationDate;
+
+        await Customer.findByIdAndUpdate(req.params.id, updateData);
+        res.redirect('/manage');
     } catch (err) { res.redirect('/manage'); }
 });
 
