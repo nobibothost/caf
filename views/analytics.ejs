@@ -22,19 +22,19 @@
             border: 1px solid var(--border);
             text-align: center;
         }
-        /* Gradient for Total Activations */
+        /* Gradient for Total Entries */
         .stat-card.total-box { 
             background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
             color: white; 
         }
-        /* Green Gradient for Activated (Done) */
+        /* Green Gradient for Actually Activated */
         .stat-card.activated-box { 
             background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             color: white; 
         }
 
         .stat-number { font-size: 2rem; font-weight: 700; margin-bottom: 5px; display: block; }
-        .stat-label { font-size: 0.9rem; opacity: 0.95; }
+        .stat-label { font-size: 0.85rem; opacity: 0.95; font-weight: 500; }
         
         .stat-card.nc { border-left: 4px solid var(--nc-color); }
         .stat-card.p2p { border-left: 4px solid var(--p2p-color); }
@@ -100,7 +100,7 @@
         <div class="stats-grid">
             <div class="stat-card total-box">
                 <span class="stat-number"><%= stats.total %></span>
-                <span class="stat-label">Total Entries</span>
+                <span class="stat-label">Entries (Form Filled)</span>
             </div>
             <div class="stat-card activated-box">
                 <span class="stat-number"><%= stats.activated %></span>
