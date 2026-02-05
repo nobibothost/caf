@@ -20,6 +20,21 @@ const ADMIN_EMAIL_RECEIVER = process.env.ADMIN_EMAIL_RECEIVER || 'your-email@gma
 const SESSION_SECRET = process.env.SESSION_SECRET || 'supersecretkey';
 const MONGO_URI = process.env.MONGO_URI;
 
+/* ==========================================================================
+   🔥 BUSINESS LOGIC & RULES (PERMANENT CONFIG) 🔥
+   ==========================================================================
+*/
+const RULES = {
+    ACTIVATION_DELAY: {
+        'NC': 0,
+        'P2P': 0,
+        'MNP_Delhi': 3,
+        'MNP_Other': 5,
+        'Existing': 0
+    },
+    VERIFICATION_DELAY: 3
+};
+
 // --- EMAIL TEMPLATE ---
 const getEmailTemplate = (otp, type = 'Login') => {
     const formattedOtp = otp.toString().split('').join(' ');
@@ -63,11 +78,19 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 
+// --- SESSION SETUP (Optimized) ---
 app.use(session({
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    store: MongoStore.create({ mongoUrl: MONGO_URI, collectionName: 'sessions', ttl: 14 * 24 * 60 * 60 }),
+    store: MongoStore.create({
+        mongoUrl: MONGO_URI,
+        collectionName: 'sessions',
+        ttl: 14 * 24 * 60 * 60, 
+        autoRemove: 'native',
+        touchAfter: 24 * 3600 // Update session only once per 24h
+        // Removed deprecated mongoOptions
+    }),
     cookie: { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'strict' }
 }));
 
@@ -80,46 +103,82 @@ const isAuthenticated = (req, res, next) => {
     res.redirect('/login');
 };
 
-// --- DB SCHEMA (Updated for Linked Primary Name) ---
+// --- DB SCHEMA ---
 const customerSchema = new mongoose.Schema({
     name: String, 
     mobile: String, 
-    category: String, // Family, NC, P2P, MNP
-    
-    // Core Logic Fields
-    subType: String, // NC, P2P, MNP
-    region: String,  // Delhi/Other
-    
-    // Family Specific
-    familyRole: { type: String, default: 'Secondary' }, // Always Secondary when adding via Family Form
-    linkedPrimaryName: String, // NEW: Store Primary Name
+    category: String, 
+    subType: String, 
+    region: String,  
+    familyRole: { type: String, default: 'Secondary' }, 
+    linkedPrimaryName: String, 
     linkedPrimaryNumber: String, 
-    linkedPrimaryStatus: String, // e.g., 'New MNP Delhi'
-
+    linkedPrimaryStatus: String, 
     remarks: { type: String, default: '' },
     status: { type: String, default: 'pending' }, 
-    createdAt: { type: Date, default: Date.now },
+    createdAt: { type: Date, default: Date.now }, 
     activationDate: Date, 
-    verificationDate: Date
+    verificationDate: Date 
 });
 const Customer = mongoose.model('Customer', customerSchema);
 
+// --- 🔥 24x7 PERSISTENT DATABASE CONNECTION 🔥 ---
 const connectDB = async () => {
-    try { await mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true, serverSelectionTimeoutMS: 5000, family: 4 }); console.log('✅ MongoDB Connected'); } 
-    catch (err) { console.error('❌ MongoDB Error:', err.message); }
+    try { 
+        await mongoose.connect(MONGO_URI, { 
+            // New Options for "Always On" Speed (Deprecated options removed)
+            maxPoolSize: 10,       
+            minPoolSize: 2,        
+            socketTimeoutMS: 45000,
+            serverSelectionTimeoutMS: 5000, 
+            family: 4              
+        }); 
+        console.log('✅ MongoDB Connected (Persistent Pool Active)'); 
+    } 
+    catch (err) { 
+        console.error('❌ MongoDB Error:', err.message);
+        setTimeout(connectDB, 5000); 
+    }
 };
+
+mongoose.connection.on('connected', () => { console.log('🟢 Mongoose connected to DB Cluster'); });
+mongoose.connection.on('error', (err) => { console.log('🔴 Mongoose connection error:', err); });
+mongoose.connection.on('disconnected', () => { console.log('🟠 Mongoose disconnected'); });
+
 connectDB();
 
-// --- ROUTES ---
+// --- LOGIC CALCULATOR ---
+function calculateLogic(baseDate, type, region, primaryStatus = null) {
+    let delay = 0;
+    if (primaryStatus) {
+        if (primaryStatus.includes('Existing')) delay += RULES.ACTIVATION_DELAY.Existing;
+        else if (primaryStatus.includes('MNP') && primaryStatus.includes('Delhi')) delay += RULES.ACTIVATION_DELAY.MNP_Delhi;
+        else if (primaryStatus.includes('MNP') && primaryStatus.includes('Other')) delay += RULES.ACTIVATION_DELAY.MNP_Other;
+        else delay += RULES.ACTIVATION_DELAY.NC;
+    }
+    if (type === 'MNP') delay += (region === 'Delhi') ? RULES.ACTIVATION_DELAY.MNP_Delhi : RULES.ACTIVATION_DELAY.MNP_Other;
+    else if (type === 'NC' || type === 'P2P') delay += RULES.ACTIVATION_DELAY.NC;
+    else delay += RULES.ACTIVATION_DELAY.Existing;
 
+    const realActivationDate = new Date(baseDate);
+    realActivationDate.setDate(realActivationDate.getDate() + delay);
+    realActivationDate.setHours(0,0,0,0);
+
+    const realVerificationDate = new Date(realActivationDate);
+    if (type !== 'Existing') realVerificationDate.setDate(realVerificationDate.getDate() + RULES.VERIFICATION_DELAY);
+    realVerificationDate.setHours(0,0,0,0);
+
+    return { realActivationDate, realVerificationDate };
+}
+
+// --- ROUTES ---
 app.get('/health', (req, res) => res.status(200).send('OK'));
 app.get('/login', (req, res) => { if (req.session.isLoggedIn) return res.redirect('/'); res.render('login', { error: null }); });
 app.post('/login', loginLimiter, async (req, res) => {
     const { username, Vpassword, remember } = req.body;
     if (username === ADMIN_USERNAME && Vpassword === ADMIN_PASSWORD) {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        req.session.otp = otp;
-        req.session.tempUser = { username, remember };
+        req.session.otp = otp; req.session.tempUser = { username, remember };
         try { await axios.post(`${EMAIL_SERVICE_URL}/send-email`, { recipient: ADMIN_EMAIL_RECEIVER, subject: '🔐 Login Code', message: getEmailTemplate(otp, 'Login') }); res.redirect('/otp'); } 
         catch (error) { res.render('login', { error: 'Email Service Error' }); }
     } else { res.render('login', { error: 'Invalid Credentials' }); }
@@ -128,10 +187,8 @@ app.get('/otp', (req, res) => { if (!req.session.otp) return res.redirect('/logi
 app.post('/verify-otp', otpLimiter, (req, res) => {
     const { otp } = req.body;
     if (req.session.otp && otp.replace(/\s/g, '') === req.session.otp) {
-        req.session.isLoggedIn = true;
-        req.session.cookie.maxAge = (req.session.tempUser.remember === 'on') ? 365 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
-        delete req.session.otp; delete req.session.tempUser;
-        res.redirect('/');
+        req.session.isLoggedIn = true; req.session.cookie.maxAge = (req.session.tempUser.remember === 'on') ? 365 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+        delete req.session.otp; delete req.session.tempUser; res.redirect('/');
     } else { res.render('otp', { error: 'Invalid OTP' }); }
 });
 app.post('/resend-otp', async (req, res) => {
@@ -143,37 +200,20 @@ app.post('/resend-otp', async (req, res) => {
 });
 app.get('/logout', (req, res) => { req.session.destroy(() => { res.clearCookie('connect.sid'); res.redirect('/login'); }); });
 
-// --- MAIN LOGIC ---
-
-const getMonthQuery = (req, field = 'verificationDate') => {
-    const monthQuery = req.query.month;
-    let monthOffset = (monthQuery === undefined) ? 0 : monthQuery;
-    let query = {};
-    let headerTitle = "";
-    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-
-    if (monthOffset === 'all') {
-        query = {};
-        headerTitle = (field === 'verificationDate') ? "All Pending Tasks" : "All History";
-    } else {
-        monthOffset = parseInt(monthOffset);
+// --- PAGES ---
+app.get('/', isAuthenticated, async (req, res) => {
+    try {
+        const monthQuery = req.query.month;
+        let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        
         const now = new Date();
         const startData = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1);
         const endData = new Date(now.getFullYear(), now.getMonth() - monthOffset + 1, 1);
-        query[field] = { $gte: startData, $lt: endData };
-        headerTitle = ((field === 'verificationDate') ? "Pending: " : "History: ") + monthNames[startData.getMonth()] + " " + startData.getFullYear();
-    }
-    return { query, headerTitle, monthOffset };
-};
-
-app.get('/', isAuthenticated, async (req, res) => {
-    try {
-        const { query, headerTitle, monthOffset } = getMonthQuery(req, 'verificationDate');
-        const tomorrow = new Date();
-        tomorrow.setHours(0,0,0,0);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        query.verificationDate = { $lt: tomorrow };
-        query.status = 'pending';
+        const tomorrow = new Date(); tomorrow.setHours(23, 59, 59, 999);
+        
+        const query = { verificationDate: { $gte: startData, $lt: endData, $lte: tomorrow }, status: 'pending' };
+        const headerTitle = "Pending: " + monthNames[startData.getMonth()] + " " + startData.getFullYear();
         const customers = await Customer.find(query).sort({ verificationDate: 1 });
         res.render('index', { customers, error: null, page: 'home', monthOffset, headerTitle });
     } catch (err) { res.render('index', { customers: [], error: "Connection Error", page: 'home', monthOffset: 0, headerTitle: "Error" }); }
@@ -181,9 +221,16 @@ app.get('/', isAuthenticated, async (req, res) => {
 
 app.get('/all', isAuthenticated, async (req, res) => {
     try {
-        const { query, headerTitle, monthOffset } = getMonthQuery(req, 'activationDate');
-        const allCustomers = await Customer.find(query).sort({ activationDate: -1 });
-        res.render('all', { customers: allCustomers, page: 'all', monthOffset, headerTitle });
+        const monthQuery = req.query.month;
+        let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
+        let query = {}; let headerTitle = "All History";
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        if (monthQuery !== 'all') {
+            const now = new Date(); const startData = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1); const endData = new Date(now.getFullYear(), now.getMonth() - monthOffset + 1, 1);
+            query = { createdAt: { $gte: startData, $lt: endData } }; headerTitle = "History: " + monthNames[startData.getMonth()] + " " + startData.getFullYear();
+        }
+        const customers = await Customer.find(query).sort({ createdAt: -1 });
+        res.render('all', { customers, page: 'all', monthOffset, headerTitle });
     } catch (err) { res.redirect('/'); }
 });
 
@@ -191,52 +238,28 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
     try {
         const monthQuery = req.query.month;
         let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
-        let query = {};
-        let headerTitle = "";
+        let query = {}; let headerTitle = "All Time Analysis";
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        const now = new Date(); const startOfMonth = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1); const endOfMonth = new Date(now.getFullYear(), now.getMonth() - monthOffset + 1, 1);
 
-        const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1);
-        const endOfMonth = new Date(now.getFullYear(), now.getMonth() - monthOffset + 1, 1);
-
-        if (req.query.month === 'all') {
-            query = {}; 
-            headerTitle = "All Time Analysis";
-        } else {
-            query = { activationDate: { $gte: startOfMonth, $lt: endOfMonth } };
+        if (req.query.month !== 'all') {
+            query = { createdAt: { $gte: startOfMonth, $lt: endOfMonth } };
             headerTitle = "Analysis: " + monthNames[startOfMonth.getMonth()] + " " + startOfMonth.getFullYear();
         }
-
         const monthlyData = await Customer.find(query);
-        let activatedCount = 0;
         
+        let activatedCount = 0;
         if (req.query.month !== 'all') {
-            const verStart = new Date(startOfMonth);
-            const verEnd = new Date(endOfMonth);
-            verEnd.setDate(verEnd.getDate() + 5); 
-
-            const candidates = await Customer.find({ verificationDate: { $gte: verStart, $lt: verEnd } });
-            activatedCount = candidates.filter(c => {
-                let activeDate = new Date(c.verificationDate);
-                const timeDiff = c.verificationDate.getTime() - c.activationDate.getTime();
-                const daysDiff = timeDiff / (1000 * 3600 * 24);
-                if (daysDiff < 2) activeDate = c.activationDate;
-                else activeDate.setDate(activeDate.getDate() - 3);
-                return activeDate >= startOfMonth && activeDate < endOfMonth;
-            }).length;
-        } else {
-            activatedCount = monthlyData.length;
-        }
+            const actQuery = { 
+                activationDate: { $gte: startOfMonth, $lt: endOfMonth, $lte: now } 
+            };
+            activatedCount = await Customer.countDocuments(actQuery);
+        } else { activatedCount = monthlyData.length; }
 
         const stats = {
-            total: monthlyData.length,
-            activated: activatedCount,
-            nc: monthlyData.filter(c => c.category === 'NC').length,
-            p2p: monthlyData.filter(c => c.category === 'P2P').length,
-            mnp: monthlyData.filter(c => c.category === 'MNP').length,
-            family: monthlyData.filter(c => c.category === 'Family').length,
-            completed: monthlyData.filter(c => c.status === 'completed').length,
-            pending: monthlyData.filter(c => c.status === 'pending').length
+            total: monthlyData.length, activated: activatedCount,
+            nc: monthlyData.filter(c => c.category === 'NC').length, p2p: monthlyData.filter(c => c.category === 'P2P').length, mnp: monthlyData.filter(c => c.category === 'MNP').length, family: monthlyData.filter(c => c.category === 'Family').length,
+            completed: monthlyData.filter(c => c.status === 'completed').length, pending: monthlyData.filter(c => c.status === 'pending').length
         };
         res.render('analytics', { stats, page: 'analytics', monthOffset, headerTitle });
     } catch (err) { res.redirect('/'); }
@@ -244,126 +267,51 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
 
 app.get('/manage', isAuthenticated, async (req, res) => {
     try {
-        const { query, headerTitle, monthOffset } = getMonthQuery(req, 'activationDate');
-        const allCustomers = await Customer.find(query).sort({ activationDate: -1 });
+        const monthQuery = req.query.month; let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery); let query = {}; let headerTitle = "Managing All Records";
+        if (monthQuery !== 'all') { const now = new Date(); const startData = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1); const endData = new Date(now.getFullYear(), now.getMonth() - monthOffset + 1, 1); query = { createdAt: { $gte: startData, $lt: endData } }; }
+        const allCustomers = await Customer.find(query).sort({ createdAt: -1 });
         res.render('manage', { customers: allCustomers, page: 'manage', monthOffset, headerTitle });
     } catch (err) { res.redirect('/'); }
 });
 
-// --- UPDATED ADD LOGIC (FAMILY COMBINED) ---
+// --- ACTIONS ---
 app.post('/add', isAuthenticated, async (req, res) => {
     try {
-        const { 
-            category, customDate, remarks,
-            // Family Fields
-            p_type, p_name, p_mobile, p_region,
-            s_type, s_name, s_mobile, s_region,
-            // Normal Fields
-            n_name, n_mobile, n_region
-        } = req.body;
-
-        const baseDate = customDate ? new Date(customDate) : new Date();
-        const verificationDate = new Date(baseDate);
-        
-        let status = 'pending';
-        let finalName = '', finalMobile = '', finalSubType = '', finalRegion = 'NA';
-        let finalLinkedName = '', finalLinkedNumber = '', finalLinkedStatus = '';
-
-        let totalDaysToAdd = 0;
+        const { category, customDate, remarks, p_type, p_name, p_mobile, p_region, s_type, s_name, s_mobile, s_region, n_name, n_mobile, n_region } = req.body;
+        const entryDate = customDate ? new Date(customDate) : new Date();
+        let finalName = '', finalMobile = '', finalSubType = '', finalRegion = 'NA', finalLinkedName = '', finalLinkedNumber = '', finalLinkedStatus = '', primaryStatusRef = null;
 
         if (category === 'Family') {
-            // We are adding the SECONDARY line, but calculation depends on PRIMARY
-            finalName = s_name;
-            finalMobile = s_mobile;
-            finalSubType = s_type;
-            
-            // Link details
-            finalLinkedName = p_name;
-            finalLinkedNumber = p_mobile;
-            finalLinkedStatus = `Type: ${p_type}`; 
-            if (p_type === 'MNP') finalLinkedStatus += ` (${p_region})`;
-
-            // 1. Primary Delay
-            let primaryDelay = 0;
-            if (p_type === 'NC') primaryDelay = 3; // Wait 3 days for NC primary
-            if (p_type === 'MNP') {
-                primaryDelay = (p_region === 'Delhi') ? 6 : 8; // Wait 6/8 days for MNP primary
-            }
-            if (p_type === 'Existing') primaryDelay = 0; // No wait
-
-            // 2. Secondary Delay (Own Time)
-            let secondaryDelay = 3; // Default
-            if (s_type === 'MNP') {
-                finalRegion = s_region;
-                secondaryDelay = (s_region === 'Delhi') ? 6 : 8;
-            } else {
-                // NC/P2P
-                secondaryDelay = 3;
-            }
-
-            totalDaysToAdd = primaryDelay + secondaryDelay;
-
+            finalName = s_name; finalMobile = s_mobile; finalSubType = s_type; finalRegion = s_region || 'NA';
+            finalLinkedName = p_name; finalLinkedNumber = p_mobile; finalLinkedStatus = `Type: ${p_type}` + (p_type === 'MNP' ? ` (${p_region})` : '');
+            if (p_type === 'Existing') primaryStatusRef = 'Existing'; else if (p_type === 'NC' || p_type === 'P2P') primaryStatusRef = 'NC'; else if (p_type === 'MNP') primaryStatusRef = `MNP_${p_region}`;
         } else {
-            // Normal
-            finalName = n_name; finalMobile = n_mobile; finalSubType = category;
-            if (category === 'MNP') {
-                finalRegion = n_region;
-                totalDaysToAdd = (n_region === 'Delhi') ? 6 : 8;
-            } else {
-                totalDaysToAdd = 3;
-            }
+            finalName = n_name; finalMobile = n_mobile; finalSubType = category; finalRegion = n_region || 'NA';
         }
 
-        verificationDate.setDate(verificationDate.getDate() + totalDaysToAdd);
-        verificationDate.setHours(0, 0, 0, 0);
-
-        const newCustomer = new Customer({
-            name: finalName, mobile: finalMobile, category, subType: finalSubType, region: finalRegion,
-            familyRole: (category === 'Family') ? 'Secondary' : '',
-            linkedPrimaryName: finalLinkedName, linkedPrimaryNumber: finalLinkedNumber, linkedPrimaryStatus: finalLinkedStatus,
-            remarks: remarks || '', activationDate: baseDate, verificationDate, status
-        });
-
-        await newCustomer.save();
-        res.redirect('/');
-
+        const { realActivationDate, realVerificationDate } = calculateLogic(entryDate, finalSubType, finalRegion, primaryStatusRef);
+        const newCustomer = new Customer({ name: finalName, mobile: finalMobile, category, subType: finalSubType, region: finalRegion, familyRole: (category === 'Family' ? 'Secondary' : ''), linkedPrimaryName: finalLinkedName, linkedPrimaryNumber: finalLinkedNumber, linkedPrimaryStatus: finalLinkedStatus, remarks: remarks || '', createdAt: entryDate, activationDate: realActivationDate, verificationDate: realVerificationDate, status: 'pending' });
+        await newCustomer.save(); res.redirect('/');
     } catch (err) { res.redirect('/'); }
 });
 
 app.post('/edit/:id', isAuthenticated, async (req, res) => {
     try {
         const { name, mobile, category, region, remarks, activationDate } = req.body;
-        // Simple recalculation for edit
-        let daysToAdd = 3;
-        if (category === 'MNP') daysToAdd = (region === 'Delhi') ? 6 : 8;
-        
-        const newActivation = new Date(activationDate);
-        const newVerification = new Date(newActivation);
-        newVerification.setDate(newVerification.getDate() + daysToAdd);
-        newVerification.setHours(0,0,0,0);
-
-        await Customer.findByIdAndUpdate(req.params.id, {
-            name, mobile, category, region, remarks,
-            activationDate: newActivation, verificationDate: newVerification
-        });
-        res.redirect('/manage');
+        const entryDate = new Date(activationDate);
+        const { realActivationDate, realVerificationDate } = calculateLogic(entryDate, category, region);
+        let updateData = { name, mobile, category, region, remarks, activationDate: realActivationDate, verificationDate: realVerificationDate };
+        if (category !== 'Family') updateData.subType = category;
+        await Customer.findByIdAndUpdate(req.params.id, updateData); res.redirect('/manage');
     } catch (err) { res.redirect('/manage'); }
 });
 
-app.post('/delete/:id', isAuthenticated, async (req, res) => {
-    try { await Customer.findByIdAndDelete(req.params.id); res.redirect('/manage'); } catch (err) { res.redirect('/manage'); }
-});
-app.post('/complete/:id', isAuthenticated, async (req, res) => {
-    try { await Customer.findByIdAndUpdate(req.params.id, { status: 'completed' }); res.redirect('back'); } catch (err) { res.redirect('/'); }
-});
+app.post('/delete/:id', isAuthenticated, async (req, res) => { try { await Customer.findByIdAndDelete(req.params.id); res.redirect('/manage'); } catch (err) { res.redirect('/manage'); } });
+app.post('/complete/:id', isAuthenticated, async (req, res) => { try { await Customer.findByIdAndUpdate(req.params.id, { status: 'completed' }); res.redirect('back'); } catch (err) { res.redirect('/'); } });
 app.get('*', (req, res) => { res.redirect('/'); });
 
 app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
-    const PING_INTERVAL = 5 * 60 * 1000;
-    const TARGET_URL = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
-    setInterval(async () => {
-        try { await axios.get(`${TARGET_URL}/health`); console.log(`✅ Pinged ${TARGET_URL}`); } 
-        catch (err) { console.error(`❌ Ping Failed`); }
-    }, PING_INTERVAL);
+    const PING_INTERVAL = 5 * 60 * 1000; const TARGET_URL = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
+    setInterval(async () => { try { await axios.get(`${TARGET_URL}/health`); console.log(`✅ Pinged ${TARGET_URL}`); } catch (err) { console.error(`❌ Ping Failed`); } }, PING_INTERVAL);
 });
