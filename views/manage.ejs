@@ -7,126 +7,70 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
+    <style>
+        .form-section { display: none; }
+        .form-section.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        .divider { height: 1px; background: #e2e8f0; margin: 20px 0; position: relative; }
+        .divider span { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 0 10px; color: #64748b; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; }
+        .section-label { font-size: 0.95rem; font-weight: 700; color: var(--primary); margin-bottom: 12px; display: block; }
+    </style>
 </head>
 <body>
-    
-    <nav class="navbar">
-        <div class="logo">
-            <i class="ri-edit-box-line"></i> Manage<span class="highlight">Data</span>
-        </div>
-        <a href="/logout" class="logout-btn" onclick="return confirm('Securely Logout?');">
-            <i class="ri-logout-box-r-line"></i>
-        </a>
-    </nav>
+    <nav class="navbar"><div class="logo"><i class="ri-edit-box-line"></i> Manage<span class="highlight">Data</span></div><a href="/logout" class="logout-btn" onclick="return confirm('Securely Logout?');"><i class="ri-logout-box-r-line"></i></a></nav>
 
     <div class="container">
-        
-        <div class="section-title">
-            <h2><i class="ri-settings-4-line"></i> <%= headerTitle %></h2>
-            <p class="subtitle">Search, edit or delete records.</p>
-        </div>
-
-        <form action="/manage" method="GET" class="filter-form">
-            <div class="filter-wrapper">
-                <i class="ri-filter-3-line"></i>
-                <select name="month" class="filter-select" onchange="this.form.submit()">
-                    <option value="0" <%= monthOffset == 0 ? 'selected' : '' %>>This Month</option>
-                    <option value="1" <%= monthOffset == 1 ? 'selected' : '' %>>Last Month</option>
-                    <option value="2" <%= monthOffset == 2 ? 'selected' : '' %>>2 Months Ago</option>
-                    <option value="all" <%= monthOffset === 'all' ? 'selected' : '' %>>Show All History</option>
-                </select>
-            </div>
-        </form>
-
-        <div class="search-box">
-            <i class="ri-search-line"></i>
-            <input type="text" id="searchInput" onkeyup="filterList()" placeholder="Search Name or Mobile...">
-        </div>
+        <div class="section-title"><h2><i class="ri-settings-4-line"></i> <%= headerTitle %></h2><p class="subtitle">Search, edit or delete records.</p></div>
+        <form action="/manage" method="GET" class="filter-form"><div class="filter-wrapper"><i class="ri-filter-3-line"></i><select name="month" class="filter-select" onchange="this.form.submit()"><option value="0" <%= monthOffset == 0 ? 'selected' : '' %>>This Month</option><option value="1" <%= monthOffset == 1 ? 'selected' : '' %>>Last Month</option><option value="2" <%= monthOffset == 2 ? 'selected' : '' %>>2 Months Ago</option><option value="all" <%= monthOffset === 'all' ? 'selected' : '' %>>Show All History</option></select></div></form>
+        <div class="search-box"><i class="ri-search-line"></i><input type="text" id="searchInput" onkeyup="filterList()" placeholder="Search Name or Mobile..."></div>
 
         <div class="grid-layout" id="customerList">
             <% customers.forEach(customer => { %>
                 <div class="card search-item">
                     <div class="card-top">
-                        <% if (customer.category === 'Family') { %>
-                            <span class="badge badge-Family">Family: <%= customer.subType %></span>
-                        <% } else { %>
-                            <span class="badge badge-<%= customer.category %>"><%= customer.category %></span>
-                        <% } %>
-                        <span class="date-tag">
-                            <%= (customer.activationDate || customer.createdAt).toISOString().split('T')[0] %>
-                        </span>
+                        <div style="display: flex; gap: 5px;">
+                            <% if (customer.category === 'Family') { %> 
+                                <span class="badge badge-Family">Family</span> 
+                                <span class="badge badge-<%= customer.subType %>"><%= customer.subType %></span> 
+                            <% } else { %> 
+                                <span class="badge badge-<%= customer.category %>"><%= customer.category %></span> 
+                            <% } %>
+                        </div>
+                        <span class="date-tag"><%= (customer.activationDate || customer.createdAt).toISOString().split('T')[0] %></span>
                     </div>
 
                     <% if (customer.category === 'Family') { %>
                         <div class="family-wrapper">
                             <div class="family-section primary-sec">
                                 <span class="fs-label primary-label">Primary Connection</span>
-                                <div class="fs-info">
-                                    <h4><%= customer.linkedPrimaryName || 'Unknown' %></h4>
-                                    <p><i class="ri-smartphone-line"></i> <%= customer.linkedPrimaryNumber %></p>
-                                    <p style="font-size: 0.7rem; margin-top: 2px; color: #64748b;">
-                                        <i class="ri-information-line"></i> <%= customer.linkedPrimaryStatus %>
-                                    </p>
-                                </div>
-                                <div class="fs-actions">
-                                    <a href="whatsapp://send?phone=91<%= customer.linkedPrimaryNumber %>" class="mini-btn mini-wa"><i class="ri-whatsapp-line"></i> WA</a>
-                                    <a href="tel:<%= customer.linkedPrimaryNumber %>" class="mini-btn mini-call"><i class="ri-phone-fill"></i> Call</a>
-                                </div>
+                                <div class="fs-info"><h4><%= customer.linkedPrimaryName || 'Unknown' %></h4><p><%= customer.linkedPrimaryNumber %></p><p style="font-size:0.7rem; color:#64748b;"><%= customer.linkedPrimaryStatus %></p></div>
+                                <div class="fs-actions"><a href="whatsapp://send?phone=91<%= customer.linkedPrimaryNumber %>" class="mini-btn mini-wa"><i class="ri-whatsapp-line"></i></a><a href="tel:<%= customer.linkedPrimaryNumber %>" class="mini-btn mini-call"><i class="ri-phone-fill"></i></a></div>
                             </div>
-
                             <div class="family-section secondary-sec">
                                 <span class="fs-label secondary-label">Secondary (This SIM)</span>
                                 <div class="fs-info">
-                                    <h4 class="customer-name"><%= customer.name %></h4>
-                                    <p class="mobile-txt"><i class="ri-smartphone-line"></i> <%= customer.mobile %></p>
-                                    <% if(customer.region && customer.region !== 'NA') { %>
-                                        <p><i class="ri-map-pin-line"></i> <%= customer.region %></p>
-                                    <% } %>
+                                    <h4 class="customer-name"><%= customer.name %></h4><p class="mobile-txt"><%= customer.mobile %></p>
+                                    <p style="font-size:0.7rem; color:#64748b;">Type: <%= customer.subType %> <% if(customer.subType === 'MNP' && customer.region && customer.region !== 'NA'){ %> (<%= customer.region %>) <% } %></p>
                                 </div>
-                                <div class="fs-actions">
-                                    <a href="whatsapp://send?phone=91<%= customer.mobile %>" class="mini-btn mini-wa"><i class="ri-whatsapp-line"></i> WA</a>
-                                    <a href="tel:<%= customer.mobile %>" class="mini-btn mini-call"><i class="ri-phone-fill"></i> Call</a>
-                                </div>
+                                <div class="fs-actions"><a href="whatsapp://send?phone=91<%= customer.mobile %>" class="mini-btn mini-wa"><i class="ri-whatsapp-line"></i></a><a href="tel:<%= customer.mobile %>" class="mini-btn mini-call"><i class="ri-phone-fill"></i></a></div>
                             </div>
                         </div>
-
                     <% } else { %>
                         <div class="card-body">
                             <h3 class="customer-name"><%= customer.name %></h3>
                             <p class="meta-info mobile-txt"><i class="ri-smartphone-line"></i> <%= customer.mobile %></p>
-                            <% if(customer.region && customer.region !== 'NA') { %>
-                                <p class="meta-info"><i class="ri-map-pin-line"></i> <%= customer.region %></p>
-                            <% } %>
+                            <% if(customer.region && customer.region !== 'NA') { %><p class="meta-info"><i class="ri-map-pin-line"></i> <%= customer.region %></p><% } %>
                         </div>
-
-                        <div class="card-actions" style="margin-bottom: 8px;">
-                            <a href="whatsapp://send?phone=91<%= customer.mobile %>" class="btn-whatsapp" style="flex: 1;">
-                                <i class="ri-whatsapp-line"></i> WhatsApp
-                            </a>
-                            <a href="tel:<%= customer.mobile %>" class="btn-call" style="flex: 1;">
-                                <i class="ri-phone-fill"></i> Call
-                            </a>
-                        </div>
+                        <div class="card-actions" style="margin-bottom: 8px;"><a href="whatsapp://send?phone=91<%= customer.mobile %>" class="btn-whatsapp" style="flex: 1;"><i class="ri-whatsapp-line"></i> WhatsApp</a><a href="tel:<%= customer.mobile %>" class="btn-call" style="flex: 1;"><i class="ri-phone-fill"></i> Call</a></div>
                     <% } %>
 
                     <div class="card-actions">
-                        <% if (customer.remarks && customer.remarks.trim() !== "") { %>
-                            <button class="btn-note" data-name="<%= customer.name %>" data-remarks="<%= customer.remarks %>" onclick="openRemarksModal(this)">
-                                <i class="ri-sticky-note-fill"></i>
-                            </button>
-                        <% } %>
-
+                        <% if (customer.remarks && customer.remarks.trim() !== "") { %> <button class="btn-note" data-name="<%= customer.name %>" data-remarks="<%= customer.remarks %>" onclick="openRemarksModal(this)"><i class="ri-sticky-note-fill"></i></button> <% } %>
                         <button class="btn-edit" 
-                            data-id="<%= customer._id %>"
-                            data-name="<%= customer.name %>"
-                            data-mobile="<%= customer.mobile %>"
-                            data-category="<%= customer.category %>"
-                            data-region="<%= customer.region || 'NA' %>"
-                            data-date="<%= (customer.activationDate || customer.createdAt).toISOString().split('T')[0] %>"
-                            data-remarks="<%= customer.remarks || '' %>"
-                            onclick="openEditModal(this)">
-                            <i class="ri-pencil-line"></i> Edit / Delete
-                        </button>
+                            data-id="<%= customer._id %>" data-category="<%= customer.category %>" data-date="<%= (customer.activationDate || customer.createdAt).toISOString().split('T')[0] %>" data-remarks="<%= customer.remarks || '' %>"
+                            data-name="<%= customer.name %>" data-mobile="<%= customer.mobile %>" data-region="<%= customer.region || 'NA' %>"
+                            data-subtype="<%= customer.subType %>" data-p-name="<%= customer.linkedPrimaryName || '' %>" data-p-mobile="<%= customer.linkedPrimaryNumber || '' %>" data-p-status="<%= customer.linkedPrimaryStatus || '' %>"
+                            onclick="openEditModal(this)"><i class="ri-pencil-line"></i> Edit</button>
                     </div>
                 </div>
             <% }) %>
@@ -135,187 +79,56 @@
 
     <div id="editModal" class="modal-overlay" style="display: none;">
         <div class="modal-card">
-            <div class="modal-header">
-                <h3>Edit Record</h3>
-                <button onclick="closeEditModal()" class="icon-btn"><i class="ri-close-line"></i></button>
-            </div>
-            
+            <div class="modal-header"><h3>Edit Record</h3><button onclick="closeEditModal()" class="icon-btn"><i class="ri-close-line"></i></button></div>
             <form id="editForm" method="POST">
-                <div class="input-group">
-                    <label>Activation Date</label>
-                    <div class="input-wrapper">
-                        <i class="ri-calendar-line icon-left"></i>
-                        <input type="date" name="activationDate" id="editDate" required>
-                    </div>
+                <div class="input-group"><label>Activation Date</label><div class="input-wrapper"><i class="ri-calendar-line icon-left"></i><input type="date" name="activationDate" id="editDate" required></div></div>
+                <div class="input-group"><label>Type</label><div class="input-wrapper"><i class="ri-list-check icon-left"></i>
+                    <select name="category" id="editCategory" onchange="handleEditCategoryChange()" required><option value="NC">NC</option><option value="P2P">P2P</option><option value="MNP">MNP</option><option value="Family">Family</option></select></div></div>
+
+                <div id="edit-normal-form" class="form-section">
+                    <div class="input-group" id="edit-n-region-div" style="display: none;"><label>Region</label><div class="input-wrapper"><i class="ri-map-pin-user-line icon-left"></i><select name="n_region" id="editNRegion"><option value="Delhi">Delhi</option><option value="Other">Other</option></select></div></div><div class="input-group"><label>Name</label><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="n_name" id="editNName"></div></div><div class="input-group"><label>Mobile</label><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="n_mobile" id="editNMobile" pattern="[0-9]{10}"></div></div>
                 </div>
 
-                <div class="input-group">
-                    <label>Type</label>
-                    <div class="input-wrapper">
-                        <i class="ri-list-check icon-left"></i>
-                        <select name="category" id="editCategory" onchange="toggleEditRegion()" required>
-                            <option value="NC">NC</option>
-                            <option value="P2P">P2P</option>
-                            <option value="MNP">MNP</option>
-                            <option value="Family">Family</option>
+                <div id="edit-family-form" class="form-section">
+                    <span class="section-label">Primary Connection</span>
+                    <div class="input-group"><label>Primary Type</label><div class="input-wrapper"><i class="ri-shield-user-line icon-left"></i>
+                        <select name="p_type" id="editPType" onchange="toggleEditPrimaryRegion()">
+                            <option value="Existing">Existing (Active)</option><option value="NC">New Entry (NC)</option><option value="P2P">New Entry (P2P)</option><option value="MNP">New Entry (MNP)</option>
                         </select>
-                    </div>
-                </div>
-
-                <div class="input-group" id="edit-region-group" style="display: none;">
-                    <label>Region</label>
-                    <div class="input-wrapper">
-                        <i class="ri-map-pin-user-line icon-left"></i>
-                        <select name="region" id="editRegion">
-                            <option value="NA">Select</option>
-                            <option value="Delhi">Delhi</option>
-                            <option value="Other">Other</option>
+                    </div></div>
+                    <div class="input-group" id="edit-p-region-div" style="display: none;"><label>Primary Region</label><div class="input-wrapper"><i class="ri-map-pin-user-line icon-left"></i><select name="p_region" id="editPRegion"><option value="Delhi">Delhi</option><option value="Other">Other</option></select></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-user-star-line icon-left"></i><input type="text" name="p_name" id="editPName" placeholder="Primary Name"></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="p_mobile" id="editPMobile" placeholder="Primary Mobile" pattern="[0-9]{10}"></div></div>
+                    
+                    <div class="divider"><span>AND</span></div>
+                    
+                    <span class="section-label">Secondary Connection (This SIM)</span>
+                    <div class="input-group"><label>Secondary Type</label><div class="input-wrapper"><i class="ri-sim-card-line icon-left"></i>
+                        <select name="s_type" id="editSType" onchange="toggleEditSecondaryRegion()">
+                            <option value="Existing">Existing (Active)</option><option value="NC">New Entry (NC)</option><option value="P2P">New Entry (P2P)</option><option value="MNP">New Entry (MNP)</option>
                         </select>
-                    </div>
+                    </div></div>
+                    <div class="input-group" id="edit-s-region-div" style="display: none;"><label>Secondary Region</label><div class="input-wrapper"><i class="ri-map-pin-user-line icon-left"></i><select name="s_region" id="editSRegion"><option value="Delhi">Delhi</option><option value="Other">Other</option></select></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="s_name" id="editSName" placeholder="Secondary Name"></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="s_mobile" id="editSMobile" placeholder="Secondary Mobile" pattern="[0-9]{10}"></div></div>
                 </div>
 
-                <div class="input-group">
-                    <label>Name</label>
-                    <div class="input-wrapper">
-                        <i class="ri-user-smile-line icon-left"></i>
-                        <input type="text" name="name" id="editName" required>
-                    </div>
-                </div>
-
-                <div class="input-group">
-                    <label>Mobile</label>
-                    <div class="input-wrapper">
-                        <i class="ri-smartphone-line icon-left"></i>
-                        <input type="tel" name="mobile" id="editMobile" pattern="[0-9]{10}" required>
-                    </div>
-                </div>
-
-                <div class="input-group">
-                    <label>Remarks</label>
-                    <div class="input-wrapper">
-                        <i class="ri-sticky-note-line icon-left"></i>
-                        <input type="text" name="remarks" id="editRemarks">
-                    </div>
-                </div>
-
+                <div class="input-group" style="margin-top: 20px;"><label>Remarks</label><div class="input-wrapper"><i class="ri-sticky-note-line icon-left"></i><input type="text" name="remarks" id="editRemarks"></div></div>
                 <button type="submit" class="btn-submit">Update Record</button>
             </form>
-
-            <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
-
-            <form id="deleteForm" method="POST" onsubmit="return confirm('Are you sure you want to delete this record permanently?');">
-                <button type="submit" class="btn-delete">
-                    <i class="ri-delete-bin-line"></i> Delete Record
-                </button>
-            </form>
+            <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;"><form id="deleteForm" method="POST" onsubmit="return confirm('Delete permanently?');"><button type="submit" class="btn-delete"><i class="ri-delete-bin-line"></i> Delete Record</button></form>
         </div>
     </div>
 
-    <div id="remarksModal" class="modal-overlay" style="display: none;">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h3><i class="ri-sticky-note-fill" style="color: var(--primary);"></i> Remarks</h3>
-                <button onclick="closeRemarksModal()" class="icon-btn"><i class="ri-close-line"></i></button>
-            </div>
-            <div>
-                <strong id="remarksTitle" style="color: var(--primary); font-size: 1.1rem; display:block; margin-bottom:5px;"></strong>
-                <div id="remarksBody" class="remarks-content"></div>
-            </div>
-            <button onclick="closeRemarksModal()" class="btn-submit" style="background: var(--text-main); margin-top: 10px;">Close</button>
-        </div>
-    </div>
-
-    <div class="bottom-nav">
-        <a href="/" class="nav-item">
-            <i class="ri-home-4-line"></i>
-            <span>Home</span>
-        </a>
-        <a href="/all" class="nav-item">
-            <i class="ri-list-check"></i>
-            <span>All</span>
-        </a>
-        <div class="nav-fab" onclick="window.location.href='/'">
-            <i class="ri-add-line"></i>
-        </div>
-        <a href="/manage" class="nav-item active">
-            <i class="ri-edit-2-fill"></i>
-            <span>Edit</span>
-        </a>
-        <a href="/analytics" class="nav-item">
-            <i class="ri-pie-chart-line"></i>
-            <span>Analysis</span>
-        </a>
-    </div>
-
+    <div id="remarksModal" class="modal-overlay" style="display: none;"><div class="modal-card"><div class="modal-header"><h3><i class="ri-sticky-note-fill" style="color: var(--primary);"></i> Remarks</h3><button onclick="closeRemarksModal()" class="icon-btn"><i class="ri-close-line"></i></button></div><div><strong id="remarksTitle" style="color: var(--primary); font-size: 1.1rem; display:block; margin-bottom:5px;"></strong><div id="remarksBody" class="remarks-content"></div></div><button onclick="closeRemarksModal()" class="btn-submit" style="background: var(--text-main); margin-top: 10px;">Close</button></div></div>
+    <div class="bottom-nav"><a href="/" class="nav-item"><i class="ri-home-4-line"></i><span>Home</span></a><a href="/all" class="nav-item"><i class="ri-list-check"></i><span>All</span></a><div class="nav-fab" onclick="window.location.href='/'"><i class="ri-add-line"></i></div><a href="/manage" class="nav-item active"><i class="ri-edit-2-fill"></i><span>Edit</span></a><a href="/analytics" class="nav-item"><i class="ri-pie-chart-line"></i><span>Analysis</span></a></div>
     <script>
-        function filterList() {
-            let input = document.getElementById('searchInput').value.toLowerCase();
-            let items = document.getElementsByClassName('search-item');
-
-            for (let i = 0; i < items.length; i++) {
-                let name = items[i].getElementsByClassName('customer-name')[0].innerText.toLowerCase();
-                let mobile = items[i].getElementsByClassName('mobile-txt')[0].innerText.toLowerCase();
-                if (name.includes(input) || mobile.includes(input)) {
-                    items[i].style.display = "";
-                } else {
-                    items[i].style.display = "none";
-                }
-            }
-        }
-
-        const modal = document.getElementById("editModal");
-        const remarksModal = document.getElementById("remarksModal");
-        const regionGroup = document.getElementById('edit-region-group');
-
-        function openEditModal(btn) { 
-            document.getElementById('editForm').action = "/edit/" + btn.getAttribute('data-id'); 
-            document.getElementById('deleteForm').action = "/delete/" + btn.getAttribute('data-id'); 
-            
-            document.getElementById('editName').value = btn.getAttribute('data-name'); 
-            document.getElementById('editMobile').value = btn.getAttribute('data-mobile'); 
-            document.getElementById('editDate').value = btn.getAttribute('data-date'); 
-            document.getElementById('editCategory').value = btn.getAttribute('data-category'); 
-            document.getElementById('editRegion').value = btn.getAttribute('data-region'); 
-            document.getElementById('editRemarks').value = btn.getAttribute('data-remarks'); 
-
-            toggleEditRegion(); 
-            
-            // Force Display
-            modal.style.display = 'flex';
-            setTimeout(() => { modal.classList.add('active'); }, 10);
-        }
-
-        function closeEditModal() { 
-            modal.classList.remove('active'); 
-            setTimeout(() => { modal.style.display = 'none'; }, 300);
-        }
-        
-        function openRemarksModal(btn) { 
-            document.getElementById('remarksTitle').innerText = btn.getAttribute('data-name'); 
-            document.getElementById('remarksBody').innerText = btn.getAttribute('data-remarks'); 
-            
-            remarksModal.style.display = 'flex';
-            setTimeout(() => { remarksModal.classList.add('active'); }, 10);
-        }
-
-        function closeRemarksModal() { 
-            remarksModal.classList.remove('active'); 
-            setTimeout(() => { remarksModal.style.display = 'none'; }, 300);
-        }
-
-        function toggleEditRegion() {
-            const cat = document.getElementById('editCategory').value;
-            if (cat === 'MNP' || cat === 'Family') {
-                regionGroup.style.display = 'block';
-            } else {
-                regionGroup.style.display = 'none';
-            }
-        }
-
-        window.onclick = function(event) { 
-            if (event.target == modal) closeEditModal(); 
-            if (event.target == remarksModal) closeRemarksModal(); 
-        }
+        function filterList() { let input = document.getElementById('searchInput').value.toLowerCase(); let items = document.getElementsByClassName('search-item'); for (let i = 0; i < items.length; i++) { let name = items[i].getElementsByClassName('customer-name')[0].innerText.toLowerCase(); let mobile = items[i].getElementsByClassName('mobile-txt')[0].innerText.toLowerCase(); if (name.includes(input) || mobile.includes(input)) items[i].style.display = ""; else items[i].style.display = "none"; } }
+        const modal = document.getElementById("editModal"); const remarksModal = document.getElementById("remarksModal");
+        function openEditModal(btn) { document.getElementById('editForm').action = "/edit/" + btn.getAttribute('data-id'); document.getElementById('deleteForm').action = "/delete/" + btn.getAttribute('data-id'); const cat = btn.getAttribute('data-category'); document.getElementById('editCategory').value = cat; document.getElementById('editDate').value = btn.getAttribute('data-date'); document.getElementById('editRemarks').value = btn.getAttribute('data-remarks'); if (cat === 'Family') { const pStatus = btn.getAttribute('data-p-status'); let pType = 'Existing'; let pRegion = 'Delhi'; if (pStatus.includes('MNP')) pType = 'MNP'; else if (pStatus.includes('NC')) pType = 'NC'; else if (pStatus.includes('P2P')) pType = 'P2P'; if (pStatus.includes('Other')) pRegion = 'Other'; document.getElementById('editPType').value = pType; document.getElementById('editPRegion').value = pRegion; document.getElementById('editPName').value = btn.getAttribute('data-p-name'); document.getElementById('editPMobile').value = btn.getAttribute('data-p-mobile'); document.getElementById('editSType').value = btn.getAttribute('data-subtype'); document.getElementById('editSRegion').value = btn.getAttribute('data-region'); document.getElementById('editSName').value = btn.getAttribute('data-name'); document.getElementById('editSMobile').value = btn.getAttribute('data-mobile'); } else { document.getElementById('editNName').value = btn.getAttribute('data-name'); document.getElementById('editNMobile').value = btn.getAttribute('data-mobile'); document.getElementById('editNRegion').value = btn.getAttribute('data-region'); document.getElementById('editSType').value = cat; } handleEditCategoryChange(); modal.style.display = 'flex'; setTimeout(() => { modal.classList.add('active'); }, 10); }
+        function closeEditModal() { modal.classList.remove('active'); setTimeout(() => { modal.style.display = 'none'; }, 300); }
+        function openRemarksModal(btn) { document.getElementById('remarksTitle').innerText = btn.getAttribute('data-name'); document.getElementById('remarksBody').innerText = btn.getAttribute('data-remarks'); remarksModal.style.display = 'flex'; setTimeout(() => { remarksModal.classList.add('active'); }, 10); }
+        function closeRemarksModal() { remarksModal.classList.remove('active'); setTimeout(() => { remarksModal.style.display = 'none'; }, 300); }
+        function handleEditCategoryChange() { const cat = document.getElementById('editCategory').value; const nForm = document.getElementById('edit-normal-form'); const fForm = document.getElementById('edit-family-form'); nForm.classList.remove('active'); fForm.classList.remove('active'); if (cat === 'Family') { fForm.classList.add('active'); toggleEditPrimaryRegion(); toggleEditSecondaryRegion(); document.getElementById('editNName').required = false; document.getElementById('editNMobile').required = false; } else { nForm.classList.add('active'); document.getElementById('edit-n-region-div').style.display = (cat === 'MNP') ? 'block' : 'none'; document.getElementById('editNName').required = true; document.getElementById('editNMobile').required = true; } }
+        function toggleEditPrimaryRegion() { document.getElementById('edit-p-region-div').style.display = (document.getElementById('editPType').value === 'MNP') ? 'block' : 'none'; }
+        function toggleEditSecondaryRegion() { document.getElementById('edit-s-region-div').style.display = (document.getElementById('editSType').value === 'MNP') ? 'block' : 'none'; }
+        window.onclick = function(event) { if (event.target == modal) closeEditModal(); if (event.target == remarksModal) closeRemarksModal(); }
     </script>
 </body>
 </html>

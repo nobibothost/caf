@@ -61,17 +61,24 @@
                 <% customers.forEach(customer => { %>
                     <div class="card">
                         <div class="card-top">
-                            <% if (customer.category === 'Family') { %>
-                                <span class="badge badge-Family">Family: <%= customer.subType %></span>
-                            <% } else { %>
-                                <span class="badge badge-<%= customer.category %>"><%= customer.category %></span>
-                            <% } %>
+                            <div style="display: flex; gap: 5px;">
+                                <% if (customer.category === 'Family') { %>
+                                    <span class="badge badge-Family">Family</span>
+                                    <span class="badge badge-<%= customer.subType %>"><%= customer.subType %></span>
+                                    <% if (customer.familyRole === 'Primary') { %> 
+                                        <span class="badge" style="background:#e0e7ff; color:#3730a3;">Primary</span> 
+                                    <% } %>
+                                <% } else { %>
+                                    <span class="badge badge-<%= customer.category %>"><%= customer.category %></span>
+                                <% } %>
+                            </div>
+                            
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <span class="date-tag">Due: <%= (customer.verificationDate).getDate() %></span>
                             </div>
                         </div>
 
-                        <% if (customer.category === 'Family') { %>
+                        <% if (customer.category === 'Family' && customer.familyRole === 'Secondary') { %>
                             <div class="family-wrapper">
                                 <div class="family-section primary-sec">
                                     <span class="fs-label primary-label">Primary Connection</span>
@@ -93,9 +100,13 @@
                                     <div class="fs-info">
                                         <h4><%= customer.name %></h4>
                                         <p><i class="ri-smartphone-line"></i> <%= customer.mobile %></p>
-                                        <% if(customer.region && customer.region !== 'NA') { %>
-                                            <p><i class="ri-map-pin-line"></i> <%= customer.region %></p>
-                                        <% } %>
+                                        <p style="font-size: 0.7rem; margin-top: 2px; color: #64748b;">
+                                            <i class="ri-information-line"></i> 
+                                            Type: <%= customer.subType %> 
+                                            <% if(customer.subType === 'MNP' && customer.region && customer.region !== 'NA') { %>
+                                                (<%= customer.region %>)
+                                            <% } %>
+                                        </p>
                                     </div>
                                     <div class="fs-actions">
                                         <a href="whatsapp://send?phone=91<%= customer.mobile %>" class="mini-btn mini-wa"><i class="ri-whatsapp-line"></i> WA</a>
@@ -119,8 +130,8 @@
                                 <% } %>
                             </div>
                             <div class="card-actions">
-                                <a href="tel:<%= customer.mobile %>" class="btn-call"><i class="ri-phone-fill"></i> Call</a>
-                                <a href="whatsapp://send?phone=91<%= customer.mobile %>" class="btn-whatsapp"><i class="ri-whatsapp-line"></i> WhatsApp</a>
+                                <a href="tel:<%= customer.mobile %>" class="btn-call"><i class="ri-phone-fill"></i></a>
+                                <a href="whatsapp://send?phone=91<%= customer.mobile %>" class="btn-whatsapp"><i class="ri-whatsapp-line"></i></a>
                             </div>
                         <% } %>
 
@@ -192,9 +203,9 @@
                             <i class="ri-shield-user-line icon-left"></i>
                             <select name="p_type" id="p_type" onchange="togglePrimaryRegion()">
                                 <option value="Existing">Existing (Active)</option>
-                                <option value="NC">New NC</option>
-                                <option value="P2P">New P2P</option>
-                                <option value="MNP">New MNP</option>
+                                <option value="NC">New Entry (NC)</option>
+                                <option value="P2P">New Entry (P2P)</option>
+                                <option value="MNP">New Entry (MNP)</option>
                             </select>
                         </div>
                     </div>
@@ -223,9 +234,10 @@
                         <div class="input-wrapper">
                             <i class="ri-sim-card-line icon-left"></i>
                             <select name="s_type" id="s_type" onchange="toggleSecondaryRegion()">
-                                <option value="NC">NC</option>
-                                <option value="P2P">P2P</option>
-                                <option value="MNP">MNP</option>
+                                <option value="Existing">Existing (Active)</option>
+                                <option value="NC">New Entry (NC)</option>
+                                <option value="P2P">New Entry (P2P)</option>
+                                <option value="MNP">New Entry (MNP)</option>
                             </select>
                         </div>
                     </div>

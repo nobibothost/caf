@@ -48,13 +48,20 @@
             <% } else { %>
                 <% customers.forEach(customer => { %>
                     <div class="card" style="<%= customer.status === 'completed' ? 'opacity: 0.6; background: #f8fafc;' : '' %>">
+                        
                         <div class="card-top">
-                            <% if (customer.category === 'Family') { %>
-                                <span class="badge badge-Family">Family: <%= customer.subType %></span>
-                            <% } else { %>
-                                <span class="badge badge-<%= customer.category %>"><%= customer.category %></span>
-                            <% } %>
-                            
+                            <div style="display: flex; gap: 5px;">
+                                <% if (customer.category === 'Family') { %> 
+                                    <span class="badge badge-Family">Family</span> 
+                                    <span class="badge badge-<%= customer.subType %>"><%= customer.subType %></span>
+                                    <% if (customer.familyRole === 'Primary') { %> 
+                                        <span class="badge" style="background:#e0e7ff; color:#3730a3;">Primary</span> 
+                                    <% } %>
+                                <% } else { %> 
+                                    <span class="badge badge-<%= customer.category %>"><%= customer.category %></span> 
+                                <% } %>
+                            </div>
+
                             <% if (customer.status === 'completed') { %>
                                 <span class="badge" style="background: #dcfce7; color: #166534;">
                                     <i class="ri-check-double-line"></i> Done
@@ -66,13 +73,16 @@
                             <% } %>
                         </div>
 
-                        <% if (customer.category === 'Family') { %>
+                        <% if (customer.category === 'Family' && customer.familyRole === 'Secondary') { %>
                             <div class="family-wrapper">
                                 <div class="family-section primary-sec">
-                                    <span class="fs-label primary-label">Primary</span>
+                                    <span class="fs-label primary-label">Primary Connection</span>
                                     <div class="fs-info">
                                         <h4><%= customer.linkedPrimaryName || 'Unknown' %></h4>
                                         <p><i class="ri-smartphone-line"></i> <%= customer.linkedPrimaryNumber %></p>
+                                        <p style="font-size: 0.7rem; margin-top: 2px; color: #64748b;">
+                                            <i class="ri-information-line"></i> <%= customer.linkedPrimaryStatus %>
+                                        </p>
                                     </div>
                                     <div class="fs-actions">
                                         <a href="whatsapp://send?phone=91<%= customer.linkedPrimaryNumber %>" class="mini-btn mini-wa"><i class="ri-whatsapp-line"></i> WA</a>
@@ -81,10 +91,18 @@
                                 </div>
 
                                 <div class="family-section secondary-sec">
-                                    <span class="fs-label secondary-label">Secondary</span>
+                                    <span class="fs-label secondary-label">Secondary (This SIM)</span>
                                     <div class="fs-info">
                                         <h4><%= customer.name %></h4>
                                         <p><i class="ri-smartphone-line"></i> <%= customer.mobile %></p>
+                                        
+                                        <p style="font-size: 0.7rem; margin-top: 2px; color: #64748b;">
+                                            <i class="ri-information-line"></i> 
+                                            Type: <%= customer.subType %> 
+                                            <% if(customer.subType === 'MNP' && customer.region && customer.region !== 'NA') { %>
+                                                (<%= customer.region %>)
+                                            <% } %>
+                                        </p>
                                     </div>
                                     <div class="fs-actions">
                                         <a href="whatsapp://send?phone=91<%= customer.mobile %>" class="mini-btn mini-wa"><i class="ri-whatsapp-line"></i> WA</a>
@@ -107,7 +125,6 @@
                                     <p class="meta-info"><i class="ri-map-pin-line"></i> <%= customer.region %></p>
                                 <% } %>
                             </div>
-
                             <div class="card-actions">
                                 <a href="tel:<%= customer.mobile %>" class="btn-call"><i class="ri-phone-fill"></i> Call</a>
                                 <a href="whatsapp://send?phone=91<%= customer.mobile %>" class="btn-whatsapp"><i class="ri-whatsapp-line"></i> WhatsApp</a>

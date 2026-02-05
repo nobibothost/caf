@@ -3,75 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monthly Analysis</title>
+    <title>Analytics</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
     <style>
-        .stats-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: var(--shadow);
-            border: 1px solid var(--border);
-            text-align: center;
-        }
-        /* Gradient for Total Entries */
-        .stat-card.total-box { 
-            background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
-            color: white; 
-        }
-        /* Green Gradient for Actually Activated */
-        .stat-card.activated-box { 
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white; 
-        }
-
-        .stat-number { font-size: 2rem; font-weight: 700; margin-bottom: 5px; display: block; }
-        .stat-label { font-size: 0.85rem; opacity: 0.95; font-weight: 500; }
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 25px; }
+        .stat-card { background: white; padding: 20px; border-radius: 16px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); border: 1px solid #f1f5f9; }
+        .stat-number { font-size: 2rem; font-weight: 700; display: block; margin-bottom: 5px; }
+        .stat-label { font-size: 0.85rem; color: #64748b; font-weight: 500; }
+        .stat-primary { background: #4f46e5; color: white; border: none; }
+        .stat-primary .stat-label { color: #e0e7ff; }
+        .stat-success { background: #10b981; color: white; border: none; }
+        .stat-success .stat-label { color: #d1fae5; }
         
-        .stat-card.nc { border-left: 4px solid var(--nc-color); }
-        .stat-card.p2p { border-left: 4px solid var(--p2p-color); }
-        .stat-card.mnp { border-left: 4px solid var(--mnp-color); }
+        .breakdown-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .mini-stat { background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .mini-num { font-size: 1.5rem; font-weight: 700; color: var(--text-main); }
+        .mini-lbl { font-size: 0.8rem; color: #64748b; margin-top: 2px; }
         
-        .progress-section { background: white; padding: 20px; border-radius: 12px; border: 1px solid var(--border); }
-        .progress-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: 600; }
-        .progress-bar { height: 10px; background: #f1f5f9; border-radius: 5px; overflow: hidden; display: flex; }
-        .bar-done { background: #10b981; height: 100%; }
-        .bar-pending { background: #f59e0b; height: 100%; }
+        /* Category Colors */
+        .bd-nc { border-left: 4px solid #10b981; }
+        .bd-p2p { border-left: 4px solid #3b82f6; }
+        .bd-mnp { border-left: 4px solid #f59e0b; }
+        .bd-fam { border-left: 4px solid #8b5cf6; }
 
-        /* Filter Styles */
-        .filter-form { margin-bottom: 20px; }
-        .filter-select { 
-            width: 100%; 
-            padding: 12px 12px 12px 45px; 
-            border: 1px solid var(--border); 
-            border-radius: 12px; 
-            font-size: 0.95rem; 
-            background: white; 
-            outline: none; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-            appearance: none;
-            cursor: pointer;
-        }
-        .filter-wrapper { position: relative; }
-        .filter-wrapper i {
-            position: absolute; left: 15px; top: 50%; transform: translateY(-50%);
-            color: var(--primary); font-size: 1.2rem; pointer-events: none;
-        }
+        .progress-section { background: white; padding: 20px; border-radius: 16px; margin-top: 20px; border: 1px solid #e2e8f0; }
+        .progress-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: 600; color: var(--text-main); font-size: 0.9rem; }
+        .progress-bar { height: 12px; background: #f1f5f9; border-radius: 6px; overflow: hidden; display: flex; }
+        .progress-fill { height: 100%; transition: width 0.5s ease; }
     </style>
 </head>
 <body>
     
     <nav class="navbar">
         <div class="logo">
-            <i class="ri-pie-chart-2-fill"></i> Monthly<span class="highlight">Analysis</span>
+            <i class="ri-pie-chart-2-fill"></i> Analytics
         </div>
         <a href="/logout" class="logout-btn" onclick="return confirm('Securely Logout?');">
             <i class="ri-logout-box-r-line"></i>
@@ -79,12 +46,12 @@
     </nav>
 
     <div class="container">
-
-        <div class="section-title">
-            <h2><i class="ri-bar-chart-grouped-line"></i> <%= headerTitle %></h2>
-            <p class="subtitle">Performance overview for selected period.</p>
-        </div>
         
+        <div class="section-title">
+            <h2><i class="ri-calendar-event-line"></i> <%= headerTitle %></h2>
+            <p class="subtitle">Performance overview.</p>
+        </div>
+
         <form action="/analytics" method="GET" class="filter-form">
             <div class="filter-wrapper">
                 <i class="ri-filter-3-line"></i>
@@ -92,62 +59,57 @@
                     <option value="0" <%= monthOffset == 0 ? 'selected' : '' %>>This Month</option>
                     <option value="1" <%= monthOffset == 1 ? 'selected' : '' %>>Last Month</option>
                     <option value="2" <%= monthOffset == 2 ? 'selected' : '' %>>2 Months Ago</option>
-                    <option value="all" <%= monthOffset === 'all' ? 'selected' : '' %>>Show All Time</option>
+                    <option value="all" <%= monthOffset === 'all' ? 'selected' : '' %>>All Time</option>
                 </select>
             </div>
         </form>
-    
+
         <div class="stats-grid">
-            <div class="stat-card total-box">
+            <div class="stat-card stat-primary">
                 <span class="stat-number"><%= stats.total %></span>
-                <span class="stat-label">Entries (Form Filled)</span>
+                <span class="stat-label">Total Entries</span>
             </div>
-            <div class="stat-card activated-box">
+            <div class="stat-card stat-success">
                 <span class="stat-number"><%= stats.activated %></span>
                 <span class="stat-label">Actually Activated</span>
             </div>
         </div>
 
-        <div class="section-title">
-            <h2><i class="ri-list-settings-line"></i> Category Breakdown</h2>
-        </div>
+        <h3 class="section-label" style="margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+            <i class="ri-layout-grid-line"></i> Category Breakdown
+        </h3>
 
-        <div class="stats-grid">
-            <div class="stat-card nc">
-                <span class="stat-number" style="color: var(--nc-color);"><%= stats.nc %></span>
-                <span class="stat-label">NC</span>
+        <div class="breakdown-grid">
+            <div class="mini-stat bd-nc">
+                <span class="mini-num" style="color: #10b981;"><%= stats.nc %></span>
+                <span class="mini-lbl">NC</span>
             </div>
-            <div class="stat-card p2p">
-                <span class="stat-number" style="color: var(--p2p-color);"><%= stats.p2p %></span>
-                <span class="stat-label">P2P</span>
+            <div class="mini-stat bd-p2p">
+                <span class="mini-num" style="color: #3b82f6;"><%= stats.p2p %></span>
+                <span class="mini-lbl">P2P</span>
             </div>
-            <div class="stat-card mnp">
-                <span class="stat-number" style="color: var(--mnp-color);"><%= stats.mnp %></span>
-                <span class="stat-label">MNP</span>
+            <div class="mini-stat bd-mnp">
+                <span class="mini-num" style="color: #f59e0b;"><%= stats.mnp %></span>
+                <span class="mini-lbl">MNP</span>
             </div>
-            <div class="stat-card" style="border-left: 4px solid #8b5cf6;">
-                <span class="stat-number" style="color: #8b5cf6;"><%= stats.family %></span>
-                <span class="stat-label">Family</span>
+            <div class="mini-stat bd-fam">
+                <span class="mini-num" style="color: #8b5cf6;"><%= stats.family %></span>
+                <span class="mini-lbl">Family SIMs</span>
             </div>
-        </div>
-
-        <div class="section-title">
-            <h2><i class="ri-verified-badge-line"></i> Verification Status</h2>
         </div>
 
         <div class="progress-section">
-            <div class="progress-row">
+            <div class="progress-header">
                 <span style="color: #10b981;"><i class="ri-check-double-line"></i> Verified: <%= stats.completed %></span>
                 <span style="color: #f59e0b;"><i class="ri-loader-4-line"></i> Pending: <%= stats.pending %></span>
             </div>
             <div class="progress-bar">
                 <% 
-                   const total = stats.total || 1; 
-                   const donePercent = (stats.completed / total) * 100;
-                   const pendingPercent = (stats.pending / total) * 100;
+                   let total = stats.completed + stats.pending;
+                   let pct = total > 0 ? (stats.completed / total) * 100 : 0;
                 %>
-                <div class="bar-done" style="width: <%= donePercent %>%;"></div>
-                <div class="bar-pending" style="width: <%= pendingPercent %>%;"></div>
+                <div class="progress-fill" style="width: <%= pct %>%; background: #10b981;"></div>
+                <div class="progress-fill" style="width: <%= 100 - pct %>%; background: #f59e0b;"></div>
             </div>
         </div>
 
@@ -158,23 +120,19 @@
             <i class="ri-home-4-line"></i>
             <span>Home</span>
         </a>
-
         <a href="/all" class="nav-item">
             <i class="ri-list-check"></i>
             <span>All</span>
         </a>
-
         <div class="nav-fab" onclick="window.location.href='/'">
             <i class="ri-add-line"></i>
         </div>
-
         <a href="/manage" class="nav-item">
             <i class="ri-edit-2-line"></i>
             <span>Edit</span>
         </a>
-
         <a href="/analytics" class="nav-item active">
-            <i class="ri-pie-chart-fill"></i>
+            <i class="ri-pie-chart-2-fill"></i>
             <span>Analysis</span>
         </a>
     </div>
