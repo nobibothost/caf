@@ -15,6 +15,23 @@
     </nav>
 
     <div class="container">
+        <div class="section-title">
+            <h2><i class="ri-settings-4-line"></i> <%= headerTitle %></h2>
+            <p class="subtitle">Search, edit or delete records.</p>
+        </div>
+
+        <form action="/manage" method="GET" class="filter-form">
+            <div class="filter-wrapper">
+                <i class="ri-filter-3-line"></i>
+                <select name="month" class="filter-select" onchange="this.form.submit()">
+                    <option value="0" <%= monthOffset == 0 ? 'selected' : '' %>>This Month</option>
+                    <option value="1" <%= monthOffset == 1 ? 'selected' : '' %>>Last Month</option>
+                    <option value="2" <%= monthOffset == 2 ? 'selected' : '' %>>2 Months Ago</option>
+                    <option value="all" <%= monthOffset === 'all' ? 'selected' : '' %>>Show All History</option>
+                </select>
+            </div>
+        </form>
+
         <div class="search-box">
             <i class="ri-search-line"></i>
             <input type="text" id="searchInput" onkeyup="filterList()" placeholder="Search Name or Mobile...">
@@ -38,6 +55,11 @@
                         <% if(customer.region && customer.region !== 'NA') { %>
                             <p class="meta-info"><i class="ri-map-pin-line"></i> <%= customer.region %></p>
                         <% } %>
+                    </div>
+
+                    <div class="card-actions" style="margin-bottom: 8px;">
+                        <a href="whatsapp://send?phone=91<%= customer.mobile %>" class="btn-whatsapp" style="flex: 1;"><i class="ri-whatsapp-line"></i> WhatsApp</a>
+                        <a href="tel:<%= customer.mobile %>" class="btn-call" style="flex: 1;"><i class="ri-phone-fill"></i> Call</a>
                     </div>
 
                     <div class="card-actions">
