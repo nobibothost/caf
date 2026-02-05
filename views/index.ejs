@@ -8,24 +8,15 @@
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
     <style>
-        .filter-form { margin-bottom: 20px; }
-        .filter-select { 
-            width: 100%; 
-            padding: 12px 12px 12px 45px; 
-            border: 1px solid var(--border); 
-            border-radius: 12px; 
-            font-size: 0.95rem; 
-            background: white; 
-            outline: none; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-            appearance: none;
-            cursor: pointer;
-        }
-        .filter-wrapper { position: relative; }
-        .filter-wrapper i {
-            position: absolute; left: 15px; top: 50%; transform: translateY(-50%);
-            color: var(--primary); font-size: 1.2rem; pointer-events: none;
-        }
+        /* Form Section Transitions */
+        .form-section { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .form-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .divider { height: 1px; background: #e2e8f0; margin: 20px 0; position: relative; }
+        .divider span { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 0 10px; color: #64748b; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; }
+        
+        .section-label { font-size: 0.95rem; font-weight: 700; color: var(--primary); margin-bottom: 12px; display: block; }
     </style>
 </head>
 <body>
@@ -43,14 +34,14 @@
         
         <div class="section-title">
             <h2><i class="ri-calendar-check-line"></i> <%= headerTitle %></h2>
-            <p class="subtitle">Showing pending tasks for selected period.</p>
+            <p class="subtitle">Showing pending tasks.</p>
         </div>
 
         <form action="/" method="GET" class="filter-form">
             <div class="filter-wrapper">
                 <i class="ri-filter-3-line"></i>
                 <select name="month" class="filter-select" onchange="this.form.submit()">
-                    <option value="0" <%= monthOffset == 0 ? 'selected' : '' %>>This Month (Default)</option>
+                    <option value="0" <%= monthOffset == 0 ? 'selected' : '' %>>This Month</option>
                     <option value="1" <%= monthOffset == 1 ? 'selected' : '' %>>Last Month</option>
                     <option value="2" <%= monthOffset == 2 ? 'selected' : '' %>>2 Months Ago</option>
                     <option value="all" <%= monthOffset === 'all' ? 'selected' : '' %>>Show All Pending</option>
@@ -67,30 +58,56 @@
                 <div class="empty-state">
                     <div class="icon-box"><i class="ri-checkbox-circle-line"></i></div>
                     <h3>No Pendings!</h3>
-                    <p>No pending tasks found for this period.</p>
+                    <p>No pending tasks found.</p>
                 </div>
             <% } else { %>
                 <% customers.forEach(customer => { %>
                     <div class="card">
                         <div class="card-top">
-                            <span class="badge badge-<%= customer.category %>"><%= customer.category %></span>
-                            <span class="date-tag">Due: <%= (customer.verificationDate).getDate() %></span>
+                            <% if (customer.category === 'Family') { %>
+                                <span class="badge badge-Family">Family: <%= customer.subType %></span>
+                            <% } else { %>
+                                <span class="badge badge-<%= customer.category %>"><%= customer.category %></span>
+                            <% } %>
+
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <% if (customer.remarks && customer.remarks.trim() !== "") { %>
+                                    <button class="btn-remarks has-remarks" onclick="openRemarksModal('<%= customer.name %>', `<%= customer.remarks %>`)">
+                                        <i class="ri-eye-line"></i>
+                                    </button>
+                                <% } %>
+                                <span class="date-tag">Due: <%= (customer.verificationDate).getDate() %></span>
+                            </div>
                         </div>
+
                         <div class="card-body">
                             <h3 class="customer-name"><%= customer.name %></h3>
                             <p class="meta-info" style="color: var(--text-main); font-weight: 500; margin-bottom: 4px;">
                                 <i class="ri-smartphone-line"></i> <%= customer.mobile %>
                             </p>
+                            
+                            <% if (customer.category === 'Family') { %>
+                                <p class="meta-info" style="color: var(--primary); font-size: 0.8rem;">
+                                    <i class="ri-link"></i> Link: <%= customer.linkedPrimaryName %> (<%= customer.linkedPrimaryNumber %>)
+                                </p>
+                                <p class="meta-info" style="font-size: 0.75rem; color: #64748b;">
+                                    <i class="ri-information-line"></i> Primary: <%= customer.linkedPrimaryStatus %>
+                                </p>
+                            <% } %>
+
                             <p class="meta-info">
                                 <i class="ri-calendar-check-line"></i> 
                                 Activation: <%= (customer.activationDate || customer.createdAt).toLocaleDateString('en-GB') %>
                             </p>
-                            <% if(customer.category === 'MNP') { %>
+                            
+                            <% if(customer.region && customer.region !== 'NA') { %>
                                 <p class="meta-info"><i class="ri-map-pin-line"></i> <%= customer.region %></p>
                             <% } %>
                         </div>
+
                         <div class="card-actions">
-                            <a href="tel:<%= customer.mobile %>" class="btn-call"><i class="ri-phone-fill"></i> Call</a>
+                            <a href="tel:<%= customer.mobile %>" class="btn-call"><i class="ri-phone-fill"></i></a>
+                            <a href="whatsapp://send?phone=91<%= customer.mobile %>" class="btn-whatsapp"><i class="ri-whatsapp-line"></i></a>
                             <form action="/complete/<%= customer._id %>" method="POST" style="flex: 1;">
                                 <button type="submit" class="btn-check"><i class="ri-check-line"></i> Done</button>
                             </form>
@@ -101,35 +118,13 @@
         </div>
     </div>
 
-    <div class="bottom-nav">
-        <a href="/" class="nav-item active">
-            <i class="ri-home-4-fill"></i>
-            <span>Home</span>
-        </a>
-        <a href="/all" class="nav-item">
-            <i class="ri-list-check"></i>
-            <span>All</span>
-        </a>
-        <div class="nav-fab" onclick="openModal()">
-            <i class="ri-add-line"></i>
-        </div>
-        <a href="/manage" class="nav-item">
-            <i class="ri-edit-2-line"></i>
-            <span>Edit</span>
-        </a>
-        <a href="/analytics" class="nav-item">
-            <i class="ri-pie-chart-line"></i>
-            <span>Analysis</span>
-        </a>
-    </div>
-
     <div id="addModal" class="modal-overlay">
         <div class="modal-card">
             <div class="modal-header">
                 <h3>New Verification</h3>
                 <button onclick="closeModal()" class="icon-btn"><i class="ri-close-line"></i></button>
             </div>
-            <form action="/add" method="POST">
+            <form action="/add" method="POST" id="addForm">
                 <div class="input-group">
                     <label>Activation Date</label>
                     <div class="input-wrapper">
@@ -137,59 +132,190 @@
                         <input type="date" name="customDate" id="customDate" required>
                     </div>
                 </div>
+
                 <div class="input-group">
                     <label>Category</label>
                     <div class="input-wrapper">
                         <i class="ri-list-check icon-left"></i>
-                        <select name="category" id="category" onchange="toggleRegion()" required>
+                        <select name="category" id="category" onchange="handleCategoryChange()" required>
                             <option value="" disabled selected>Select Category</option>
                             <option value="NC">NC</option>
                             <option value="P2P">P2P</option>
                             <option value="MNP">MNP</option>
+                            <option value="Family">Family</option>
                         </select>
                     </div>
                 </div>
-                <div class="input-group" id="region-group" style="display: none;">
-                    <label>Region</label>
-                    <div class="input-wrapper">
-                        <i class="ri-map-pin-user-line icon-left"></i>
-                        <select name="region" id="region">
-                            <option value="Delhi">Delhi</option>
-                            <option value="Other">Other</option>
-                        </select>
+
+                <div id="normal-form" class="form-section">
+                    <div class="input-group" id="n_region_div" style="display: none;">
+                        <label>Region</label>
+                        <div class="input-wrapper">
+                            <i class="ri-map-pin-user-line icon-left"></i>
+                            <select name="n_region" id="n_region">
+                                <option value="Delhi">Delhi</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="input-group"><label>Name</label><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="n_name" id="n_name"></div></div>
+                    <div class="input-group"><label>Mobile</label><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="n_mobile" id="n_mobile" pattern="[0-9]{10}"></div></div>
+                </div>
+
+                <div id="family-form" class="form-section">
+                    
+                    <span class="section-label">Primary Connection Details</span>
+                    <div class="input-group">
+                        <label>Primary Type</label>
+                        <div class="input-wrapper">
+                            <i class="ri-shield-user-line icon-left"></i>
+                            <select name="p_type" id="p_type" onchange="togglePrimaryRegion()">
+                                <option value="Existing">Existing (Active)</option>
+                                <option value="NC">New NC</option>
+                                <option value="P2P">New P2P</option>
+                                <option value="MNP">New MNP</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="input-group" id="p_region_div" style="display: none;">
+                        <label>Primary Region</label>
+                        <div class="input-wrapper">
+                            <i class="ri-map-pin-user-line icon-left"></i>
+                            <select name="p_region">
+                                <option value="Delhi">Delhi</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <div class="input-wrapper"><i class="ri-user-star-line icon-left"></i><input type="text" name="p_name" placeholder="Primary Name"></div>
+                    </div>
+                    <div class="input-group">
+                        <div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="p_mobile" placeholder="Primary Mobile" pattern="[0-9]{10}"></div>
+                    </div>
+
+                    <div class="divider"><span>AND</span></div>
+
+                    <span class="section-label">Secondary Connection (This SIM)</span>
+                    <div class="input-group">
+                        <label>Secondary Type</label>
+                        <div class="input-wrapper">
+                            <i class="ri-sim-card-line icon-left"></i>
+                            <select name="s_type" id="s_type" onchange="toggleSecondaryRegion()">
+                                <option value="NC">NC</option>
+                                <option value="P2P">P2P</option>
+                                <option value="MNP">MNP</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="input-group" id="s_region_div" style="display: none;">
+                        <label>Secondary Region</label>
+                        <div class="input-wrapper">
+                            <i class="ri-map-pin-user-line icon-left"></i>
+                            <select name="s_region">
+                                <option value="Delhi">Delhi</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="s_name" placeholder="Secondary Name"></div>
+                    </div>
+                    <div class="input-group">
+                        <div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="s_mobile" placeholder="Secondary Mobile" pattern="[0-9]{10}"></div>
                     </div>
                 </div>
-                <div class="input-group">
-                    <label>Name</label>
+
+                <div class="input-group" style="margin-top: 20px;">
+                    <label>Remarks</label>
                     <div class="input-wrapper">
-                        <i class="ri-user-smile-line icon-left"></i>
-                        <input type="text" name="name" required>
+                        <i class="ri-sticky-note-line icon-left"></i>
+                        <input type="text" name="remarks" placeholder="Optional notes...">
                     </div>
                 </div>
-                <div class="input-group">
-                    <label>Mobile</label>
-                    <div class="input-wrapper">
-                        <i class="ri-smartphone-line icon-left"></i>
-                        <input type="tel" name="mobile" pattern="[0-9]{10}" required>
-                    </div>
-                </div>
+
                 <button type="submit" class="btn-submit">Save Record</button>
             </form>
         </div>
     </div>
 
+    <div id="remarksModal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="ri-sticky-note-line"></i> Remarks</h3>
+                <button onclick="closeRemarksModal()" class="icon-btn"><i class="ri-close-line"></i></button>
+            </div>
+            <div>
+                <strong id="remarksTitle" style="color: var(--primary);"></strong>
+                <div id="remarksBody" class="remarks-content"></div>
+            </div>
+            <button onclick="closeRemarksModal()" class="btn-submit" style="background: var(--text-muted); margin-top: 10px;">Close</button>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <a href="/" class="nav-item active"><i class="ri-home-4-fill"></i><span>Home</span></a>
+        <a href="/all" class="nav-item"><i class="ri-list-check"></i><span>All</span></a>
+        <div class="nav-fab" onclick="openModal()"><i class="ri-add-line"></i></div>
+        <a href="/manage" class="nav-item"><i class="ri-edit-2-line"></i><span>Edit</span></a>
+        <a href="/analytics" class="nav-item"><i class="ri-pie-chart-line"></i><span>Analysis</span></a>
+    </div>
+
     <script>
         const modal = document.getElementById("addModal");
+        const remarksModal = document.getElementById("remarksModal");
+
         function openModal() {
             modal.classList.add('active');
             const today = new Date().toISOString().split('T')[0];
             document.getElementById("customDate").value = today;
+            handleCategoryChange(); 
         }
         function closeModal() { modal.classList.remove('active'); }
-        window.onclick = function(event) { if (event.target == modal) closeModal(); }
-        function toggleRegion() {
-            const category = document.getElementById('category').value;
-            document.getElementById('region-group').style.display = (category === 'MNP') ? 'block' : 'none';
+        
+        function handleCategoryChange() {
+            const cat = document.getElementById('category').value;
+            const normalForm = document.getElementById('normal-form');
+            const familyForm = document.getElementById('family-form');
+            
+            normalForm.classList.remove('active');
+            familyForm.classList.remove('active');
+
+            if (cat === 'Family') {
+                familyForm.classList.add('active');
+                // Remove required from normal
+                document.getElementById('n_name').required = false;
+                document.getElementById('n_mobile').required = false;
+            } else {
+                normalForm.classList.add('active');
+                const regionDiv = document.getElementById('n_region_div');
+                regionDiv.style.display = (cat === 'MNP') ? 'block' : 'none';
+                
+                document.getElementById('n_name').required = true;
+                document.getElementById('n_mobile').required = true;
+            }
+        }
+
+        function togglePrimaryRegion() {
+            const type = document.getElementById('p_type').value;
+            document.getElementById('p_region_div').style.display = (type === 'MNP') ? 'block' : 'none';
+        }
+
+        function toggleSecondaryRegion() {
+            const type = document.getElementById('s_type').value;
+            document.getElementById('s_region_div').style.display = (type === 'MNP') ? 'block' : 'none';
+        }
+
+        function openRemarksModal(name, text) {
+            document.getElementById('remarksTitle').innerText = name;
+            document.getElementById('remarksBody').innerText = text;
+            remarksModal.classList.add('active');
+        }
+        function closeRemarksModal() { remarksModal.classList.remove('active'); }
+
+        window.onclick = function(event) { 
+            if (event.target == modal) closeModal(); 
+            if (event.target == remarksModal) closeRemarksModal();
         }
     </script>
 </body>

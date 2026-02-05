@@ -10,19 +10,30 @@
     <style>
         body { 
             display: flex;
-            justify-content: center; align-items: center; 
-            height: 100vh; background: #f1f5f9;
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            background: #f1f5f9;
             background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
             background-size: 20px 20px;
+            margin: 0;
+            overflow: hidden; /* Prevent scroll if loader acts up */
         }
         .otp-card { 
             background: white;
-            padding: 35px; border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1); width: 90%; max-width: 360px; text-align: center;
+            padding: 35px; 
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1); 
+            width: 90%; 
+            max-width: 360px; 
+            text-align: center;
+            position: relative;
+            z-index: 10; /* Ensure card is above background */
         }
         .otp-icon { 
             font-size: 3.5rem;
-            color: #10b981; margin-bottom: 10px; 
+            color: #10b981; 
+            margin-bottom: 10px; 
             filter: drop-shadow(0 4px 6px rgba(16, 185, 129, 0.2));
             animation: bounce 2s infinite;
         }
@@ -33,16 +44,57 @@
         }
         .btn-verify { 
             width: 100%;
-            background: #10b981; color: white; padding: 14px; border: none;
-            border-radius: 10px; font-weight: 600; font-size: 1rem; cursor: pointer; margin-top: 25px;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); transition: transform 0.2s;
+            background: #10b981; 
+            color: white; 
+            padding: 14px; 
+            border: none;
+            border-radius: 10px; 
+            font-weight: 600; 
+            font-size: 1rem; 
+            cursor: pointer; 
+            margin-top: 25px;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); 
+            transition: transform 0.2s;
         }
-        .btn-verify:active { transform: scale(0.98);
+        .btn-verify:active { transform: scale(0.98); }
+        
+        .error-msg { 
+            background: #fee2e2; 
+            color: #991b1b; 
+            padding: 12px; 
+            border-radius: 8px; 
+            margin-bottom: 20px; 
+            font-size: 0.9rem;
+            border: 1px solid #fecaca;
         }
-        .error-msg { background: #fee2e2; color: #991b1b; padding: 8px; border-radius: 8px; margin-bottom: 15px;
-        font-size: 0.9rem; }
-        .resend-box { margin-top: 20px; font-size: 0.9rem; color: #64748b;
+        .resend-box { margin-top: 20px; font-size: 0.9rem; color: #64748b; }
+
+        /* CRITICAL: Loader & Toast Styles (In-File Backup) */
+        .full-page-loader { 
+            display: none; /* Hidden by default */
+            position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
+            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(8px); 
+            z-index: 9999; justify-content: center; align-items: center; flex-direction: column; 
         }
+        
+        .toast { 
+            visibility: hidden; /* Hidden by default */
+            min-width: 250px; background-color: #333;
+            color: #fff; text-align: center; border-radius: 8px; padding: 12px; 
+            position: fixed; z-index: 3000; left: 50%; transform: translateX(-50%); bottom: 30px; 
+            font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); 
+        }
+        .toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        .toast.success { background-color: #10b981; }
+        .toast.error { background-color: #ef4444; }
+
+        /* Spinner Animation */
+        .big-spinner { width: 60px; height: 60px; border: 6px solid #e2e8f0;
+        border-top: 6px solid #10b981; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        .loading-text { font-size: 1.3rem; font-weight: 700; color: #1e293b; letter-spacing: 0.5px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
     </style>
 </head>
 <body>
@@ -76,7 +128,7 @@
                            pattern="[0-9]*" 
                            maxlength="6" 
                            autofocus
-                           style="text-align: center; letter-spacing: 8px; font-size: 1.5rem; font-weight: 700; height: 50px;">
+                           style="text-align: center; letter-spacing: 8px; font-size: 1.5rem; font-weight: 700; height: 55px; padding: 0 55px !important;">
                 </div>
             </div>
 
@@ -88,7 +140,7 @@
         <div class="resend-box">
             Didn't receive code? <br>
             <span id="timerText">Resend in <span id="timer">30</span>s</span>
-            <a onclick="resendOtp()" id="resendLink" class="resend-link" style="display: none;">Resend OTP</a>
+            <a onclick="resendOtp()" id="resendLink" class="resend-link" style="display: none; color: #10b981; font-weight: 600; cursor: pointer;">Resend OTP</a>
         </div>
     </div>
 
@@ -107,6 +159,10 @@
             timerText.style.display = 'inline';
             timeLeft = 30;
             timerElem.innerText = timeLeft;
+            
+            // Clear existing interval if any
+            if(countdown) clearInterval(countdown);
+
             countdown = setInterval(() => {
                 timeLeft--;
                 timerElem.innerText = timeLeft;
@@ -122,9 +178,10 @@
 
         // Submit Logic with Loader
         function handleOtpSubmit() {
-            document.getElementById('fullPageLoader').style.display = 'flex'; // Triggers flex centering
+            document.getElementById('fullPageLoader').style.display = 'flex';
             const btn = document.getElementById('verifyBtn');
             btn.style.opacity = '0.7';
+            btn.disabled = true; // Prevent double submit
         }
 
         function showToast(message, type = 'success') {
@@ -136,7 +193,8 @@
 
         async function resendOtp() {
             resendLink.innerHTML = "Sending...";
-            resendLink.classList.add('disabled');
+            resendLink.style.opacity = "0.5";
+            resendLink.style.pointerEvents = "none";
 
             try {
                 const response = await fetch('/resend-otp', { method: 'POST' });
@@ -145,18 +203,21 @@
                 if (data.success) {
                     showToast("OTP Resent Successfully!", "success");
                     resendLink.innerHTML = "Resend OTP";
-                    resendLink.classList.remove('disabled');
+                    resendLink.style.opacity = "1";
+                    resendLink.style.pointerEvents = "auto";
                     startTimer(); 
                 } else {
                     showToast(data.message || "Error resending OTP", "error");
                     resendLink.innerHTML = "Try Again";
-                    resendLink.classList.remove('disabled');
+                    resendLink.style.opacity = "1";
+                    resendLink.style.pointerEvents = "auto";
                 }
             } catch (err) {
                 console.error(err);
                 showToast("Connection Error", "error");
                 resendLink.innerHTML = "Try Again";
-                resendLink.classList.remove('disabled');
+                resendLink.style.opacity = "1";
+                resendLink.style.pointerEvents = "auto";
             }
         }
     </script>

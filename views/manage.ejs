@@ -7,76 +7,35 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
-    <style>
-        .filter-form { margin-bottom: 20px; }
-        .filter-select { 
-            width: 100%; 
-            padding: 12px 12px 12px 45px; 
-            border: 1px solid var(--border); 
-            border-radius: 12px; 
-            font-size: 0.95rem; 
-            background: white; 
-            outline: none; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-            appearance: none;
-            cursor: pointer;
-        }
-        .filter-wrapper { position: relative; }
-        .filter-wrapper i {
-            position: absolute; left: 15px; top: 50%; transform: translateY(-50%);
-            color: var(--primary); font-size: 1.2rem; pointer-events: none;
-        }
-    </style>
 </head>
 <body>
-    
     <nav class="navbar">
-        <div class="logo">
-            <i class="ri-edit-box-line"></i> Manage<span class="highlight">Data</span>
-        </div>
-        <a href="/logout" class="logout-btn" onclick="return confirm('Securely Logout?');">
-            <i class="ri-logout-box-r-line"></i>
-        </a>
+        <div class="logo"><i class="ri-edit-box-line"></i> Manage<span class="highlight">Data</span></div>
+        <a href="/logout" class="logout-btn" onclick="return confirm('Securely Logout?');"><i class="ri-logout-box-r-line"></i></a>
     </nav>
 
     <div class="container">
-        
-        <div class="section-title">
-            <h2><i class="ri-settings-4-line"></i> <%= headerTitle %></h2>
-            <p class="subtitle">Search, edit or delete records.</p>
-        </div>
-
-        <form action="/manage" method="GET" class="filter-form">
-            <div class="filter-wrapper">
-                <i class="ri-filter-3-line"></i>
-                <select name="month" class="filter-select" onchange="this.form.submit()">
-                    <option value="0" <%= monthOffset == 0 ? 'selected' : '' %>>This Month</option>
-                    <option value="1" <%= monthOffset == 1 ? 'selected' : '' %>>Last Month</option>
-                    <option value="2" <%= monthOffset == 2 ? 'selected' : '' %>>2 Months Ago</option>
-                    <option value="all" <%= monthOffset === 'all' ? 'selected' : '' %>>Show All History</option>
-                </select>
-            </div>
-        </form>
-
         <div class="search-box">
             <i class="ri-search-line"></i>
-            <input type="text" id="searchInput" onkeyup="filterList()" placeholder="Search in this list...">
+            <input type="text" id="searchInput" onkeyup="filterList()" placeholder="Search Name or Mobile...">
         </div>
 
         <div class="grid-layout" id="customerList">
             <% customers.forEach(customer => { %>
                 <div class="card search-item">
                     <div class="card-top">
-                        <span class="badge badge-<%= customer.category %>"><%= customer.category %></span>
-                        <span class="date-tag">
-                            <%= (customer.activationDate || customer.createdAt).toISOString().split('T')[0] %>
-                        </span>
+                        <% if (customer.category === 'Family') { %>
+                            <span class="badge badge-Family">Family: <%= customer.subType %></span>
+                        <% } else { %>
+                            <span class="badge badge-<%= customer.category %>"><%= customer.category %></span>
+                        <% } %>
+                        <span class="date-tag"><%= (customer.activationDate || customer.createdAt).toISOString().split('T')[0] %></span>
                     </div>
                     
                     <div class="card-body">
                         <h3 class="customer-name"><%= customer.name %></h3>
                         <p class="meta-info mobile-txt"><i class="ri-smartphone-line"></i> <%= customer.mobile %></p>
-                        <% if(customer.category === 'MNP') { %>
+                        <% if(customer.region && customer.region !== 'NA') { %>
                             <p class="meta-info"><i class="ri-map-pin-line"></i> <%= customer.region %></p>
                         <% } %>
                     </div>
@@ -86,9 +45,10 @@
                             '<%= customer._id %>',
                             '<%= customer.name %>',
                             '<%= customer.mobile %>',
-                            '<%= customer.category %>',
-                            '<%= customer.region %>',
-                            '<%= (customer.activationDate || customer.createdAt).toISOString().split('T')[0] %>'
+                            '<%= customer.category %>', 
+                            '<%= customer.region || 'NA' %>',
+                            '<%= (customer.activationDate || customer.createdAt).toISOString().split('T')[0] %>',
+                            `<%= customer.remarks || '' %>`
                         )">
                             <i class="ri-pencil-line"></i> Edit / Delete
                         </button>
@@ -108,134 +68,79 @@
             <form id="editForm" method="POST">
                 <div class="input-group">
                     <label>Activation Date</label>
-                    <div class="input-wrapper">
-                        <i class="ri-calendar-line icon-left"></i>
-                        <input type="date" name="activationDate" id="editDate" required>
-                    </div>
+                    <div class="input-wrapper"><i class="ri-calendar-line icon-left"></i><input type="date" name="activationDate" id="editDate" required></div>
                 </div>
-
                 <div class="input-group">
-                    <label>Category</label>
-                    <div class="input-wrapper">
-                        <i class="ri-list-check icon-left"></i>
+                    <label>Type</label>
+                    <div class="input-wrapper"><i class="ri-list-check icon-left"></i>
                         <select name="category" id="editCategory" onchange="toggleEditRegion()" required>
                             <option value="NC">NC</option>
                             <option value="P2P">P2P</option>
                             <option value="MNP">MNP</option>
+                            <option value="Family">Family</option>
                         </select>
                     </div>
                 </div>
-
                 <div class="input-group" id="edit-region-group" style="display: none;">
                     <label>Region</label>
-                    <div class="input-wrapper">
-                        <i class="ri-map-pin-user-line icon-left"></i>
+                    <div class="input-wrapper"><i class="ri-map-pin-user-line icon-left"></i>
                         <select name="region" id="editRegion">
+                            <option value="NA">Select</option>
                             <option value="Delhi">Delhi</option>
                             <option value="Other">Other</option>
                         </select>
                     </div>
                 </div>
-
-                <div class="input-group">
-                    <label>Name</label>
-                    <div class="input-wrapper">
-                        <i class="ri-user-smile-line icon-left"></i>
-                        <input type="text" name="name" id="editName" required>
-                    </div>
-                </div>
-
-                <div class="input-group">
-                    <label>Mobile</label>
-                    <div class="input-wrapper">
-                        <i class="ri-smartphone-line icon-left"></i>
-                        <input type="tel" name="mobile" id="editMobile" pattern="[0-9]{10}" required>
-                    </div>
-                </div>
-
+                <div class="input-group"><label>Name</label><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="name" id="editName" required></div></div>
+                <div class="input-group"><label>Mobile</label><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="mobile" id="editMobile" pattern="[0-9]{10}" required></div></div>
+                <div class="input-group"><label>Remarks</label><div class="input-wrapper"><i class="ri-sticky-note-line icon-left"></i><input type="text" name="remarks" id="editRemarks"></div></div>
                 <button type="submit" class="btn-submit">Update Record</button>
             </form>
-
             <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
-
-            <form id="deleteForm" method="POST" onsubmit="return confirm('Are you sure you want to delete this record permanently?');">
-                <button type="submit" class="btn-delete">
-                    <i class="ri-delete-bin-line"></i> Delete Record
-                </button>
+            <form id="deleteForm" method="POST" onsubmit="return confirm('Delete permanently?');">
+                <button type="submit" class="btn-delete"><i class="ri-delete-bin-line"></i> Delete Record</button>
             </form>
         </div>
     </div>
 
     <div class="bottom-nav">
-        <a href="/" class="nav-item">
-            <i class="ri-home-4-line"></i>
-            <span>Home</span>
-        </a>
-        <a href="/all" class="nav-item">
-            <i class="ri-list-check"></i>
-            <span>All</span>
-        </a>
-        <div class="nav-fab" onclick="window.location.href='/'">
-            <i class="ri-add-line"></i>
-        </div>
-        <a href="/manage" class="nav-item active">
-            <i class="ri-edit-2-fill"></i>
-            <span>Edit</span>
-        </a>
-        <a href="/analytics" class="nav-item">
-            <i class="ri-pie-chart-line"></i>
-            <span>Analysis</span>
-        </a>
+        <a href="/" class="nav-item"><i class="ri-home-4-line"></i><span>Home</span></a>
+        <a href="/all" class="nav-item"><i class="ri-list-check"></i><span>All</span></a>
+        <div class="nav-fab" onclick="window.location.href='/'"><i class="ri-add-line"></i></div>
+        <a href="/manage" class="nav-item active"><i class="ri-edit-2-fill"></i><span>Edit</span></a>
+        <a href="/analytics" class="nav-item"><i class="ri-pie-chart-line"></i><span>Analysis</span></a>
     </div>
 
     <script>
         function filterList() {
             let input = document.getElementById('searchInput').value.toLowerCase();
             let items = document.getElementsByClassName('search-item');
-
             for (let i = 0; i < items.length; i++) {
                 let name = items[i].getElementsByClassName('customer-name')[0].innerText.toLowerCase();
                 let mobile = items[i].getElementsByClassName('mobile-txt')[0].innerText.toLowerCase();
-                if (name.includes(input) || mobile.includes(input)) {
-                    items[i].style.display = "";
-                } else {
-                    items[i].style.display = "none";
-                }
+                if (name.includes(input) || mobile.includes(input)) items[i].style.display = ""; else items[i].style.display = "none";
             }
         }
-
         const modal = document.getElementById("editModal");
         const regionGroup = document.getElementById('edit-region-group');
-
-        function openEditModal(id, name, mobile, category, region, date) {
+        function openEditModal(id, name, mobile, category, region, date, remarks) {
             document.getElementById('editForm').action = "/edit/" + id;
             document.getElementById('deleteForm').action = "/delete/" + id; 
-
             document.getElementById('editName').value = name;
             document.getElementById('editMobile').value = mobile;
-            document.getElementById('editCategory').value = category;
             document.getElementById('editDate').value = date;
-            if(category === 'MNP') {
-                regionGroup.style.display = 'block';
-                document.getElementById('editRegion').value = region;
-            } else {
-                regionGroup.style.display = 'none';
-            }
+            document.getElementById('editCategory').value = category;
+            document.getElementById('editRegion').value = region;
+            document.getElementById('editRemarks').value = remarks;
+            toggleEditRegion(); 
             modal.classList.add('active');
         }
-
-        function closeEditModal() {
-            modal.classList.remove('active');
-        }
-
+        function closeEditModal() { modal.classList.remove('active'); }
         function toggleEditRegion() {
-            const category = document.getElementById('editCategory').value;
-            regionGroup.style.display = (category === 'MNP') ? 'block' : 'none';
+            const cat = document.getElementById('editCategory').value;
+            if (cat === 'MNP' || cat === 'Family') regionGroup.style.display = 'block'; else regionGroup.style.display = 'none';
         }
-
-        window.onclick = function(event) {
-            if (event.target == modal) closeEditModal();
-        }
+        window.onclick = function(event) { if (event.target == modal) closeEditModal(); }
     </script>
 </body>
 </html>
