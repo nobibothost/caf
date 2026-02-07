@@ -50,7 +50,7 @@
                                 <span class="fs-label secondary-label">Secondary (This SIM)</span>
                                 <div class="fs-info">
                                     <h4 class="customer-name"><%= customer.name %></h4><p class="mobile-txt"><%= customer.mobile %></p>
-                                    <p style="font-size:0.7rem; color:#64748b;">Type: <%= customer.subType %> <% if(customer.subType === 'MNP' && customer.region && customer.region !== 'NA'){ %> (<%= customer.region %>) <% } %></p>
+                                    <p style="font-size:0.7rem; color:#64748b;">Type: <%= customer.subType %></p>
                                 </div>
                                 <div class="fs-actions"><a href="whatsapp://send?phone=91<%= customer.mobile %>" class="mini-btn mini-wa"><i class="ri-whatsapp-line"></i></a><a href="tel:<%= customer.mobile %>" class="mini-btn mini-call"><i class="ri-phone-fill"></i></a></div>
                             </div>
@@ -59,7 +59,6 @@
                         <div class="card-body">
                             <h3 class="customer-name"><%= customer.name %></h3>
                             <p class="meta-info mobile-txt"><i class="ri-smartphone-line"></i> <%= customer.mobile %></p>
-                            <% if(customer.region && customer.region !== 'NA') { %><p class="meta-info"><i class="ri-map-pin-line"></i> <%= customer.region %></p><% } %>
                         </div>
                         <div class="card-actions" style="margin-bottom: 8px;"><a href="whatsapp://send?phone=91<%= customer.mobile %>" class="btn-whatsapp" style="flex: 1;"><i class="ri-whatsapp-line"></i> WhatsApp</a><a href="tel:<%= customer.mobile %>" class="btn-call" style="flex: 1;"><i class="ri-phone-fill"></i> Call</a></div>
                     <% } %>
@@ -68,7 +67,7 @@
                         <% if (customer.remarks && customer.remarks.trim() !== "") { %> <button class="btn-note" data-name="<%= customer.name %>" data-remarks="<%= customer.remarks %>" onclick="openRemarksModal(this)"><i class="ri-sticky-note-fill"></i></button> <% } %>
                         <button class="btn-edit" 
                             data-id="<%= customer._id %>" data-category="<%= customer.category %>" data-date="<%= (customer.activationDate || customer.createdAt).toISOString().split('T')[0] %>" data-remarks="<%= customer.remarks || '' %>"
-                            data-name="<%= customer.name %>" data-mobile="<%= customer.mobile %>" data-region="<%= customer.region || 'NA' %>"
+                            data-name="<%= customer.name %>" data-mobile="<%= customer.mobile %>"
                             data-subtype="<%= customer.subType %>" data-p-name="<%= customer.linkedPrimaryName || '' %>" data-p-mobile="<%= customer.linkedPrimaryNumber || '' %>" data-p-status="<%= customer.linkedPrimaryStatus || '' %>"
                             onclick="openEditModal(this)"><i class="ri-pencil-line"></i> Edit</button>
                     </div>
@@ -83,30 +82,32 @@
             <form id="editForm" method="POST">
                 <div class="input-group"><label>Activation Date</label><div class="input-wrapper"><i class="ri-calendar-line icon-left"></i><input type="date" name="activationDate" id="editDate" required></div></div>
                 <div class="input-group"><label>Type</label><div class="input-wrapper"><i class="ri-list-check icon-left"></i>
-                    <select name="category" id="editCategory" onchange="handleEditCategoryChange()" required><option value="NC">NC</option><option value="P2P">P2P</option><option value="MNP">MNP</option><option value="Family">Family</option></select></div></div>
+                    <select name="category" id="editCategory" onchange="handleEditCategoryChange()" required>
+                        <option value="NC">NC</option><option value="P2P">P2P</option><option value="MNP">MNP</option><option value="NMNP">NMNP</option><option value="Family">Family</option>
+                    </select></div></div>
 
                 <div id="edit-normal-form" class="form-section">
-                    <div class="input-group" id="edit-n-region-div" style="display: none;"><label>Region</label><div class="input-wrapper"><i class="ri-map-pin-user-line icon-left"></i><select name="n_region" id="editNRegion"><option value="Delhi">Delhi</option><option value="Other">Other</option></select></div></div><div class="input-group"><label>Name</label><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="n_name" id="editNName"></div></div><div class="input-group"><label>Mobile</label><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="n_mobile" id="editNMobile" pattern="[0-9]{10}"></div></div>
+                    <div class="input-group"><label>Name</label><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="n_name" id="editNName"></div></div><div class="input-group"><label>Mobile</label><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="n_mobile" id="editNMobile" pattern="[0-9]{10}"></div></div>
                 </div>
 
                 <div id="edit-family-form" class="form-section">
                     <span class="section-label">Primary Connection</span>
                     <div class="input-group"><label>Primary Type</label><div class="input-wrapper"><i class="ri-shield-user-line icon-left"></i>
-                        <select name="p_type" id="editPType" onchange="toggleEditPrimaryRegion()">
-                            <option value="Existing">Existing (Active)</option><option value="NC">New Entry (NC)</option><option value="P2P">New Entry (P2P)</option><option value="MNP">New Entry (MNP)</option>
+                        <select name="p_type" id="editPType">
+                            <option value="Existing">Existing (Active)</option><option value="NC">New NC</option><option value="P2P">New P2P</option><option value="MNP">New MNP</option><option value="NMNP">New NMNP</option>
                         </select>
                     </div></div>
-                    <div class="input-group" id="edit-p-region-div" style="display: none;"><label>Primary Region</label><div class="input-wrapper"><i class="ri-map-pin-user-line icon-left"></i><select name="p_region" id="editPRegion"><option value="Delhi">Delhi</option><option value="Other">Other</option></select></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-user-star-line icon-left"></i><input type="text" name="p_name" id="editPName" placeholder="Primary Name"></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="p_mobile" id="editPMobile" placeholder="Primary Mobile" pattern="[0-9]{10}"></div></div>
+                    <div class="input-group"><div class="input-wrapper"><i class="ri-user-star-line icon-left"></i><input type="text" name="p_name" id="editPName" placeholder="Primary Name"></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="p_mobile" id="editPMobile" placeholder="Primary Mobile" pattern="[0-9]{10}"></div></div>
                     
                     <div class="divider"><span>AND</span></div>
                     
                     <span class="section-label">Secondary Connection (This SIM)</span>
                     <div class="input-group"><label>Secondary Type</label><div class="input-wrapper"><i class="ri-sim-card-line icon-left"></i>
-                        <select name="s_type" id="editSType" onchange="toggleEditSecondaryRegion()">
-                            <option value="Existing">Existing (Active)</option><option value="NC">New Entry (NC)</option><option value="P2P">New Entry (P2P)</option><option value="MNP">New Entry (MNP)</option>
+                        <select name="s_type" id="editSType">
+                            <option value="Existing">Existing (Active)</option><option value="NC">New NC</option><option value="P2P">New P2P</option><option value="MNP">New MNP</option><option value="NMNP">New NMNP</option>
                         </select>
                     </div></div>
-                    <div class="input-group" id="edit-s-region-div" style="display: none;"><label>Secondary Region</label><div class="input-wrapper"><i class="ri-map-pin-user-line icon-left"></i><select name="s_region" id="editSRegion"><option value="Delhi">Delhi</option><option value="Other">Other</option></select></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="s_name" id="editSName" placeholder="Secondary Name"></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="s_mobile" id="editSMobile" placeholder="Secondary Mobile" pattern="[0-9]{10}"></div></div>
+                    <div class="input-group"><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="s_name" id="editSName" placeholder="Secondary Name"></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="s_mobile" id="editSMobile" placeholder="Secondary Mobile" pattern="[0-9]{10}"></div></div>
                 </div>
 
                 <div class="input-group" style="margin-top: 20px;"><label>Remarks</label><div class="input-wrapper"><i class="ri-sticky-note-line icon-left"></i><input type="text" name="remarks" id="editRemarks"></div></div>
@@ -121,13 +122,29 @@
     <script>
         function filterList() { let input = document.getElementById('searchInput').value.toLowerCase(); let items = document.getElementsByClassName('search-item'); for (let i = 0; i < items.length; i++) { let name = items[i].getElementsByClassName('customer-name')[0].innerText.toLowerCase(); let mobile = items[i].getElementsByClassName('mobile-txt')[0].innerText.toLowerCase(); if (name.includes(input) || mobile.includes(input)) items[i].style.display = ""; else items[i].style.display = "none"; } }
         const modal = document.getElementById("editModal"); const remarksModal = document.getElementById("remarksModal");
-        function openEditModal(btn) { document.getElementById('editForm').action = "/edit/" + btn.getAttribute('data-id'); document.getElementById('deleteForm').action = "/delete/" + btn.getAttribute('data-id'); const cat = btn.getAttribute('data-category'); document.getElementById('editCategory').value = cat; document.getElementById('editDate').value = btn.getAttribute('data-date'); document.getElementById('editRemarks').value = btn.getAttribute('data-remarks'); if (cat === 'Family') { const pStatus = btn.getAttribute('data-p-status'); let pType = 'Existing'; let pRegion = 'Delhi'; if (pStatus.includes('MNP')) pType = 'MNP'; else if (pStatus.includes('NC')) pType = 'NC'; else if (pStatus.includes('P2P')) pType = 'P2P'; if (pStatus.includes('Other')) pRegion = 'Other'; document.getElementById('editPType').value = pType; document.getElementById('editPRegion').value = pRegion; document.getElementById('editPName').value = btn.getAttribute('data-p-name'); document.getElementById('editPMobile').value = btn.getAttribute('data-p-mobile'); document.getElementById('editSType').value = btn.getAttribute('data-subtype'); document.getElementById('editSRegion').value = btn.getAttribute('data-region'); document.getElementById('editSName').value = btn.getAttribute('data-name'); document.getElementById('editSMobile').value = btn.getAttribute('data-mobile'); } else { document.getElementById('editNName').value = btn.getAttribute('data-name'); document.getElementById('editNMobile').value = btn.getAttribute('data-mobile'); document.getElementById('editNRegion').value = btn.getAttribute('data-region'); document.getElementById('editSType').value = cat; } handleEditCategoryChange(); modal.style.display = 'flex'; setTimeout(() => { modal.classList.add('active'); }, 10); }
+        function openEditModal(btn) { document.getElementById('editForm').action = "/edit/" + btn.getAttribute('data-id'); document.getElementById('deleteForm').action = "/delete/" + btn.getAttribute('data-id'); const cat = btn.getAttribute('data-category'); document.getElementById('editCategory').value = cat;
+        document.getElementById('editDate').value = btn.getAttribute('data-date'); document.getElementById('editRemarks').value = btn.getAttribute('data-remarks'); 
+        if (cat === 'Family') { 
+            const pStatus = btn.getAttribute('data-p-status'); 
+            let pType = 'Existing';
+            // Simplified extract logic for pType based on string (legacy support)
+            if (pStatus.includes('NMNP')) pType = 'NMNP';
+            else if (pStatus.includes('MNP')) pType = 'MNP'; 
+            else if (pStatus.includes('NC')) pType = 'NC';
+            else if (pStatus.includes('P2P')) pType = 'P2P'; 
+            
+            document.getElementById('editPType').value = pType; 
+            document.getElementById('editPName').value = btn.getAttribute('data-p-name');
+            document.getElementById('editPMobile').value = btn.getAttribute('data-p-mobile'); 
+            document.getElementById('editSType').value = btn.getAttribute('data-subtype'); 
+            document.getElementById('editSName').value = btn.getAttribute('data-name'); 
+            document.getElementById('editSMobile').value = btn.getAttribute('data-mobile');
+        } else { document.getElementById('editNName').value = btn.getAttribute('data-name'); document.getElementById('editNMobile').value = btn.getAttribute('data-mobile'); document.getElementById('editSType').value = cat; } handleEditCategoryChange(); modal.style.display = 'flex';
+        setTimeout(() => { modal.classList.add('active'); }, 10); }
         function closeEditModal() { modal.classList.remove('active'); setTimeout(() => { modal.style.display = 'none'; }, 300); }
         function openRemarksModal(btn) { document.getElementById('remarksTitle').innerText = btn.getAttribute('data-name'); document.getElementById('remarksBody').innerText = btn.getAttribute('data-remarks'); remarksModal.style.display = 'flex'; setTimeout(() => { remarksModal.classList.add('active'); }, 10); }
         function closeRemarksModal() { remarksModal.classList.remove('active'); setTimeout(() => { remarksModal.style.display = 'none'; }, 300); }
-        function handleEditCategoryChange() { const cat = document.getElementById('editCategory').value; const nForm = document.getElementById('edit-normal-form'); const fForm = document.getElementById('edit-family-form'); nForm.classList.remove('active'); fForm.classList.remove('active'); if (cat === 'Family') { fForm.classList.add('active'); toggleEditPrimaryRegion(); toggleEditSecondaryRegion(); document.getElementById('editNName').required = false; document.getElementById('editNMobile').required = false; } else { nForm.classList.add('active'); document.getElementById('edit-n-region-div').style.display = (cat === 'MNP') ? 'block' : 'none'; document.getElementById('editNName').required = true; document.getElementById('editNMobile').required = true; } }
-        function toggleEditPrimaryRegion() { document.getElementById('edit-p-region-div').style.display = (document.getElementById('editPType').value === 'MNP') ? 'block' : 'none'; }
-        function toggleEditSecondaryRegion() { document.getElementById('edit-s-region-div').style.display = (document.getElementById('editSType').value === 'MNP') ? 'block' : 'none'; }
+        function handleEditCategoryChange() { const cat = document.getElementById('editCategory').value; const nForm = document.getElementById('edit-normal-form'); const fForm = document.getElementById('edit-family-form'); nForm.classList.remove('active'); fForm.classList.remove('active'); if (cat === 'Family') { fForm.classList.add('active'); document.getElementById('editNName').required = false; document.getElementById('editNMobile').required = false; } else { nForm.classList.add('active'); document.getElementById('editNName').required = true; document.getElementById('editNMobile').required = true; } }
         window.onclick = function(event) { if (event.target == modal) closeEditModal(); if (event.target == remarksModal) closeRemarksModal(); }
     </script>
 </body>
