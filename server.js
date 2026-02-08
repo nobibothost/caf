@@ -33,6 +33,19 @@ const RULES = {
     VERIFICATION_DELAY: 3 // Activation + 3 Days
 };
 
+// --- HELPER: CALCULATE RUNS (SCORE100 NXT) ---
+function getRuns(category, subType) {
+    if (category === 'Family') {
+        // Family Logic
+        if (subType === 'MNP' || subType === 'NMNP') return 3; // Family MNP = 3 Runs
+        return 1; // Family Fresh/P2P = 1 Run
+    } else {
+        // Normal Logic
+        if (subType === 'MNP' || subType === 'NMNP') return 2; // Normal MNP = 2 Runs
+        return 1; // Normal Fresh/P2P = 1 Run
+    }
+}
+
 const getEmailTemplate = (otp, type = 'Login') => {
     const formattedOtp = otp.toString().split('').join(' ');
     return `
@@ -240,7 +253,7 @@ app.get('/all', isAuthenticated, async (req, res) => {
     } catch (err) { res.redirect('/'); }
 });
 
-// --- ANALYTICS ROUTE (FIXED LOGIC) ---
+// --- ANALYTICS ROUTE (ACTIVATION BASED RUN SCORE) ---
 app.get('/analytics', isAuthenticated, async (req, res) => {
     try {
         const monthQuery = req.query.month; let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
@@ -258,9 +271,10 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
             headerTitle = "Analysis: " + monthNames[startOfMonth.getMonth()] + " " + startOfMonth.getFullYear(); 
         }
         
+        // Fetch Entries (For Breakdown & Total Count)
         const monthlyEntries = await Customer.find(entryQuery).sort({ activationDate: 1 });
         
-        // 2. Logic for Activations (Show in Activation Month)
+        // 2. Logic for Activations (For Runs & Activation Count)
         let activationQuery = {};
         if (req.query.month === 'all') {
             activationQuery = { activationDate: { $lte: new Date() } };
@@ -268,22 +282,21 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
             activationQuery = { activationDate: { $gte: startOfMonth, $lt: endOfMonth } };
         }
         
-        // Count actual activations from DB directly
-        const actualActivations = await Customer.countDocuments(activationQuery);
+        // ✅ FETCH FULL ACTIVATED DATA (Required for Run Calculation)
+        const monthlyActivations = await Customer.find(activationQuery);
 
         const stats = { 
             total: 0, 
-            activated: actualActivations, // ✅ Comes from Activation Date
+            activated: monthlyActivations.length, // Count from activated list
+            runs: 0, 
             nc: 0, p2p: 0, mnp: 0, nmnp: 0, family: 0, 
             completed: 0, pending: 0 
         };
 
-        // Loop for Entry Stats (Category Breakdown)
+        // LOOP 1: Calculate Entry Stats (Based on Entry Date)
         monthlyEntries.forEach(c => {
-            stats.total++; // ✅ Counts in Entry Month
+            stats.total++; 
             if (c.status === 'completed') stats.completed++; else stats.pending++;
-
-            // We do NOT count activations here anymore to allow cross-month logic.
 
             if (c.subType === 'NC') stats.nc++;
             else if (c.subType === 'P2P') stats.p2p++;
@@ -292,21 +305,47 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
             
             if (c.category === 'Family') stats.family++;
 
-            // Ghost Detection (Only affects Total/Category counts, not Activated)
+            // Ghost Detection for Entry Count (Virtual Entry)
             if (c.category === 'Family' && c.familyRole === 'Secondary') {
                 const pStatus = c.linkedPrimaryStatus || '';
                 if (!pStatus.includes('Existing') && !pStatus.includes('Active')) {
                     const primaryDoc = monthlyEntries.find(p => p.category === 'Family' && p.familyRole === 'Primary' && p.mobile === c.linkedPrimaryNumber);
                     if (!primaryDoc) {
-                        stats.total++; // Virtual Entry Count
+                        stats.total++;
                         stats.family++;
-                        
                         if (c.status === 'completed') stats.completed++; else stats.pending++;
-                        
                         if (pStatus.includes('NC')) stats.nc++;
                         else if (pStatus.includes('P2P')) stats.p2p++;
                         else if (pStatus.includes('MNP')) stats.mnp++;
                         else if (pStatus.includes('NMNP')) stats.nmnp++;
+                    }
+                }
+            }
+        });
+
+        // LOOP 2: Calculate RUNS (Based on ACTIVATION Date)
+        monthlyActivations.forEach(c => {
+            // Add Run for this Activated SIM
+            let currentRun = getRuns(c.category, c.subType);
+            stats.runs += currentRun;
+
+            // Ghost Detection for Runs (Virtual Run)
+            // If this activated SIM is Secondary, check if Primary is also in this activation list
+            if (c.category === 'Family' && c.familyRole === 'Secondary') {
+                const pStatus = c.linkedPrimaryStatus || '';
+                if (!pStatus.includes('Existing') && !pStatus.includes('Active')) {
+                    
+                    // Look for Primary in the ACTIVATED list
+                    const primaryDoc = monthlyActivations.find(p => p.category === 'Family' && p.familyRole === 'Primary' && p.mobile === c.linkedPrimaryNumber);
+                    
+                    // If Primary NOT found in activated list, it's a Ghost Run for this month
+                    if (!primaryDoc) {
+                        let ghostType = 'NC'; 
+                        if (pStatus.includes('MNP') || pStatus.includes('NMNP')) ghostType = 'MNP';
+                        else if (pStatus.includes('P2P')) ghostType = 'P2P';
+                        
+                        let ghostRuns = getRuns('Family', ghostType); 
+                        stats.runs += ghostRuns;
                     }
                 }
             }
