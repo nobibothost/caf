@@ -20,21 +20,19 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'supersecretkey';
 const MONGO_URI = process.env.MONGO_URI;
 
 /* ==========================================================================
-   🔥 BUSINESS LOGIC & RULES (UPDATED) 🔥
-   ==========================================================================
-*/
+   🔥 BUSINESS LOGIC & RULES 🔥
+   ========================================================================== */
 const RULES = {
     ACTIVATION_DELAY: {
-        'NC': 0,          // Instant Activation
-        'P2P': 0,         // Instant Activation
-        'MNP': 3,         // 3 Days Delay
-        'NMNP': 5,        // 5 Days Delay
-        'Existing': 0     // Already Active
+        'NC': 0,          // Instant
+        'P2P': 0,         // Instant
+        'MNP': 3,         // 3 Days
+        'NMNP': 5,        // 5 Days
+        'Existing': 0     // No Delay
     },
-    VERIFICATION_DELAY: 3 // Verification is ALWAYS Activation + 3 Days
+    VERIFICATION_DELAY: 3 // Activation + 3 Days
 };
 
-// --- EMAIL TEMPLATE ---
 const getEmailTemplate = (otp, type = 'Login') => {
     const formattedOtp = otp.toString().split('').join(' ');
     return `
@@ -106,9 +104,9 @@ const customerSchema = new mongoose.Schema({
     name: String, 
     mobile: String, 
     category: String, 
-    subType: String, // Stores: NC, P2P, MNP, NMNP, Existing
+    subType: String, 
     region: { type: String, default: 'NA' }, 
-    familyRole: { type: String, default: 'Secondary' }, // 'Primary' or 'Secondary'
+    familyRole: { type: String, default: 'Secondary' }, 
     linkedPrimaryName: String, 
     linkedPrimaryNumber: String, 
     linkedPrimaryStatus: String, 
@@ -130,52 +128,58 @@ const connectDB = async () => {
     } 
     catch (err) { console.error('❌ MongoDB Error:', err.message); setTimeout(connectDB, 5000); }
 };
-mongoose.connection.on('connected', () => { console.log('🟢 Mongoose connected'); });
-mongoose.connection.on('error', (err) => { console.log('🔴 Mongoose error:', err); });
-mongoose.connection.on('disconnected', () => { console.log('🟠 Mongoose disconnected'); });
 connectDB();
 
-// --- LOGIC CALCULATOR (SIMPLIFIED & UPDATED) ---
+// --- LOGIC CALCULATOR ---
 function calculateLogic(baseDate, type) {
-    // 1. Activation Delay based on Type (Independent)
-    // NC/P2P = 0, MNP = 3, NMNP = 5, Existing = 0
     const activationDelay = RULES.ACTIVATION_DELAY[type] !== undefined ? RULES.ACTIVATION_DELAY[type] : 0;
-    
     const realActivationDate = new Date(baseDate);
     realActivationDate.setDate(realActivationDate.getDate() + activationDelay);
     realActivationDate.setHours(0,0,0,0);
 
-    // 2. Verification is ALWAYS Activation + 3 Days
-    // (Except for Existing, which doesn't need verification, but we set it same as activation just in case)
     const realVerificationDate = new Date(realActivationDate);
     if (type !== 'Existing') {
         realVerificationDate.setDate(realVerificationDate.getDate() + RULES.VERIFICATION_DELAY);
     }
     realVerificationDate.setHours(0,0,0,0);
-
     return { realActivationDate, realVerificationDate };
 }
 
 // --- ROUTES ---
 app.get('/health', (req, res) => res.status(200).send('OK'));
-app.get('/login', (req, res) => { if (req.session.isLoggedIn) return res.redirect('/'); res.render('login', { error: null }); });
+
+app.get('/login', (req, res) => { 
+    if (req.session.isLoggedIn) return res.redirect('/'); 
+    res.render('login', { error: null }); 
+});
 
 app.post('/login', loginLimiter, async (req, res) => {
     const { username, Vpassword, remember } = req.body;
     if (username === ADMIN_USERNAME && Vpassword === ADMIN_PASSWORD) {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         req.session.otp = otp; req.session.tempUser = { username, remember };
-        try { await axios.post(`${EMAIL_SERVICE_URL}/send-email`, { recipient: ADMIN_EMAIL_RECEIVER, subject: '🔐 Login Code', message: getEmailTemplate(otp, 'Login') }); res.redirect('/otp'); } 
+        try { 
+            await axios.post(`${EMAIL_SERVICE_URL}/send-email`, { 
+                recipient: ADMIN_EMAIL_RECEIVER, 
+                subject: '🔐 Login Code', 
+                message: getEmailTemplate(otp, 'Login') 
+            }); 
+            res.redirect('/otp'); 
+        } 
         catch (error) { res.render('login', { error: 'Email Service Error' }); }
     } else { res.render('login', { error: 'Invalid Credentials' }); }
 });
 
-app.get('/otp', (req, res) => { if (!req.session.otp) return res.redirect('/login'); res.render('otp', { error: null }); });
+app.get('/otp', (req, res) => { 
+    if (!req.session.otp) return res.redirect('/login'); 
+    res.render('otp', { error: null }); 
+});
 
 app.post('/verify-otp', otpLimiter, (req, res) => {
     const { otp } = req.body;
     if (req.session.otp && otp.replace(/\s/g, '') === req.session.otp) {
-        req.session.isLoggedIn = true; req.session.cookie.maxAge = (req.session.tempUser.remember === 'on') ? 365 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+        req.session.isLoggedIn = true; 
+        req.session.cookie.maxAge = (req.session.tempUser.remember === 'on') ? 365 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
         delete req.session.otp; delete req.session.tempUser; res.redirect('/');
     } else { res.render('otp', { error: 'Invalid OTP' }); }
 });
@@ -184,16 +188,26 @@ app.post('/resend-otp', async (req, res) => {
     if (!req.session.tempUser) return res.status(401).json({ success: false });
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     req.session.otp = otp;
-    try { await axios.post(`${EMAIL_SERVICE_URL}/send-email`, { recipient: ADMIN_EMAIL_RECEIVER, subject: '🔄 New Code', message: getEmailTemplate(otp, 'Resend') }); res.json({ success: true }); } 
+    try { 
+        await axios.post(`${EMAIL_SERVICE_URL}/send-email`, { 
+            recipient: ADMIN_EMAIL_RECEIVER, 
+            subject: '🔄 New Code', 
+            message: getEmailTemplate(otp, 'Resend') 
+        }); 
+        res.json({ success: true }); 
+    } 
     catch (error) { res.status(500).json({ success: false }); }
 });
 
-app.get('/logout', (req, res) => { req.session.destroy(() => { res.clearCookie('connect.sid'); res.redirect('/login'); }); });
+app.get('/logout', (req, res) => { 
+    req.session.destroy(() => { res.clearCookie('connect.sid'); res.redirect('/login'); }); 
+});
 
 // --- PAGES ---
 app.get('/', isAuthenticated, async (req, res) => {
     try {
-        const monthQuery = req.query.month; let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
+        const monthQuery = req.query.month; 
+        let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         
         const now = new Date(); 
@@ -214,43 +228,92 @@ app.get('/all', isAuthenticated, async (req, res) => {
         const monthQuery = req.query.month; let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
         let query = {}; let headerTitle = "All History";
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        if (monthQuery !== 'all') { const now = new Date(); const startData = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1); const endData = new Date(now.getFullYear(), now.getMonth() - monthOffset + 1, 1); query = { createdAt: { $gte: startData, $lt: endData } }; headerTitle = "History: " + monthNames[startData.getMonth()] + " " + startData.getFullYear(); }
+        if (monthQuery !== 'all') { 
+            const now = new Date(); 
+            const startData = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1); 
+            const endData = new Date(now.getFullYear(), now.getMonth() - monthOffset + 1, 1); 
+            query = { createdAt: { $gte: startData, $lt: endData } }; 
+            headerTitle = "History: " + monthNames[startData.getMonth()] + " " + startData.getFullYear(); 
+        }
         const customers = await Customer.find(query).sort({ createdAt: -1 });
         res.render('all', { customers, page: 'all', monthOffset, headerTitle });
     } catch (err) { res.redirect('/'); }
 });
 
+// --- ANALYTICS ROUTE (FIXED LOGIC) ---
 app.get('/analytics', isAuthenticated, async (req, res) => {
     try {
         const monthQuery = req.query.month; let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
-        let query = {}; let headerTitle = "All Time Analysis";
+        let entryQuery = {}; 
+        let headerTitle = "All Time Analysis";
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        const now = new Date(); const startOfMonth = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1); const endOfMonth = new Date(now.getFullYear(), now.getMonth() - monthOffset + 1, 1);
         
-        if (req.query.month !== 'all') { query = { createdAt: { $gte: startOfMonth, $lt: endOfMonth } }; headerTitle = "Analysis: " + monthNames[startOfMonth.getMonth()] + " " + startOfMonth.getFullYear(); }
+        const now = new Date(); 
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1); 
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() - monthOffset + 1, 1);
         
-        const monthlyData = await Customer.find(query);
-        
-        let activatedCount = 0;
+        // 1. Logic for Entries (Show in Entry Month)
         if (req.query.month !== 'all') { 
-            const actQuery = { activationDate: { $gte: startOfMonth, $lt: endOfMonth, $lte: now } };
-            activatedCount = await Customer.countDocuments(actQuery); 
-        } else { 
-            activatedCount = await Customer.countDocuments({ activationDate: { $lte: now } });
+            entryQuery = { createdAt: { $gte: startOfMonth, $lt: endOfMonth } }; 
+            headerTitle = "Analysis: " + monthNames[startOfMonth.getMonth()] + " " + startOfMonth.getFullYear(); 
         }
+        
+        const monthlyEntries = await Customer.find(entryQuery).sort({ activationDate: 1 });
+        
+        // 2. Logic for Activations (Show in Activation Month)
+        let activationQuery = {};
+        if (req.query.month === 'all') {
+            activationQuery = { activationDate: { $lte: new Date() } };
+        } else {
+            activationQuery = { activationDate: { $gte: startOfMonth, $lt: endOfMonth } };
+        }
+        
+        // Count actual activations from DB directly
+        const actualActivations = await Customer.countDocuments(activationQuery);
 
         const stats = { 
-            total: monthlyData.length, // Counts every entry (Family = 2 entries)
-            activated: activatedCount, 
-            nc: monthlyData.filter(c => c.subType === 'NC').length,
-            p2p: monthlyData.filter(c => c.subType === 'P2P').length,
-            mnp: monthlyData.filter(c => c.subType === 'MNP').length,
-            nmnp: monthlyData.filter(c => c.subType === 'NMNP').length,
-            family: monthlyData.filter(c => c.category === 'Family').length,
-            completed: monthlyData.filter(c => c.status === 'completed').length, 
-            pending: monthlyData.filter(c => c.status === 'pending').length 
+            total: 0, 
+            activated: actualActivations, // ✅ Comes from Activation Date
+            nc: 0, p2p: 0, mnp: 0, nmnp: 0, family: 0, 
+            completed: 0, pending: 0 
         };
-        res.render('analytics', { stats, page: 'analytics', monthOffset, headerTitle });
+
+        // Loop for Entry Stats (Category Breakdown)
+        monthlyEntries.forEach(c => {
+            stats.total++; // ✅ Counts in Entry Month
+            if (c.status === 'completed') stats.completed++; else stats.pending++;
+
+            // We do NOT count activations here anymore to allow cross-month logic.
+
+            if (c.subType === 'NC') stats.nc++;
+            else if (c.subType === 'P2P') stats.p2p++;
+            else if (c.subType === 'MNP') stats.mnp++;
+            else if (c.subType === 'NMNP') stats.nmnp++;
+            
+            if (c.category === 'Family') stats.family++;
+
+            // Ghost Detection (Only affects Total/Category counts, not Activated)
+            if (c.category === 'Family' && c.familyRole === 'Secondary') {
+                const pStatus = c.linkedPrimaryStatus || '';
+                if (!pStatus.includes('Existing') && !pStatus.includes('Active')) {
+                    const primaryDoc = monthlyEntries.find(p => p.category === 'Family' && p.familyRole === 'Primary' && p.mobile === c.linkedPrimaryNumber);
+                    if (!primaryDoc) {
+                        stats.total++; // Virtual Entry Count
+                        stats.family++;
+                        
+                        if (c.status === 'completed') stats.completed++; else stats.pending++;
+                        
+                        if (pStatus.includes('NC')) stats.nc++;
+                        else if (pStatus.includes('P2P')) stats.p2p++;
+                        else if (pStatus.includes('MNP')) stats.mnp++;
+                        else if (pStatus.includes('NMNP')) stats.nmnp++;
+                    }
+                }
+            }
+        });
+
+        const pendingList = monthlyEntries.filter(c => c.activationDate && c.activationDate > now);
+        res.render('analytics', { stats, pendingList, page: 'analytics', monthOffset, headerTitle });
     } catch (err) { res.redirect('/'); }
 });
 
@@ -258,127 +321,69 @@ app.get('/manage', isAuthenticated, async (req, res) => {
     try {
         const monthQuery = req.query.month; let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
         let query = {}; let headerTitle = "Managing All Records";
-        if (monthQuery !== 'all') { const now = new Date(); const startData = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1); const endData = new Date(now.getFullYear(), now.getMonth() - monthOffset + 1, 1); query = { createdAt: { $gte: startData, $lt: endData } }; }
+        if (monthQuery !== 'all') { 
+            const now = new Date(); 
+            const startData = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1); 
+            const endData = new Date(now.getFullYear(), now.getMonth() - monthOffset + 1, 1); 
+            query = { createdAt: { $gte: startData, $lt: endData } }; 
+        }
         const allCustomers = await Customer.find(query).sort({ createdAt: -1 });
         res.render('manage', { customers: allCustomers, page: 'manage', monthOffset, headerTitle });
     } catch (err) { res.redirect('/'); }
 });
 
-// --- ACTIONS (Count Logic: Double Save for New Family) ---
 app.post('/add', isAuthenticated, async (req, res) => {
     try {
         const { category, customDate, remarks, p_type, p_name, p_mobile, s_type, s_name, s_mobile, n_name, n_mobile } = req.body;
         const entryDate = customDate ? new Date(customDate) : new Date();
 
         if (category === 'Family') {
-            
-            // 1. CREATE PRIMARY (Only if NOT Existing) -> Count +1
             if (p_type !== 'Existing') {
                 const pLogic = calculateLogic(entryDate, p_type);
-                
                 const primaryCustomer = new Customer({
-                    name: p_name,
-                    mobile: p_mobile,
-                    category: 'Family',
-                    subType: p_type, 
-                    region: 'NA',
-                    familyRole: 'Primary',
-                    linkedPrimaryName: 'Self',
-                    linkedPrimaryNumber: p_mobile,
-                    linkedPrimaryStatus: 'Primary Account',
-                    remarks: remarks || '',
-                    createdAt: entryDate,
-                    activationDate: pLogic.realActivationDate,
-                    verificationDate: pLogic.realVerificationDate,
-                    status: 'pending'
+                    name: p_name, mobile: p_mobile, category: 'Family', subType: p_type, region: 'NA',
+                    familyRole: 'Primary', linkedPrimaryName: 'Self', linkedPrimaryNumber: p_mobile, linkedPrimaryStatus: 'Primary Account',
+                    remarks: remarks || '', createdAt: entryDate, activationDate: pLogic.realActivationDate, verificationDate: pLogic.realVerificationDate, status: 'pending'
                 });
                 await primaryCustomer.save();
             }
-
-            // 2. CREATE SECONDARY (Always) -> Count +1
             const sLogic = calculateLogic(entryDate, s_type);
-            
             const secondaryCustomer = new Customer({
-                name: s_name,
-                mobile: s_mobile,
-                category: 'Family',
-                subType: s_type, 
-                region: 'NA',
-                familyRole: 'Secondary',
-                linkedPrimaryName: p_name,
-                linkedPrimaryNumber: p_mobile,
-                linkedPrimaryStatus: `Type: ${p_type}`,
-                remarks: remarks || '',
-                createdAt: entryDate,
-                activationDate: sLogic.realActivationDate,
-                verificationDate: sLogic.realVerificationDate,
-                status: 'pending'
+                name: s_name, mobile: s_mobile, category: 'Family', subType: s_type, region: 'NA',
+                familyRole: 'Secondary', linkedPrimaryName: p_name, linkedPrimaryNumber: p_mobile, linkedPrimaryStatus: `Type: ${p_type}`,
+                remarks: remarks || '', createdAt: entryDate, activationDate: sLogic.realActivationDate, verificationDate: sLogic.realVerificationDate, status: 'pending'
             });
             await secondaryCustomer.save();
-
         } else {
-            // Normal Entry (NC, P2P, MNP, NMNP)
             const nLogic = calculateLogic(entryDate, category);
             const newCustomer = new Customer({
-                name: n_name,
-                mobile: n_mobile,
-                category: category,
-                subType: category,
-                region: 'NA',
-                familyRole: '',
-                linkedPrimaryName: '',
-                linkedPrimaryNumber: '',
-                linkedPrimaryStatus: '',
-                remarks: remarks || '',
-                createdAt: entryDate,
-                activationDate: nLogic.realActivationDate,
-                verificationDate: nLogic.realVerificationDate,
-                status: 'pending'
+                name: n_name, mobile: n_mobile, category: category, subType: category, region: 'NA',
+                familyRole: '', linkedPrimaryName: '', linkedPrimaryNumber: '', linkedPrimaryStatus: '',
+                remarks: remarks || '', createdAt: entryDate, activationDate: nLogic.realActivationDate, verificationDate: nLogic.realVerificationDate, status: 'pending'
             });
             await newCustomer.save();
         }
-
         res.redirect('/');
     } catch (err) { res.redirect('/'); }
 });
 
-// --- EDIT ACTION (Updated with correct Logic and Syntax) ---
 app.post('/edit/:id', isAuthenticated, async (req, res) => {
     try {
-        const { 
-            category, activationDate, remarks,
-            p_type, p_name, p_mobile,
-            s_type, s_name, s_mobile,
-            n_name, n_mobile
-        } = req.body;
-
+        const { category, activationDate, remarks, p_type, p_name, p_mobile, s_type, s_name, s_mobile, n_name, n_mobile } = req.body;
         const entryDate = new Date(activationDate);
         let updateData = { category, remarks };
         let finalSubType = category;
 
         if (category === 'Family') {
-            // Family Data
-            updateData.name = s_name; 
-            updateData.mobile = s_mobile;
-            updateData.subType = s_type;
-            updateData.region = 'NA';
-            updateData.familyRole = 'Secondary'; 
-            updateData.linkedPrimaryName = p_name;
-            updateData.linkedPrimaryNumber = p_mobile;
-            // Fixed Syntax Error: used = instead of :
-            updateData.linkedPrimaryStatus = `Type: ${p_type}`;
+            updateData.name = s_name; updateData.mobile = s_mobile; updateData.subType = s_type; updateData.region = 'NA';
+            updateData.familyRole = 'Secondary'; updateData.linkedPrimaryName = p_name; updateData.linkedPrimaryNumber = p_mobile; updateData.linkedPrimaryStatus = `Type: ${p_type}`;
             finalSubType = s_type;
         } else {
-            // Normal Data
-            updateData.name = n_name;
-            updateData.mobile = n_mobile;
-            updateData.subType = category;
-            updateData.region = 'NA';
+            updateData.name = n_name; updateData.mobile = n_mobile; updateData.subType = category; updateData.region = 'NA';
             updateData.familyRole = ''; updateData.linkedPrimaryName = ''; updateData.linkedPrimaryNumber = ''; updateData.linkedPrimaryStatus = '';
             finalSubType = category;
         }
 
-        // Updated Logic: Independent calculation
         const { realActivationDate, realVerificationDate } = calculateLogic(entryDate, finalSubType);
         updateData.activationDate = realActivationDate;
         updateData.verificationDate = realVerificationDate;
@@ -388,12 +393,19 @@ app.post('/edit/:id', isAuthenticated, async (req, res) => {
     } catch (err) { res.redirect('/manage'); }
 });
 
-app.post('/delete/:id', isAuthenticated, async (req, res) => { try { await Customer.findByIdAndDelete(req.params.id); res.redirect('/manage'); } catch (err) { res.redirect('/manage'); } });
-app.post('/complete/:id', isAuthenticated, async (req, res) => { try { await Customer.findByIdAndUpdate(req.params.id, { status: 'completed' }); res.redirect('back'); } catch (err) { res.redirect('/'); } });
+app.post('/delete/:id', isAuthenticated, async (req, res) => { 
+    try { await Customer.findByIdAndDelete(req.params.id); res.redirect('/manage'); } catch (err) { res.redirect('/manage'); } 
+});
+
+app.post('/complete/:id', isAuthenticated, async (req, res) => { 
+    try { await Customer.findByIdAndUpdate(req.params.id, { status: 'completed' }); res.redirect('back'); } catch (err) { res.redirect('/'); } 
+});
+
 app.get('*', (req, res) => { res.redirect('/'); });
 
 app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
-    const PING_INTERVAL = 5 * 60 * 1000; const TARGET_URL = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
+    const PING_INTERVAL = 5 * 60 * 1000; 
+    const TARGET_URL = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
     setInterval(async () => { try { await axios.get(`${TARGET_URL}/health`); console.log(`✅ Pinged ${TARGET_URL}`); } catch (err) { console.error(`❌ Ping Failed`); } }, PING_INTERVAL);
 });
