@@ -8,14 +8,51 @@
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
     <style>
-        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 25px; }
-        .stat-card { background: white; padding: 20px; border-radius: 16px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); border: 1px solid #f1f5f9; }
-        .stat-number { font-size: 2rem; font-weight: 700; display: block; margin-bottom: 5px; }
-        .stat-label { font-size: 0.85rem; color: #64748b; font-weight: 500; }
+        /* ✅ UPDATED: Grid is now 3 columns to fit the Score card */
+        .stats-grid { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 10px; 
+            margin-bottom: 25px; 
+        }
+        
+        .stat-card { 
+            background: white; 
+            padding: 15px; 
+            border-radius: 16px; 
+            text-align: center; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02); 
+            border: 1px solid #f1f5f9; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+        }
+        .stat-number { 
+            font-size: 1.6rem; 
+            font-weight: 700; 
+            display: block; 
+            margin-bottom: 2px; 
+        }
+        .stat-label { 
+            font-size: 0.75rem; 
+            color: #64748b; 
+            font-weight: 500; 
+        }
+        
         .stat-primary { background: #4f46e5; color: white; border: none; }
         .stat-primary .stat-label { color: #e0e7ff; }
+        
         .stat-success { background: #10b981; color: white; border: none; }
         .stat-success .stat-label { color: #d1fae5; }
+
+        /* ✅ NEW: Dark Theme Style for Run Score */
+        .stat-runs { 
+            background: #1e293b; 
+            color: white; 
+            border: none; 
+        }
+        .stat-runs .stat-label { color: #94a3b8; }
+        .stat-runs .stat-number { color: #f59e0b; } /* Gold color for runs */
         
         .breakdown-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
         .mini-stat { background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -34,7 +71,6 @@
         .progress-bar { height: 12px; background: #f1f5f9; border-radius: 6px; overflow: hidden; display: flex; }
         .progress-fill { height: 100%; transition: width 0.5s ease; }
 
-        /* PENDING LIST STYLES */
         .pending-list { margin-top: 30px; }
         .pending-card { background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; border-left: 4px solid #f59e0b; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
         .pc-info h4 { font-size: 0.95rem; margin-bottom: 2px; }
@@ -83,6 +119,12 @@
                 <span class="stat-number"><%= stats.activated %></span>
                 <span class="stat-label">Actually Activated</span>
             </div>
+            <div class="stat-card stat-runs">
+                <span class="stat-number">
+                    <i class="ri-flashlight-fill" style="font-size:1.2rem; margin-right:2px;"></i><%= stats.runs %>
+                </span>
+                <span class="stat-label">Score (Runs)</span>
+            </div>
         </div>
 
         <h3 class="section-label" style="margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
@@ -118,10 +160,7 @@
                 <span style="color: #f59e0b;"><i class="ri-loader-4-line"></i> Pending: <%= stats.pending %></span>
             </div>
             <div class="progress-bar">
-                <% 
-                   let total = stats.completed + stats.pending;
-                   let pct = total > 0 ? (stats.completed / total) * 100 : 0;
-                %>
+                <% let total = stats.completed + stats.pending; let pct = total > 0 ? (stats.completed / total) * 100 : 0; %>
                 <div class="progress-fill" style="width: <%= pct %>%; background: #10b981;"></div>
                 <div class="progress-fill" style="width: <%= 100 - pct %>%; background: #f59e0b;"></div>
             </div>
