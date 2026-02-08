@@ -4,7 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Add Customer</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="/style.css">
+    <style>
+        .flatpickr-input { background-color: #f8fafc !important; }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -16,7 +20,7 @@
         <form action="/add" method="POST" class="form-box">
             <div class="form-group">
                 <label>Activation Date</label>
-                <input type="date" name="customDate" id="customDate" required>
+                <input type="text" name="customDate" id="customDate" required placeholder="DD/MM/YYYY">
             </div>
 
             <div class="form-group">
@@ -25,8 +29,8 @@
                     <option value="" disabled selected>Select Category</option>
                     <option value="NC">NC (Instant)</option>
                     <option value="P2P">P2P (Instant)</option>
-                    <option value="MNP">MNP (3 Days)</option>
-                    <option value="NMNP">NMNP (5 Days)</option>
+                    <option value="MNP">MNP - Metro (3 Days)</option>
+                    <option value="NMNP">NMNP - Non Metro (5 Days)</option>
                     <option value="Family">Family</option>
                 </select>
             </div>
@@ -52,8 +56,8 @@
                         <option value="Existing">Existing (Active)</option>
                         <option value="NC">New NC (Instant)</option>
                         <option value="P2P">New P2P (Instant)</option>
-                        <option value="MNP">New MNP (3 Days)</option>
-                        <option value="NMNP">New NMNP (5 Days)</option>
+                        <option value="MNP">New MNP - Metro (3 Days)</option>
+                        <option value="NMNP">New NMNP - Non Metro (5 Days)</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -72,8 +76,8 @@
                     <select name="s_type" id="s_type">
                         <option value="NC" selected>NC (Instant)</option>
                         <option value="P2P">P2P (Instant)</option>
-                        <option value="MNP">MNP (3 Days)</option>
-                        <option value="NMNP">NMNP (5 Days)</option>
+                        <option value="MNP">MNP - Metro (3 Days)</option>
+                        <option value="NMNP">NMNP - Non Metro (5 Days)</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -94,11 +98,19 @@
             <button type="submit" class="btn-submit">Save Data</button>
         </form>
     </div>
-
+    
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
-        // Set Today's Date by Default
-        document.getElementById("customDate").value = new Date().toISOString().split('T')[0];
-
+        // ✅ Initialize Strict Picker
+        const fpStandalone = flatpickr("#customDate", {
+            dateFormat: "Y-m-d",
+            altInput: true,
+            altFormat: "d/m/Y",
+            allowInput: true,
+            disableMobile: true,
+            defaultDate: new Date()
+        });
+        
         function toggleCategory() {
             const category = document.getElementById('category').value;
             const normalForm = document.getElementById('normal-form');
@@ -129,7 +141,6 @@
                 pMobile.required = true;
                 sName.required = true;
                 sMobile.required = true;
-
             } else {
                 // Show Normal Form
                 normalForm.style.display = 'block';

@@ -6,6 +6,7 @@
     <title>Verification Hub</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="/style.css">
     <style>
         .form-section { display: none; animation: fadeIn 0.3s ease-in-out; }
@@ -14,6 +15,10 @@
         .divider { height: 1px; background: #e2e8f0; margin: 20px 0; position: relative; }
         .divider span { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 0 10px; color: #64748b; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; }
         .section-label { font-size: 0.95rem; font-weight: 700; color: var(--primary); margin-bottom: 12px; display: block; }
+        /* Fix for Flatpickr on Mobile */
+        .flatpickr-input {yb
+            background-color: #f8fafc !important; 
+        }
     </style>
 </head>
 <body>
@@ -72,7 +77,6 @@
                                     <span class="badge badge-<%= customer.category %>"><%= customer.category %></span>
                                 <% } %>
                             </div>
-                            
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <span class="date-tag">Due: <%= (customer.verificationDate).getDate() %></span>
                             </div>
@@ -103,9 +107,6 @@
                                         <p style="font-size: 0.7rem; margin-top: 2px; color: #64748b;">
                                             <i class="ri-information-line"></i> 
                                             Type: <%= customer.subType %> 
-                                            <% if(customer.subType === 'MNP' && customer.region && customer.region !== 'NA') { %>
-                                                (<%= customer.region %>)
-                                            <% } %>
                                         </p>
                                     </div>
                                     <div class="fs-actions">
@@ -114,7 +115,6 @@
                                     </div>
                                 </div>
                             </div>
-
                         <% } else { %>
                             <div class="card-body">
                                 <h3 class="customer-name"><%= customer.name %></h3>
@@ -125,13 +125,10 @@
                                     <i class="ri-calendar-check-line"></i> 
                                     Activation: <%= (customer.activationDate || customer.createdAt).toLocaleDateString('en-GB') %>
                                 </p>
-                                <% if(customer.region && customer.region !== 'NA') { %>
-                                    <p class="meta-info"><i class="ri-map-pin-line"></i> <%= customer.region %></p>
-                                <% } %>
                             </div>
                             <div class="card-actions">
-                                <a href="tel:<%= customer.mobile %>" class="btn-call"><i class="ri-phone-fill"></i></a>
-                                <a href="whatsapp://send?phone=91<%= customer.mobile %>" class="btn-whatsapp"><i class="ri-whatsapp-line"></i></a>
+                                <a href="tel:<%= customer.mobile %>" class="btn-call"><i class="ri-phone-fill"></i> Call</a>
+                                <a href="whatsapp://send?phone=91<%= customer.mobile %>" class="btn-whatsapp"><i class="ri-whatsapp-line"></i> WhatsApp</a>
                             </div>
                         <% } %>
 
@@ -162,7 +159,7 @@
                     <label>Activation Date</label>
                     <div class="input-wrapper">
                         <i class="ri-calendar-line icon-left"></i>
-                        <input type="date" name="customDate" id="customDate" required>
+                        <input type="text" name="customDate" id="customDate" required placeholder="DD/MM/YYYY">
                     </div>
                 </div>
 
@@ -174,23 +171,14 @@
                             <option value="" disabled selected>Select Category</option>
                             <option value="NC">NC</option>
                             <option value="P2P">P2P</option>
-                            <option value="MNP">MNP</option>
+                            <option value="MNP">MNP - Metro</option>
+                            <option value="NMNP">NMNP - Non Metro</option>
                             <option value="Family">Family</option>
                         </select>
                     </div>
                 </div>
 
                 <div id="normal-form" class="form-section">
-                    <div class="input-group" id="n_region_div" style="display: none;">
-                        <label>Region</label>
-                        <div class="input-wrapper">
-                            <i class="ri-map-pin-user-line icon-left"></i>
-                            <select name="n_region" id="n_region">
-                                <option value="Delhi">Delhi</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-                    </div>
                     <div class="input-group"><label>Name</label><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="n_name" id="n_name"></div></div>
                     <div class="input-group"><label>Mobile</label><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="n_mobile" id="n_mobile" pattern="[0-9]{10}"></div></div>
                 </div>
@@ -201,24 +189,16 @@
                         <label>Primary Type</label>
                         <div class="input-wrapper">
                             <i class="ri-shield-user-line icon-left"></i>
-                            <select name="p_type" id="p_type" onchange="togglePrimaryRegion()">
+                            <select name="p_type" id="p_type">
                                 <option value="Existing">Existing (Active)</option>
                                 <option value="NC">New Entry (NC)</option>
                                 <option value="P2P">New Entry (P2P)</option>
-                                <option value="MNP">New Entry (MNP)</option>
+                                <option value="MNP">New MNP - Metro</option>
+                                <option value="NMNP">New NMNP - Non Metro</option>
                             </select>
                         </div>
                     </div>
-                    <div class="input-group" id="p_region_div" style="display: none;">
-                        <label>Primary Region</label>
-                        <div class="input-wrapper">
-                            <i class="ri-map-pin-user-line icon-left"></i>
-                            <select name="p_region">
-                                <option value="Delhi">Delhi</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-                    </div>
+                    
                     <div class="input-group">
                         <div class="input-wrapper"><i class="ri-user-star-line icon-left"></i><input type="text" name="p_name" placeholder="Primary Name"></div>
                     </div>
@@ -233,24 +213,15 @@
                         <label>Secondary Type</label>
                         <div class="input-wrapper">
                             <i class="ri-sim-card-line icon-left"></i>
-                            <select name="s_type" id="s_type" onchange="toggleSecondaryRegion()">
-                                <option value="Existing">Existing (Active)</option>
-                                <option value="NC">New Entry (NC)</option>
-                                <option value="P2P">New Entry (P2P)</option>
-                                <option value="MNP">New Entry (MNP)</option>
+                            <select name="s_type" id="s_type">
+                                <option value="NC" selected>NC (Instant)</option>
+                                <option value="P2P">P2P (Instant)</option>
+                                <option value="MNP">MNP - Metro</option>
+                                <option value="NMNP">NMNP - Non Metro</option>
                             </select>
                         </div>
                     </div>
-                    <div class="input-group" id="s_region_div" style="display: none;">
-                        <label>Secondary Region</label>
-                        <div class="input-wrapper">
-                            <i class="ri-map-pin-user-line icon-left"></i>
-                            <select name="s_region">
-                                <option value="Delhi">Delhi</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-                    </div>
+                    
                     <div class="input-group">
                         <div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="s_name" placeholder="Secondary Name"></div>
                     </div>
@@ -294,19 +265,31 @@
         <a href="/analytics" class="nav-item"><i class="ri-pie-chart-line"></i><span>Analysis</span></a>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
         const modal = document.getElementById("addModal");
         const remarksModal = document.getElementById("remarksModal");
 
+        // ✅ Initialize Strict Date Picker (DD/MM/YYYY)
+        const fpAdd = flatpickr("#customDate", {
+            dateFormat: "Y-m-d", // Sends YYYY-MM-DD to Server (Required by DB)
+            altInput: true,      // Creates a display input
+            altFormat: "d/m/Y",  // Shows DD/MM/YYYY to User
+            allowInput: true,    // Allows typing
+            disableMobile: true  // ⚠️ STRICT: Forces custom picker on mobile to avoid MM/DD confusion
+        });
+
         function openModal() {
             modal.style.display = 'flex'; 
             setTimeout(() => { modal.classList.add('active'); }, 10);
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById("customDate").value = today;
-            handleCategoryChange(); 
+            
+            // ✅ Set Date using Flatpickr Instance
+            fpAdd.setDate(new Date()); 
+            
+            handleCategoryChange();
         }
         function closeModal() { 
-            modal.classList.remove('active'); 
+            modal.classList.remove('active');
             setTimeout(() => { modal.style.display = 'none'; }, 300);
         }
         
@@ -324,18 +307,9 @@
                 document.getElementById('n_mobile').required = false;
             } else {
                 normalForm.classList.add('active');
-                document.getElementById('n_region_div').style.display = (cat === 'MNP') ? 'block' : 'none';
                 document.getElementById('n_name').required = true;
                 document.getElementById('n_mobile').required = true;
             }
-        }
-
-        function togglePrimaryRegion() {
-            document.getElementById('p_region_div').style.display = (document.getElementById('p_type').value === 'MNP') ? 'block' : 'none';
-        }
-
-        function toggleSecondaryRegion() {
-            document.getElementById('s_region_div').style.display = (document.getElementById('s_type').value === 'MNP') ? 'block' : 'none';
         }
 
         function openRemarksModal(btn) {
@@ -345,12 +319,12 @@
             setTimeout(() => { remarksModal.classList.add('active'); }, 10);
         }
         function closeRemarksModal() { 
-            remarksModal.classList.remove('active'); 
+            remarksModal.classList.remove('active');
             setTimeout(() => { remarksModal.style.display = 'none'; }, 300);
         }
 
         window.onclick = function(event) { 
-            if (event.target == modal) closeModal(); 
+            if (event.target == modal) closeModal();
             if (event.target == remarksModal) closeRemarksModal(); 
         }
     </script>
