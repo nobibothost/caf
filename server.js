@@ -26,34 +26,33 @@ const RULES = {
     ACTIVATION_DELAY: {
         'NC': 0,          // Instant
         'P2P': 0,         // Instant
-        'MNP': 3,         // 3 Days
-        'NMNP': 5,        // 5 Days
+        'MNP': 3,         // 3 Days Delay
+        'NMNP': 5,        // 5 Days Delay
         'Existing': 0     // No Delay
     },
-    VERIFICATION_DELAY: 3 // Activation + 3 Days
+    VERIFICATION_DELAY: 3 // Verification is ALWAYS Activation + 3 Days
 };
 
 // --- HELPER: TIMEZONE FIX (IST) ---
-// Ensures dates are always calculated in Indian Standard Time, even on Cloud Servers
+// Ensures dates are calculated in Indian Standard Time (UTC+5:30) everywhere
 function getISTDate(offsetMonths = 0) {
-    const now = new Date();
-    
+    const d = new Date();
     // Get current time in IST context
-    const istString = now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
-    const istDate = new Date(istString);
+    const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+    const nd = new Date(utc + (3600000 * 5.5)); 
+    
+    let targetYear = nd.getFullYear();
+    let targetMonth = nd.getMonth() - offsetMonths;
 
-    // Calculate Start & End of Month based on IST
-    const start = new Date(istDate.getFullYear(), istDate.getMonth() - offsetMonths, 1);
-    const end = new Date(istDate.getFullYear(), istDate.getMonth() - offsetMonths + 1, 1);
+    // Create UTC Timestamps that correspond EXACTLY to IST Midnight
+    // IST Midnight (00:00) = Previous Day 18:30 UTC
+    const start = new Date(Date.UTC(targetYear, targetMonth, 1));
+    start.setHours(start.getHours() - 5);
+    start.setMinutes(start.getMinutes() - 30);
     
-    // Reset hours to midnight
-    start.setHours(0, 0, 0, 0);
-    end.setHours(0, 0, 0, 0);
-    
-    // Adjust to UTC: IST is UTC+5:30. 
-    // To match 12:00 AM IST in database (UTC), we subtract 5 hours 30 mins.
-    start.setMinutes(start.getMinutes() - 330); 
-    end.setMinutes(end.getMinutes() - 330);
+    const end = new Date(Date.UTC(targetYear, targetMonth + 1, 1));
+    end.setHours(end.getHours() - 5);
+    end.setMinutes(end.getMinutes() - 30);
 
     return { start, end, now: new Date() };
 }
@@ -167,7 +166,7 @@ const connectDB = async () => {
 };
 connectDB();
 
-// --- LOGIC CALCULATOR ---
+// --- LOGIC CALCULATOR (Used only for NEW Entries) ---
 function calculateLogic(baseDate, type) {
     const activationDelay = RULES.ACTIVATION_DELAY[type] !== undefined ? RULES.ACTIVATION_DELAY[type] : 0;
     const realActivationDate = new Date(baseDate);
@@ -240,17 +239,17 @@ app.get('/logout', (req, res) => {
     req.session.destroy(() => { res.clearCookie('connect.sid'); res.redirect('/login'); }); 
 });
 
-// --- PAGES (NOW USING IST LOGIC) ---
+// --- PAGES ---
 app.get('/', isAuthenticated, async (req, res) => {
     try {
         const monthQuery = req.query.month; 
         let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         
-        // Use IST Date Calculation
+        // Use IST Date
         const { start, end, now } = getISTDate(monthOffset);
         
-        // Adjust display month name to match IST
+        // Adjust display month name to match IST (Back from UTC conversion)
         const displayMonth = new Date(start);
         displayMonth.setMinutes(displayMonth.getMinutes() + 330);
 
@@ -281,7 +280,7 @@ app.get('/all', isAuthenticated, async (req, res) => {
     } catch (err) { res.redirect('/'); }
 });
 
-// --- ANALYTICS (IST FIXED + ACTIVATION BASED RUNS) ---
+// --- ANALYTICS (FIXED: Cross-Month Logic + Ghost Detection) ---
 app.get('/analytics', isAuthenticated, async (req, res) => {
     try {
         const monthQuery = req.query.month; let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
@@ -292,7 +291,7 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
         // 1. Get Dates in IST
         const { start, end, now } = getISTDate(monthOffset);
         
-        // 2. Logic for Entries (Show in Entry Month)
+        // 2. ENTRY QUERY (Based on CreatedAt - For Total Entries)
         if (req.query.month !== 'all') { 
             entryQuery = { createdAt: { $gte: start, $lt: end } }; 
             
@@ -300,28 +299,26 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
             displayMonth.setMinutes(displayMonth.getMinutes() + 330);
             headerTitle = "Analysis: " + monthNames[displayMonth.getMonth()] + " " + displayMonth.getFullYear(); 
         }
-        
         const monthlyEntries = await Customer.find(entryQuery).sort({ activationDate: 1 });
         
-        // 3. Logic for Activations (For Runs & Activation Count)
+        // 3. ACTIVATION QUERY (Based on ActivationDate - For Activations & Score)
         let activationQuery = {};
         if (req.query.month === 'all') {
             activationQuery = { activationDate: { $lte: now } };
         } else {
             activationQuery = { activationDate: { $gte: start, $lt: end } };
         }
-        
         const monthlyActivations = await Customer.find(activationQuery);
 
         const stats = { 
             total: 0, 
-            activated: monthlyActivations.length, // Count from activated list
+            activated: 0, // Will calculate manually to include Ghosts
             runs: 0, 
             nc: 0, p2p: 0, mnp: 0, nmnp: 0, family: 0, 
             completed: 0, pending: 0 
         };
 
-        // LOOP 1: Calculate Entry Stats (Based on Entry Date)
+        // LOOP 1: Calculate Entry Stats (Counts effort in Entry Month)
         monthlyEntries.forEach(c => {
             stats.total++; 
             if (c.status === 'completed') stats.completed++; else stats.pending++;
@@ -333,7 +330,7 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
             
             if (c.category === 'Family') stats.family++;
 
-            // Ghost Detection for Entry Count
+            // Ghost Detection for Entry (Virtual Entry)
             if (c.category === 'Family' && c.familyRole === 'Secondary') {
                 const pStatus = c.linkedPrimaryStatus || '';
                 if (!pStatus.includes('Existing') && !pStatus.includes('Active')) {
@@ -351,31 +348,37 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
             }
         });
 
-        // LOOP 2: Calculate RUNS (Based on ACTIVATION Date)
+        // LOOP 2: Calculate Activations & RUNS (Based on ACTIVATION Date)
+        // This ensures scores count in the month the SIM activates
+        let realActivationCount = monthlyActivations.length; 
+
         monthlyActivations.forEach(c => {
-            // Add Run for this Activated SIM
             let currentRun = getRuns(c.category, c.subType);
             stats.runs += currentRun;
 
-            // Ghost Detection for Runs (Virtual Run)
+            // Ghost Detection for Activation/Runs
             if (c.category === 'Family' && c.familyRole === 'Secondary') {
                 const pStatus = c.linkedPrimaryStatus || '';
                 if (!pStatus.includes('Existing') && !pStatus.includes('Active')) {
                     
+                    // Look for Primary in the Activation list
                     const primaryDoc = monthlyActivations.find(p => p.category === 'Family' && p.familyRole === 'Primary' && p.mobile === c.linkedPrimaryNumber);
                     
-                    // If Primary NOT found in activated list, it's a Ghost Run
+                    // If Primary missing in activation list, add it virtually
                     if (!primaryDoc) {
+                        realActivationCount++; // ✅ Add Ghost to Activated Count
+
                         let ghostType = 'NC'; 
                         if (pStatus.includes('MNP') || pStatus.includes('NMNP')) ghostType = 'MNP';
                         else if (pStatus.includes('P2P')) ghostType = 'P2P';
                         
-                        let ghostRuns = getRuns('Family', ghostType); 
-                        stats.runs += ghostRuns;
+                        stats.runs += getRuns('Family', ghostType); // ✅ Add Ghost Run
                     }
                 }
             }
         });
+        
+        stats.activated = realActivationCount;
 
         const pendingList = monthlyEntries.filter(c => c.activationDate && c.activationDate > now);
         res.render('analytics', { stats, pendingList, page: 'analytics', monthOffset, headerTitle });
@@ -430,10 +433,16 @@ app.post('/add', isAuthenticated, async (req, res) => {
     } catch (err) { res.redirect('/'); }
 });
 
+// ✅ FIXED EDIT ROUTE (Accepts User Date Strictly)
+// User-selected date is trusted fully. No "Rules" delays are added.
 app.post('/edit/:id', isAuthenticated, async (req, res) => {
     try {
         const { category, activationDate, remarks, p_type, p_name, p_mobile, s_type, s_name, s_mobile, n_name, n_mobile } = req.body;
-        const entryDate = new Date(activationDate);
+        
+        // Strict: Use user date exactly (No offset calc)
+        const userSelectedDate = new Date(activationDate);
+        userSelectedDate.setHours(0,0,0,0);
+
         let updateData = { category, remarks };
         let finalSubType = category;
 
@@ -447,9 +456,14 @@ app.post('/edit/:id', isAuthenticated, async (req, res) => {
             finalSubType = category;
         }
 
-        const { realActivationDate, realVerificationDate } = calculateLogic(entryDate, finalSubType);
-        updateData.activationDate = realActivationDate;
-        updateData.verificationDate = realVerificationDate;
+        // Force user date as Activation Date
+        updateData.activationDate = userSelectedDate;
+        
+        // Only calculate Verification Date (Activation + 3)
+        const vDate = new Date(userSelectedDate);
+        if (finalSubType !== 'Existing') { vDate.setDate(vDate.getDate() + 3); }
+        vDate.setHours(0,0,0,0);
+        updateData.verificationDate = vDate;
 
         await Customer.findByIdAndUpdate(req.params.id, updateData);
         res.redirect('/manage');
