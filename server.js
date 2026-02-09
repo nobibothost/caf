@@ -439,4 +439,36 @@ app.post('/edit/:id', isAuthenticated, async (req, res) => {
 
         if (category === 'Family') {
             updateData.name = s_name; updateData.mobile = s_mobile; updateData.subType = s_type; updateData.region = 'NA';
-            updateData.familyRole = 'Secondary'; updateData.linkedPrimaryName = p_name; updateData.linkedPrimaryNumber = p_mobile; updateData.link
+            updateData.familyRole = 'Secondary'; updateData.linkedPrimaryName = p_name; updateData.linkedPrimaryNumber = p_mobile; updateData.linkedPrimaryStatus = `Type: ${p_type}`;
+            finalSubType = s_type;
+        } else {
+            updateData.name = n_name; updateData.mobile = n_mobile; updateData.subType = category; updateData.region = 'NA';
+            updateData.familyRole = ''; updateData.linkedPrimaryName = ''; updateData.linkedPrimaryNumber = ''; updateData.linkedPrimaryStatus = '';
+            finalSubType = category;
+        }
+
+        const { realActivationDate, realVerificationDate } = calculateLogic(entryDate, finalSubType);
+        updateData.activationDate = realActivationDate;
+        updateData.verificationDate = realVerificationDate;
+
+        await Customer.findByIdAndUpdate(req.params.id, updateData);
+        res.redirect('/manage');
+    } catch (err) { res.redirect('/manage'); }
+});
+
+app.post('/delete/:id', isAuthenticated, async (req, res) => { 
+    try { await Customer.findByIdAndDelete(req.params.id); res.redirect('/manage'); } catch (err) { res.redirect('/manage'); } 
+});
+
+app.post('/complete/:id', isAuthenticated, async (req, res) => { 
+    try { await Customer.findByIdAndUpdate(req.params.id, { status: 'completed' }); res.redirect('back'); } catch (err) { res.redirect('/'); } 
+});
+
+app.get('*', (req, res) => { res.redirect('/'); });
+
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    const PING_INTERVAL = 5 * 60 * 1000; 
+    const TARGET_URL = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
+    setInterval(async () => { try { await axios.get(`${TARGET_URL}/health`); console.log(`✅ Pinged ${TARGET_URL}`); } catch (err) { console.error(`❌ Ping Failed`); } }, PING_INTERVAL);
+});
