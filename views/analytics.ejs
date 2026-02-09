@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
     <title>Analytics</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
@@ -48,12 +53,24 @@
         .divider span { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 0 10px; color: #64748b; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; }
         .section-label { font-size: 0.95rem; font-weight: 700; color: var(--primary); margin-bottom: 12px; display: block; }
         .flatpickr-input { background-color: #f8fafc !important; }
+
+        /* ✅ Refresh Button Style */
+        .refresh-btn { 
+            background: #f1f5f9; color: #64748b; border: none; 
+            padding: 8px 12px; border-radius: 8px; cursor: pointer; 
+            font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 5px;
+            text-decoration: none; transition: all 0.2s;
+        }
+        .refresh-btn:hover { background: #e2e8f0; color: var(--text-main); }
     </style>
 </head>
 <body>
     
     <nav class="navbar">
         <div class="logo"><i class="ri-pie-chart-2-fill"></i> Analytics</div>
+        <a href="javascript:location.reload()" class="refresh-btn">
+            <i class="ri-refresh-line"></i> Sync
+        </a>
         <a href="/logout" class="logout-btn" onclick="return confirm('Securely Logout?');"><i class="ri-logout-box-r-line"></i></a>
     </nav>
 
@@ -109,7 +126,6 @@
                 </div></div>
 
                 <div id="normal-form" class="form-section"><div class="input-group"><label>Name</label><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="n_name" id="n_name"></div></div><div class="input-group"><label>Mobile</label><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="n_mobile" id="n_mobile" pattern="[0-9]{10}"></div></div></div>
-                
                 <div id="family-form" class="form-section">
                     <span class="section-label">Primary Connection</span>
                     <div class="input-group"><label>Primary Type</label><div class="input-wrapper"><i class="ri-shield-user-line icon-left"></i><select name="p_type" id="p_type"><option value="Existing">Existing (Active)</option><option value="NC">New Entry (NC)</option><option value="P2P">New Entry (P2P)</option><option value="MNP">New MNP - Metro</option><option value="NMNP">New NMNP - Non Metro</option></select></div></div>
@@ -119,7 +135,6 @@
                     <div class="input-group"><label>Secondary Type</label><div class="input-wrapper"><i class="ri-sim-card-line icon-left"></i><select name="s_type" id="s_type"><option value="NC" selected>NC (Instant)</option><option value="P2P">P2P (Instant)</option><option value="MNP">MNP - Metro</option><option value="NMNP">NMNP - Non Metro</option></select></div></div>
                     <div class="input-group"><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="s_name" placeholder="Secondary Name"></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="s_mobile" placeholder="Secondary Mobile" pattern="[0-9]{10}"></div></div>
                 </div>
-
                 <div class="input-group" style="margin-top: 20px;"><label>Remarks</label><div class="input-wrapper"><i class="ri-sticky-note-line icon-left"></i><input type="text" name="remarks" placeholder="Optional notes..."></div></div>
                 <button type="submit" class="btn-submit">Save Record</button>
             </form>
@@ -137,20 +152,11 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
         const modal = document.getElementById("addModal");
-        // ✅ Flatpickr Init
         const fpAdd = flatpickr("#customDate", { dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", allowInput: true, disableMobile: true });
 
         function openModal() { modal.style.display = 'flex'; setTimeout(() => { modal.classList.add('active'); }, 10); fpAdd.setDate(new Date()); handleCategoryChange(); }
         function closeModal() { modal.classList.remove('active'); setTimeout(() => { modal.style.display = 'none'; }, 300); }
-        
-        function handleCategoryChange() {
-            const cat = document.getElementById('category').value;
-            const normalForm = document.getElementById('normal-form');
-            const familyForm = document.getElementById('family-form');
-            normalForm.classList.remove('active'); familyForm.classList.remove('active');
-            if (cat === 'Family') { familyForm.classList.add('active'); document.getElementById('n_name').required = false; document.getElementById('n_mobile').required = false; } 
-            else { normalForm.classList.add('active'); document.getElementById('n_name').required = true; document.getElementById('n_mobile').required = true; }
-        }
+        function handleCategoryChange() { const cat = document.getElementById('category').value; const nForm = document.getElementById('normal-form'); const fForm = document.getElementById('family-form'); nForm.classList.remove('active'); fForm.classList.remove('active'); if (cat === 'Family') { fForm.classList.add('active'); document.getElementById('n_name').required = false; document.getElementById('n_mobile').required = false; } else { nForm.classList.add('active'); document.getElementById('n_name').required = true; document.getElementById('n_mobile').required = true; } }
         window.onclick = function(event) { if (event.target == modal) closeModal(); }
     </script>
 </body>
