@@ -152,6 +152,7 @@ const customerSchema = new mongoose.Schema({
     activationDate: Date, 
     verificationDate: Date 
 });
+
 const Customer = mongoose.model('Customer', customerSchema);
 
 // --- DB CONNECTION ---
@@ -203,7 +204,8 @@ app.post('/login', loginLimiter, async (req, res) => {
             res.redirect('/otp'); 
         } 
         catch (error) { res.render('login', { error: 'Email Service Error' }); }
-    } else { res.render('login', { error: 'Invalid Credentials' }); }
+    } 
+    else { res.render('login', { error: 'Invalid Credentials' }); }
 });
 
 app.get('/otp', (req, res) => { 
@@ -280,7 +282,7 @@ app.get('/all', isAuthenticated, async (req, res) => {
     } catch (err) { res.redirect('/'); }
 });
 
-// --- ANALYTICS (FIXED: Cross-Month Logic + Ghost Detection) ---
+// --- ANALYTICS (FIXED: Cross-Month Logic + Ghost Detection + Activation Logic) ---
 app.get('/analytics', isAuthenticated, async (req, res) => {
     try {
         const monthQuery = req.query.month; let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
@@ -297,16 +299,17 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
             
             const displayMonth = new Date(start);
             displayMonth.setMinutes(displayMonth.getMinutes() + 330);
-            headerTitle = "Analysis: " + monthNames[displayMonth.getMonth()] + " " + displayMonth.getFullYear(); 
+            headerTitle = "Analysis: " + monthNames[displayMonth.getMonth()] + " " + displayMonth.getFullYear();
         }
         const monthlyEntries = await Customer.find(entryQuery).sort({ activationDate: 1 });
-        
+
         // 3. ACTIVATION QUERY (Based on ActivationDate - For Activations & Score)
         let activationQuery = {};
         if (req.query.month === 'all') {
             activationQuery = { activationDate: { $lte: now } };
         } else {
-            activationQuery = { activationDate: { $gte: start, $lt: end } };
+            // FIX: Added $lte: now to ensure future activations in current month aren't counted early
+            activationQuery = { activationDate: { $gte: start, $lt: end, $lte: now } };
         }
         const monthlyActivations = await Customer.find(activationQuery);
 
@@ -350,8 +353,7 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
 
         // LOOP 2: Calculate Activations & RUNS (Based on ACTIVATION Date)
         // This ensures scores count in the month the SIM activates
-        let realActivationCount = monthlyActivations.length; 
-
+        let realActivationCount = monthlyActivations.length;
         monthlyActivations.forEach(c => {
             let currentRun = getRuns(c.category, c.subType);
             stats.runs += currentRun;
@@ -377,10 +379,11 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
                 }
             }
         });
-        
+
         stats.activated = realActivationCount;
 
         const pendingList = monthlyEntries.filter(c => c.activationDate && c.activationDate > now);
+        
         res.render('analytics', { stats, pendingList, page: 'analytics', monthOffset, headerTitle });
     } catch (err) { res.redirect('/'); }
 });
@@ -444,6 +447,7 @@ app.post('/edit/:id', isAuthenticated, async (req, res) => {
         userSelectedDate.setHours(0,0,0,0);
 
         let updateData = { category, remarks };
+        
         let finalSubType = category;
 
         if (category === 'Family') {
@@ -452,7 +456,8 @@ app.post('/edit/:id', isAuthenticated, async (req, res) => {
             finalSubType = s_type;
         } else {
             updateData.name = n_name; updateData.mobile = n_mobile; updateData.subType = category; updateData.region = 'NA';
-            updateData.familyRole = ''; updateData.linkedPrimaryName = ''; updateData.linkedPrimaryNumber = ''; updateData.linkedPrimaryStatus = '';
+            updateData.familyRole = '';
+            updateData.linkedPrimaryName = ''; updateData.linkedPrimaryNumber = ''; updateData.linkedPrimaryStatus = '';
             finalSubType = category;
         }
 
