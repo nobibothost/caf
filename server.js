@@ -24,28 +24,24 @@ const MONGO_URI = process.env.MONGO_URI;
    ========================================================================== */
 const RULES = {
     ACTIVATION_DELAY: {
-        'NC': 0,          // Instant
-        'P2P': 0,         // Instant
-        'MNP': 3,         // 3 Days Delay
-        'NMNP': 5,        // 5 Days Delay
-        'Existing': 0     // No Delay
+        'NC': 0,          
+        'P2P': 0,         
+        'MNP': 3,         
+        'NMNP': 5,        
+        'Existing': 0     
     },
-    VERIFICATION_DELAY: 3 // Verification is ALWAYS Activation + 3 Days
+    VERIFICATION_DELAY: 3 
 };
 
 // --- HELPER: TIMEZONE FIX (IST) ---
-// Ensures dates are calculated in Indian Standard Time (UTC+5:30) everywhere
 function getISTDate(offsetMonths = 0) {
     const d = new Date();
-    // Get current time in IST context
     const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
     const nd = new Date(utc + (3600000 * 5.5)); 
     
     let targetYear = nd.getFullYear();
     let targetMonth = nd.getMonth() - offsetMonths;
 
-    // Create UTC Timestamps that correspond EXACTLY to IST Midnight
-    // IST Midnight (00:00) = Previous Day 18:30 UTC
     const start = new Date(Date.UTC(targetYear, targetMonth, 1));
     start.setHours(start.getHours() - 5);
     start.setMinutes(start.getMinutes() - 30);
@@ -60,11 +56,11 @@ function getISTDate(offsetMonths = 0) {
 // --- HELPER: CALCULATE RUNS ---
 function getRuns(category, subType) {
     if (category === 'Family') {
-        if (subType === 'MNP' || subType === 'NMNP') return 3; // Family MNP = 3 Runs
-        return 1; // Family Fresh/P2P = 1 Run
+        if (subType === 'MNP' || subType === 'NMNP') return 3; 
+        return 1; 
     } else {
-        if (subType === 'MNP' || subType === 'NMNP') return 2; // Normal MNP = 2 Runs
-        return 1; // Normal Fresh/P2P = 1 Run
+        if (subType === 'MNP' || subType === 'NMNP') return 2; 
+        return 1; 
     }
 }
 
@@ -150,7 +146,9 @@ const customerSchema = new mongoose.Schema({
     status: { type: String, default: 'pending' }, 
     createdAt: { type: Date, default: Date.now }, 
     activationDate: Date, 
-    verificationDate: Date 
+    verificationDate: Date,
+    billDate: { type: Number, default: null }, 
+    paidMonths: { type: [String], default: [] } 
 });
 
 const Customer = mongoose.model('Customer', customerSchema);
@@ -167,7 +165,7 @@ const connectDB = async () => {
 };
 connectDB();
 
-// --- LOGIC CALCULATOR (Used only for NEW Entries) ---
+// --- LOGIC CALCULATOR ---
 function calculateLogic(baseDate, type) {
     const activationDelay = RULES.ACTIVATION_DELAY[type] !== undefined ? RULES.ACTIVATION_DELAY[type] : 0;
     const realActivationDate = new Date(baseDate);
@@ -180,6 +178,66 @@ function calculateLogic(baseDate, type) {
     }
     realVerificationDate.setHours(0,0,0,0);
     return { realActivationDate, realVerificationDate };
+}
+
+// --- HELPER: FETCH AND GROUP CUSTOMERS (UI FIX) ---
+async function fetchGroupedCustomers(baseQuery, sortObj) {
+    const matchingDocs = await Customer.find(baseQuery).sort(sortObj).lean();
+    
+    let displayMap = new Map();
+    let normalCustomers = [];
+    
+    for (let doc of matchingDocs) {
+        if (doc.category === 'Family') {
+            if (doc.familyRole === 'Secondary') {
+                if (!displayMap.has(doc._id.toString())) {
+                    const primaryDoc = await Customer.findOne({
+                        category: 'Family',
+                        familyRole: 'Primary',
+                        mobile: doc.linkedPrimaryNumber
+                    }).lean();
+                    doc.primaryDoc = primaryDoc;
+                    displayMap.set(doc._id.toString(), doc);
+                }
+            } else if (doc.familyRole === 'Primary') {
+                const secondaryDoc = await Customer.findOne({
+                    category: 'Family',
+                    familyRole: 'Secondary',
+                    linkedPrimaryNumber: doc.mobile
+                }).lean();
+                
+                if (secondaryDoc) {
+                    if (!displayMap.has(secondaryDoc._id.toString())) {
+                        secondaryDoc.primaryDoc = doc;
+                        displayMap.set(secondaryDoc._id.toString(), secondaryDoc);
+                    }
+                } else {
+                    normalCustomers.push(doc); // Fallback for orphaned primary
+                }
+            }
+        } else {
+            normalCustomers.push(doc);
+        }
+    }
+    
+    let result = [...Array.from(displayMap.values()), ...normalCustomers];
+    
+    // Maintain strict sorting after merge
+    if (sortObj && sortObj.verificationDate) {
+        result.sort((a, b) => {
+            const dateA = a.verificationDate || a.createdAt;
+            const dateB = b.verificationDate || b.createdAt;
+            return sortObj.verificationDate === 1 ? dateA - dateB : dateB - dateA;
+        });
+    } else if (sortObj && sortObj.createdAt) {
+         result.sort((a, b) => {
+            const dateA = a.createdAt;
+            const dateB = b.createdAt;
+            return sortObj.createdAt === 1 ? dateA - dateB : dateB - dateA;
+        });
+    }
+
+    return result;
 }
 
 // --- ROUTES ---
@@ -248,17 +306,15 @@ app.get('/', isAuthenticated, async (req, res) => {
         let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         
-        // Use IST Date
         const { start, end, now } = getISTDate(monthOffset);
         
-        // Adjust display month name to match IST (Back from UTC conversion)
         const displayMonth = new Date(start);
         displayMonth.setMinutes(displayMonth.getMinutes() + 330);
 
         const query = { verificationDate: { $gte: start, $lt: end, $lte: new Date(now.getTime() + 24*60*60*1000) }, status: 'pending' };
         const headerTitle = "Pending: " + monthNames[displayMonth.getMonth()] + " " + displayMonth.getFullYear();
         
-        const customers = await Customer.find(query).sort({ verificationDate: 1 });
+        const customers = await fetchGroupedCustomers(query, { verificationDate: 1 });
         res.render('index', { customers, error: null, page: 'home', monthOffset, headerTitle });
     } catch (err) { res.render('index', { customers: [], error: "Connection Error", page: 'home', monthOffset: 0, headerTitle: "Error" }); }
 });
@@ -277,12 +333,44 @@ app.get('/all', isAuthenticated, async (req, res) => {
             displayMonth.setMinutes(displayMonth.getMinutes() + 330);
             headerTitle = "History: " + monthNames[displayMonth.getMonth()] + " " + displayMonth.getFullYear(); 
         }
-        const customers = await Customer.find(query).sort({ createdAt: -1 });
+        const customers = await fetchGroupedCustomers(query, { createdAt: -1 });
         res.render('all', { customers, page: 'all', monthOffset, headerTitle });
     } catch (err) { res.redirect('/'); }
 });
 
-// --- ANALYTICS (FIXED: Cross-Month Logic + Ghost Detection + Activation Logic) ---
+app.get('/pdd', isAuthenticated, async (req, res) => {
+    try {
+        const customers = await fetchGroupedCustomers({ billDate: { $ne: null } }, { billDate: 1 });
+        const { now } = getISTDate();
+        const currentDay = now.getDate();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+
+        let pendingBills = [];
+
+        customers.forEach(c => {
+            let billYear = currentYear;
+            let billMonth = currentMonth;
+
+            if (currentDay < c.billDate) {
+                billMonth -= 1;
+                if (billMonth < 0) {
+                    billMonth = 11;
+                    billYear -= 1;
+                }
+            }
+
+            const cycleKey = `${billYear}-${String(billMonth + 1).padStart(2, '0')}`;
+
+            if (!c.paidMonths || !c.paidMonths.includes(cycleKey)) {
+                pendingBills.push({ ...c, cycleKey });
+            }
+        });
+
+        res.render('pdd', { pendingBills, page: 'pdd', headerTitle: "PDD Tracking" });
+    } catch (err) { res.redirect('/'); }
+});
+
 app.get('/analytics', isAuthenticated, async (req, res) => {
     try {
         const monthQuery = req.query.month; let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
@@ -290,10 +378,8 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
         let headerTitle = "All Time Analysis";
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         
-        // 1. Get Dates in IST
         const { start, end, now } = getISTDate(monthOffset);
         
-        // 2. ENTRY QUERY (Based on CreatedAt - For Total Entries)
         if (req.query.month !== 'all') { 
             entryQuery = { createdAt: { $gte: start, $lt: end } }; 
             
@@ -301,27 +387,22 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
             displayMonth.setMinutes(displayMonth.getMinutes() + 330);
             headerTitle = "Analysis: " + monthNames[displayMonth.getMonth()] + " " + displayMonth.getFullYear();
         }
-        const monthlyEntries = await Customer.find(entryQuery).sort({ activationDate: 1 });
+        const monthlyEntries = await Customer.find(entryQuery).sort({ activationDate: 1 }).lean();
 
-        // 3. ACTIVATION QUERY (Based on ActivationDate - For Activations & Score)
         let activationQuery = {};
         if (req.query.month === 'all') {
             activationQuery = { activationDate: { $lte: now } };
         } else {
-            // FIX: Added $lte: now to ensure future activations in current month aren't counted early
             activationQuery = { activationDate: { $gte: start, $lt: end, $lte: now } };
         }
         const monthlyActivations = await Customer.find(activationQuery);
 
         const stats = { 
-            total: 0, 
-            activated: 0, // Will calculate manually to include Ghosts
-            runs: 0, 
+            total: 0, activated: 0, runs: 0, 
             nc: 0, p2p: 0, mnp: 0, nmnp: 0, family: 0, 
             completed: 0, pending: 0 
         };
 
-        // LOOP 1: Calculate Entry Stats (Counts effort in Entry Month)
         monthlyEntries.forEach(c => {
             stats.total++; 
             if (c.status === 'completed') stats.completed++; else stats.pending++;
@@ -333,7 +414,6 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
             
             if (c.category === 'Family') stats.family++;
 
-            // Ghost Detection for Entry (Virtual Entry)
             if (c.category === 'Family' && c.familyRole === 'Secondary') {
                 const pStatus = c.linkedPrimaryStatus || '';
                 if (!pStatus.includes('Existing') && !pStatus.includes('Active')) {
@@ -351,38 +431,31 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
             }
         });
 
-        // LOOP 2: Calculate Activations & RUNS (Based on ACTIVATION Date)
-        // This ensures scores count in the month the SIM activates
         let realActivationCount = monthlyActivations.length;
         monthlyActivations.forEach(c => {
             let currentRun = getRuns(c.category, c.subType);
             stats.runs += currentRun;
 
-            // Ghost Detection for Activation/Runs
             if (c.category === 'Family' && c.familyRole === 'Secondary') {
                 const pStatus = c.linkedPrimaryStatus || '';
                 if (!pStatus.includes('Existing') && !pStatus.includes('Active')) {
-                    
-                    // Look for Primary in the Activation list
                     const primaryDoc = monthlyActivations.find(p => p.category === 'Family' && p.familyRole === 'Primary' && p.mobile === c.linkedPrimaryNumber);
-                    
-                    // If Primary missing in activation list, add it virtually
                     if (!primaryDoc) {
-                        realActivationCount++; // ✅ Add Ghost to Activated Count
-
+                        realActivationCount++; 
                         let ghostType = 'NC'; 
                         if (pStatus.includes('MNP') || pStatus.includes('NMNP')) ghostType = 'MNP';
                         else if (pStatus.includes('P2P')) ghostType = 'P2P';
-                        
-                        stats.runs += getRuns('Family', ghostType); // ✅ Add Ghost Run
+                        stats.runs += getRuns('Family', ghostType); 
                     }
                 }
             }
         });
 
         stats.activated = realActivationCount;
-
-        const pendingList = monthlyEntries.filter(c => c.activationDate && c.activationDate > now);
+        
+        const pendingListRaw = monthlyEntries.filter(c => c.activationDate && c.activationDate > now);
+        // Exclude Primary from display to avoid double entry in analytics list
+        const pendingList = pendingListRaw.filter(c => !(c.category === 'Family' && c.familyRole === 'Primary'));
         
         res.render('analytics', { stats, pendingList, page: 'analytics', monthOffset, headerTitle });
     } catch (err) { res.redirect('/'); }
@@ -396,15 +469,16 @@ app.get('/manage', isAuthenticated, async (req, res) => {
             const { start, end } = getISTDate(monthOffset);
             query = { createdAt: { $gte: start, $lt: end } }; 
         }
-        const allCustomers = await Customer.find(query).sort({ createdAt: -1 });
-        res.render('manage', { customers: allCustomers, page: 'manage', monthOffset, headerTitle });
+        const customers = await fetchGroupedCustomers(query, { createdAt: -1 });
+        res.render('manage', { customers, page: 'manage', monthOffset, headerTitle });
     } catch (err) { res.redirect('/'); }
 });
 
 app.post('/add', isAuthenticated, async (req, res) => {
     try {
-        const { category, customDate, remarks, p_type, p_name, p_mobile, s_type, s_name, s_mobile, n_name, n_mobile } = req.body;
+        const { category, customDate, remarks, p_type, p_name, p_mobile, s_type, s_name, s_mobile, n_name, n_mobile, billDate } = req.body;
         const entryDate = customDate ? new Date(customDate) : new Date();
+        const bDate = billDate ? parseInt(billDate) : null;
 
         if (category === 'Family') {
             if (p_type !== 'Existing') {
@@ -412,7 +486,7 @@ app.post('/add', isAuthenticated, async (req, res) => {
                 const primaryCustomer = new Customer({
                     name: p_name, mobile: p_mobile, category: 'Family', subType: p_type, region: 'NA',
                     familyRole: 'Primary', linkedPrimaryName: 'Self', linkedPrimaryNumber: p_mobile, linkedPrimaryStatus: 'Primary Account',
-                    remarks: remarks || '', createdAt: entryDate, activationDate: pLogic.realActivationDate, verificationDate: pLogic.realVerificationDate, status: 'pending'
+                    remarks: remarks || '', createdAt: entryDate, activationDate: pLogic.realActivationDate, verificationDate: pLogic.realVerificationDate, status: 'pending', billDate: bDate
                 });
                 await primaryCustomer.save();
             }
@@ -420,7 +494,7 @@ app.post('/add', isAuthenticated, async (req, res) => {
             const secondaryCustomer = new Customer({
                 name: s_name, mobile: s_mobile, category: 'Family', subType: s_type, region: 'NA',
                 familyRole: 'Secondary', linkedPrimaryName: p_name, linkedPrimaryNumber: p_mobile, linkedPrimaryStatus: `Type: ${p_type}`,
-                remarks: remarks || '', createdAt: entryDate, activationDate: sLogic.realActivationDate, verificationDate: sLogic.realVerificationDate, status: 'pending'
+                remarks: remarks || '', createdAt: entryDate, activationDate: sLogic.realActivationDate, verificationDate: sLogic.realVerificationDate, status: 'pending', billDate: bDate
             });
             await secondaryCustomer.save();
         } else {
@@ -428,7 +502,7 @@ app.post('/add', isAuthenticated, async (req, res) => {
             const newCustomer = new Customer({
                 name: n_name, mobile: n_mobile, category: category, subType: category, region: 'NA',
                 familyRole: '', linkedPrimaryName: '', linkedPrimaryNumber: '', linkedPrimaryStatus: '',
-                remarks: remarks || '', createdAt: entryDate, activationDate: nLogic.realActivationDate, verificationDate: nLogic.realVerificationDate, status: 'pending'
+                remarks: remarks || '', createdAt: entryDate, activationDate: nLogic.realActivationDate, verificationDate: nLogic.realVerificationDate, status: 'pending', billDate: bDate
             });
             await newCustomer.save();
         }
@@ -436,18 +510,28 @@ app.post('/add', isAuthenticated, async (req, res) => {
     } catch (err) { res.redirect('/'); }
 });
 
-// ✅ FIXED EDIT ROUTE (Accepts User Date Strictly)
-// User-selected date is trusted fully. No "Rules" delays are added.
 app.post('/edit/:id', isAuthenticated, async (req, res) => {
     try {
-        const { category, activationDate, remarks, p_type, p_name, p_mobile, s_type, s_name, s_mobile, n_name, n_mobile } = req.body;
+        const { category, activationDate, remarks, p_type, p_name, p_mobile, s_type, s_name, s_mobile, n_name, n_mobile, billDate } = req.body;
         
-        // Strict: Use user date exactly (No offset calc)
         const userSelectedDate = new Date(activationDate);
         userSelectedDate.setHours(0,0,0,0);
+        const bDate = billDate ? parseInt(billDate) : null;
 
-        let updateData = { category, remarks };
-        
+        const existingDoc = await Customer.findById(req.params.id);
+        if (existingDoc && existingDoc.category === 'Family' && existingDoc.familyRole === 'Secondary') {
+            const oldPrimaryMobile = existingDoc.linkedPrimaryNumber;
+            if (p_type !== 'Existing') {
+                 const vDateP = new Date(userSelectedDate);
+                 vDateP.setDate(vDateP.getDate() + 3);
+                 await Customer.findOneAndUpdate(
+                     { category: 'Family', familyRole: 'Primary', mobile: oldPrimaryMobile },
+                     { name: p_name, mobile: p_mobile, subType: p_type, activationDate: userSelectedDate, verificationDate: vDateP, billDate: bDate }
+                 );
+            }
+        }
+
+        let updateData = { category, remarks, billDate: bDate };
         let finalSubType = category;
 
         if (category === 'Family') {
@@ -461,10 +545,7 @@ app.post('/edit/:id', isAuthenticated, async (req, res) => {
             finalSubType = category;
         }
 
-        // Force user date as Activation Date
         updateData.activationDate = userSelectedDate;
-        
-        // Only calculate Verification Date (Activation + 3)
         const vDate = new Date(userSelectedDate);
         if (finalSubType !== 'Existing') { vDate.setDate(vDate.getDate() + 3); }
         vDate.setHours(0,0,0,0);
@@ -476,11 +557,37 @@ app.post('/edit/:id', isAuthenticated, async (req, res) => {
 });
 
 app.post('/delete/:id', isAuthenticated, async (req, res) => { 
-    try { await Customer.findByIdAndDelete(req.params.id); res.redirect('/manage'); } catch (err) { res.redirect('/manage'); } 
+    try { 
+        const doc = await Customer.findById(req.params.id);
+        if(doc && doc.category === 'Family' && doc.familyRole === 'Secondary') {
+            await Customer.findOneAndDelete({ category: 'Family', familyRole: 'Primary', mobile: doc.linkedPrimaryNumber });
+        }
+        await Customer.findByIdAndDelete(req.params.id); 
+        res.redirect('/manage'); 
+    } catch (err) { res.redirect('/manage'); } 
 });
 
 app.post('/complete/:id', isAuthenticated, async (req, res) => { 
     try { await Customer.findByIdAndUpdate(req.params.id, { status: 'completed' }); res.redirect('back'); } catch (err) { res.redirect('/'); } 
+});
+
+app.post('/pay-bill/:id', isAuthenticated, async (req, res) => {
+    try {
+        const { cycleKey } = req.body;
+        if(cycleKey) {
+            const doc = await Customer.findById(req.params.id);
+            if(doc && doc.category === 'Family' && doc.familyRole === 'Secondary') {
+                await Customer.findOneAndUpdate(
+                    { category: 'Family', familyRole: 'Primary', mobile: doc.linkedPrimaryNumber }, 
+                    { $addToSet: { paidMonths: cycleKey }}
+                );
+            }
+            await Customer.findByIdAndUpdate(req.params.id, {
+                $addToSet: { paidMonths: cycleKey }
+            });
+        }
+        res.redirect('/pdd');
+    } catch(err) { res.redirect('/pdd'); }
 });
 
 app.get('*', (req, res) => { res.redirect('/'); });
