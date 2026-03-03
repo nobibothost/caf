@@ -16,6 +16,8 @@
         .divider span { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 0 10px; color: #64748b; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; }
         .section-label { font-size: 0.95rem; font-weight: 700; color: var(--primary); margin-bottom: 12px; display: block; }
         .flatpickr-input { background-color: #f8fafc !important; }
+        .btn-inline-check { background: #f0fdf4; color: #10b981; border: 1px solid #10b981; flex: 1; justify-content: center; padding: 5px; border-radius: 6px; font-weight: 600; font-size: 0.8rem; display: flex; align-items: center; gap: 4px; }
+        .btn-inline-check:hover { background: #dcfce7; }
     </style>
 </head>
 <body>
@@ -45,6 +47,11 @@
             </div>
         </form>
 
+        <div class="search-box" style="margin-bottom: 20px;">
+            <i class="ri-search-line"></i>
+            <input type="text" id="searchInput" onkeyup="filterList()" placeholder="Quick filter on this page...">
+        </div>
+
         <% if (error) { %>
             <div class="alert error"><i class="ri-wifi-off-line"></i> <%= error %></div>
         <% } %>
@@ -58,7 +65,7 @@
                 </div>
             <% } else { %>
                 <% customers.forEach(customer => { %>
-                    <div class="card">
+                    <div class="card search-item">
                         <div class="card-top">
                             <div style="display: flex; gap: 5px;">
                                 <% if (customer.category === 'Family') { %>
@@ -68,7 +75,7 @@
                                 <% } %>
                             </div>
                             <div style="display: flex; align-items: center; gap: 8px;">
-                                <span class="date-tag">Due: <%= (customer.verificationDate).getDate() %></span>
+                                <span class="date-tag">Due: <%= new Date(customer.verificationDate).getDate() %></span>
                             </div>
                         </div>
 
@@ -294,12 +301,23 @@
         <a href="/all" class="nav-item"><i class="ri-list-check"></i><span>All</span></a>
         <a href="/pdd" class="nav-item"><i class="ri-file-paper-2-line"></i><span>PDD</span></a>
         <div class="nav-fab" onclick="openModal()"><i class="ri-add-line"></i></div>
+        <a href="/search" class="nav-item"><i class="ri-search-line"></i><span>Search</span></a>
         <a href="/manage" class="nav-item"><i class="ri-edit-2-line"></i><span>Edit</span></a>
         <a href="/analytics" class="nav-item"><i class="ri-pie-chart-line"></i><span>Analysis</span></a>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
+        function filterList() { 
+            let input = document.getElementById('searchInput').value.toLowerCase(); 
+            let items = document.getElementsByClassName('search-item'); 
+            for (let i = 0; i < items.length; i++) { 
+                let text = items[i].innerText.toLowerCase(); 
+                if (text.includes(input)) items[i].style.display = ""; 
+                else items[i].style.display = "none"; 
+            } 
+        }
+
         const modal = document.getElementById("addModal");
         const remarksModal = document.getElementById("remarksModal");
 

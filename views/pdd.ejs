@@ -33,6 +33,11 @@
             <p class="subtitle">Customers with pending bill payment for current cycle.</p>
         </div>
 
+        <div class="search-box" style="margin-bottom: 20px;">
+            <i class="ri-search-line"></i>
+            <input type="text" id="searchInput" onkeyup="filterList()" placeholder="Quick filter on this page...">
+        </div>
+
         <div class="grid-layout">
             <% if (pendingBills.length === 0) { %>
                 <div class="empty-state">
@@ -42,7 +47,7 @@
                 </div>
             <% } else { %>
                 <% pendingBills.forEach(customer => { %>
-                    <div class="card" style="border-left: 4px solid var(--primary);">
+                    <div class="card search-item" style="border-left: 4px solid var(--primary);">
                         <div class="card-top">
                             <span class="badge" style="background: rgba(79, 70, 229, 0.1); color: var(--primary);">
                                 Bill Date: <%= customer.billDate %>th
@@ -151,12 +156,23 @@
         <a href="/all" class="nav-item"><i class="ri-list-check"></i><span>All</span></a>
         <a href="/pdd" class="nav-item active"><i class="ri-file-paper-2-fill"></i><span>PDD</span></a>
         <div class="nav-fab" onclick="openModal()"><i class="ri-add-line"></i></div>
+        <a href="/search" class="nav-item"><i class="ri-search-line"></i><span>Search</span></a>
         <a href="/manage" class="nav-item"><i class="ri-edit-2-line"></i><span>Edit</span></a>
         <a href="/analytics" class="nav-item"><i class="ri-pie-chart-line"></i><span>Analysis</span></a>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
+        function filterList() { 
+            let input = document.getElementById('searchInput').value.toLowerCase(); 
+            let items = document.getElementsByClassName('search-item'); 
+            for (let i = 0; i < items.length; i++) { 
+                let text = items[i].innerText.toLowerCase(); 
+                if (text.includes(input)) items[i].style.display = ""; 
+                else items[i].style.display = "none"; 
+            } 
+        }
+
         const modal = document.getElementById("addModal");
         const fpAdd = flatpickr("#customDate", { dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", allowInput: true, disableMobile: true });
         
