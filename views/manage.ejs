@@ -31,15 +31,31 @@
                 <div class="card search-item">
                     <div class="card-top">
                         <div style="display: flex; gap: 5px;">
-                            <% if (customer.category === 'Family') { %> <span class="badge badge-Family">Family</span> <span class="badge badge-<%= customer.subType %>"><%= customer.subType %></span> <% } else { %> <span class="badge badge-<%= customer.category %>"><%= customer.category %></span> <% } %>
+                            <% if (customer.category === 'Family') { %> <span class="badge badge-Family">Family</span> <% } else { %> <span class="badge badge-<%= customer.category %>"><%= customer.category %></span> <% } %>
                         </div>
-                        <span class="date-tag"><%= (customer.activationDate || customer.createdAt).toLocaleDateString('en-GB') %></span>
+                        <span class="date-tag"><%= new Date(customer.activationDate || customer.createdAt).toLocaleDateString('en-GB') %></span>
                     </div>
 
                     <% if (customer.category === 'Family') { %>
                         <div class="family-wrapper">
-                            <div class="family-section primary-sec"><span class="fs-label primary-label">Primary Connection</span><div class="fs-info"><h4><%= customer.linkedPrimaryName || 'Unknown' %></h4><p><%= customer.linkedPrimaryNumber %></p><p style="font-size:0.7rem; color:#64748b;"><%= customer.linkedPrimaryStatus %></p></div><div class="fs-actions"><a href="whatsapp://send?phone=91<%= customer.linkedPrimaryNumber %>" class="mini-btn mini-wa"><i class="ri-whatsapp-line"></i></a><a href="tel:<%= customer.linkedPrimaryNumber %>" class="mini-btn mini-call"><i class="ri-phone-fill"></i></a></div></div>
-                            <div class="family-section secondary-sec"><span class="fs-label secondary-label">Secondary (This SIM)</span><div class="fs-info"><h4 class="customer-name"><%= customer.name %></h4><p class="mobile-txt"><%= customer.mobile %></p><p style="font-size:0.7rem; color:#64748b;">Type: <%= customer.subType %></p></div><div class="fs-actions"><a href="whatsapp://send?phone=91<%= customer.mobile %>" class="mini-btn mini-wa"><i class="ri-whatsapp-line"></i></a><a href="tel:<%= customer.mobile %>" class="mini-btn mini-call"><i class="ri-phone-fill"></i></a></div></div>
+                            <div class="family-section primary-sec">
+                                <span class="fs-label primary-label">Primary Connection
+                                    <% if (customer.primaryDoc) { %>
+                                        <span class="badge badge-<%= customer.primaryDoc.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= customer.primaryDoc.subType %></span>
+                                    <% } else { %>
+                                        <span class="badge" style="background:#e2e8f0; color:#475569; font-size: 0.6rem; padding: 2px 5px;">Existing</span>
+                                    <% } %>
+                                </span>
+                                <div class="fs-info"><h4><%= customer.linkedPrimaryName || 'Unknown' %></h4><p><%= customer.linkedPrimaryNumber %></p></div>
+                                <div class="fs-actions"><a href="whatsapp://send?phone=91<%= customer.linkedPrimaryNumber %>" class="mini-btn mini-wa"><i class="ri-whatsapp-line"></i></a><a href="tel:<%= customer.linkedPrimaryNumber %>" class="mini-btn mini-call"><i class="ri-phone-fill"></i></a></div>
+                            </div>
+                            <div class="family-section secondary-sec">
+                                <span class="fs-label secondary-label">Secondary (This SIM)
+                                    <span class="badge badge-<%= customer.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= customer.subType %></span>
+                                </span>
+                                <div class="fs-info"><h4 class="customer-name"><%= customer.name %></h4><p class="mobile-txt"><%= customer.mobile %></p></div>
+                                <div class="fs-actions"><a href="whatsapp://send?phone=91<%= customer.mobile %>" class="mini-btn mini-wa"><i class="ri-whatsapp-line"></i></a><a href="tel:<%= customer.mobile %>" class="mini-btn mini-call"><i class="ri-phone-fill"></i></a></div>
+                            </div>
                         </div>
                     <% } else { %>
                         <div class="card-body"><h3 class="customer-name"><%= customer.name %></h3><p class="meta-info mobile-txt"><i class="ri-smartphone-line"></i> <%= customer.mobile %></p></div>
@@ -59,9 +75,10 @@
                             data-subtype="<%= customer.subType %>" 
                             data-p-name="<%= customer.linkedPrimaryName || '' %>" 
                             data-p-mobile="<%= customer.linkedPrimaryNumber || '' %>" 
-                            data-p-status="<%= customer.linkedPrimaryStatus || '' %>" 
+                            data-p-status="<%= customer.primaryDoc ? customer.primaryDoc.subType : (customer.linkedPrimaryStatus || '') %>"
+                            data-billdate="<%= customer.billDate || '' %>" 
                             onclick="openEditModal(this)">
-                            <i class="ri-pencil-line"></i> Edit
+                            <i class="ri-pencil-line"></i> Edit / Manage Full Info
                         </button>
                     </div>
                 </div>
@@ -85,10 +102,23 @@
                     <div class="input-group"><label>Secondary Type</label><div class="input-wrapper"><i class="ri-sim-card-line icon-left"></i><select name="s_type" id="editSType"><option value="NC" selected>NC</option><option value="P2P">P2P</option><option value="MNP">MNP</option><option value="NMNP">NMNP</option></select></div></div>
                     <div class="input-group"><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="s_name" id="editSName" placeholder="Secondary Name"></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="s_mobile" id="editSMobile" placeholder="Secondary Mobile" pattern="[0-9]{10}"></div></div>
                 </div>
-                <div class="input-group" style="margin-top: 20px;"><label>Remarks</label><div class="input-wrapper"><i class="ri-sticky-note-line icon-left"></i><input type="text" name="remarks" id="editRemarks"></div></div>
+                <div class="input-group" style="margin-top: 15px;">
+                    <label>Bill Date (Optional)</label>
+                    <div class="input-wrapper">
+                        <i class="ri-calendar-todo-line icon-left"></i>
+                        <select name="billDate" id="editBillDate">
+                            <option value="">No Bill / Prepaid</option>
+                            <option value="11">11th</option>
+                            <option value="15">15th</option>
+                            <option value="24">24th</option>
+                            <option value="27">27th</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="input-group" style="margin-top: 15px;"><label>Remarks</label><div class="input-wrapper"><i class="ri-sticky-note-line icon-left"></i><input type="text" name="remarks" id="editRemarks"></div></div>
                 <button type="submit" class="btn-submit">Update Record</button>
             </form>
-            <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;"><form id="deleteForm" method="POST" onsubmit="return confirm('Delete permanently?');"><button type="submit" class="btn-delete"><i class="ri-delete-bin-line"></i> Delete Record</button></form>
+            <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;"><form id="deleteForm" method="POST" onsubmit="return confirm('Delete permanently? Both Primary and Secondary info will be deleted.');"><button type="submit" class="btn-delete"><i class="ri-delete-bin-line"></i> Delete Full Entry</button></form>
         </div>
     </div>
 
@@ -108,7 +138,20 @@
                     <div class="input-group"><label>Secondary Type</label><div class="input-wrapper"><i class="ri-sim-card-line icon-left"></i><select name="s_type" id="s_type"><option value="NC" selected>NC</option><option value="P2P">P2P</option><option value="MNP">MNP</option><option value="NMNP">NMNP</option></select></div></div>
                     <div class="input-group"><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="s_name" placeholder="Secondary Name"></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="s_mobile" placeholder="Secondary Mobile" pattern="[0-9]{10}"></div></div>
                 </div>
-                <div class="input-group" style="margin-top: 20px;"><label>Remarks</label><div class="input-wrapper"><i class="ri-sticky-note-line icon-left"></i><input type="text" name="remarks" placeholder="Optional notes..."></div></div>
+                <div class="input-group" style="margin-top: 15px;">
+                    <label>Bill Date (Optional)</label>
+                    <div class="input-wrapper">
+                        <i class="ri-calendar-todo-line icon-left"></i>
+                        <select name="billDate" id="billDate">
+                            <option value="">No Bill / Prepaid</option>
+                            <option value="11">11th</option>
+                            <option value="15">15th</option>
+                            <option value="24">24th</option>
+                            <option value="27">27th</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="input-group" style="margin-top: 15px;"><label>Remarks</label><div class="input-wrapper"><i class="ri-sticky-note-line icon-left"></i><input type="text" name="remarks" placeholder="Optional notes..."></div></div>
                 <button type="submit" class="btn-submit">Save Record</button>
             </form>
         </div>
@@ -119,6 +162,7 @@
     <div class="bottom-nav">
         <a href="/" class="nav-item"><i class="ri-home-4-line"></i><span>Home</span></a>
         <a href="/all" class="nav-item"><i class="ri-list-check"></i><span>All</span></a>
+        <a href="/pdd" class="nav-item"><i class="ri-file-paper-2-line"></i><span>PDD</span></a>
         <div class="nav-fab" onclick="openModal()"><i class="ri-add-line"></i></div>
         <a href="/manage" class="nav-item active"><i class="ri-edit-2-fill"></i><span>Edit</span></a>
         <a href="/analytics" class="nav-item"><i class="ri-pie-chart-line"></i><span>Analysis</span></a>
@@ -134,35 +178,37 @@
         
         const fpEdit = flatpickr("#editDate", { dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", allowInput: true, disableMobile: true });
         const fpAdd = flatpickr("#customDate", { dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", allowInput: true, disableMobile: true });
-
-        // --- EDIT MODAL LOGIC (FIXED) ---
+        
         function openEditModal(btn) { 
             document.getElementById('editForm').action = "/edit/" + btn.getAttribute('data-id');
             document.getElementById('deleteForm').action = "/delete/" + btn.getAttribute('data-id'); 
             
             const cat = btn.getAttribute('data-category'); 
             document.getElementById('editCategory').value = cat;
-            
-            // ✅ FIX: Use the data-date passed from the button (which is now correctly the Activation Date)
-            fpEdit.setDate(btn.getAttribute('data-date')); 
-            
+            fpEdit.setDate(btn.getAttribute('data-date'));
             document.getElementById('editRemarks').value = btn.getAttribute('data-remarks');
+            document.getElementById('editBillDate').value = btn.getAttribute('data-billdate') || '';
+
             if (cat === 'Family') { 
                 const pStatus = btn.getAttribute('data-p-status');
                 let pType = 'Existing';
-                if (pStatus.includes('NMNP')) pType = 'NMNP'; else if (pStatus.includes('MNP')) pType = 'MNP'; else if (pStatus.includes('NC')) pType = 'NC'; else if (pStatus.includes('P2P')) pType = 'P2P'; 
-                document.getElementById('editPType').value = pType; document.getElementById('editPName').value = btn.getAttribute('data-p-name'); document.getElementById('editPMobile').value = btn.getAttribute('data-p-mobile'); document.getElementById('editSType').value = btn.getAttribute('data-subtype'); document.getElementById('editSName').value = btn.getAttribute('data-name'); document.getElementById('editSMobile').value = btn.getAttribute('data-mobile');
-            } else { document.getElementById('editNName').value = btn.getAttribute('data-name'); document.getElementById('editNMobile').value = btn.getAttribute('data-mobile'); document.getElementById('editSType').value = cat; } handleEditCategoryChange(); modal.style.display = 'flex'; setTimeout(() => { modal.classList.add('active'); }, 10);
+                if (pStatus.includes('NMNP')) pType = 'NMNP'; else if (pStatus.includes('MNP')) pType = 'MNP';
+                else if (pStatus.includes('NC')) pType = 'NC'; else if (pStatus.includes('P2P')) pType = 'P2P'; 
+                document.getElementById('editPType').value = pType; document.getElementById('editPName').value = btn.getAttribute('data-p-name');
+                document.getElementById('editPMobile').value = btn.getAttribute('data-p-mobile'); document.getElementById('editSType').value = btn.getAttribute('data-subtype'); document.getElementById('editSName').value = btn.getAttribute('data-name'); document.getElementById('editSMobile').value = btn.getAttribute('data-mobile');
+            } else { document.getElementById('editNName').value = btn.getAttribute('data-name');
+                document.getElementById('editNMobile').value = btn.getAttribute('data-mobile'); document.getElementById('editSType').value = cat; } handleEditCategoryChange(); modal.style.display = 'flex'; setTimeout(() => { modal.classList.add('active'); }, 10);
         }
         function closeEditModal() { modal.classList.remove('active'); setTimeout(() => { modal.style.display = 'none'; }, 300); }
-        function handleEditCategoryChange() { const cat = document.getElementById('editCategory').value; const nForm = document.getElementById('edit-normal-form'); const fForm = document.getElementById('edit-family-form'); nForm.classList.remove('active'); fForm.classList.remove('active'); if (cat === 'Family') { fForm.classList.add('active'); document.getElementById('editNName').required = false; document.getElementById('editNMobile').required = false; } else { nForm.classList.add('active'); document.getElementById('editNName').required = true; document.getElementById('editNMobile').required = true; } }
+        function handleEditCategoryChange() { const cat = document.getElementById('editCategory').value; const nForm = document.getElementById('edit-normal-form');
+            const fForm = document.getElementById('edit-family-form'); nForm.classList.remove('active'); fForm.classList.remove('active'); if (cat === 'Family') { fForm.classList.add('active'); document.getElementById('editNName').required = false; document.getElementById('editNMobile').required = false;
+            } else { nForm.classList.add('active'); document.getElementById('editNName').required = true; document.getElementById('editNMobile').required = true;
+            } }
 
-        // --- ADD MODAL LOGIC ---
         function openModal() { addModal.style.display = 'flex'; setTimeout(() => { addModal.classList.add('active'); }, 10); fpAdd.setDate(new Date()); handleCategoryChange(); }
         function closeModal() { addModal.classList.remove('active'); setTimeout(() => { addModal.style.display = 'none'; }, 300); }
         function handleCategoryChange() { const cat = document.getElementById('category').value; const nForm = document.getElementById('normal-form'); const fForm = document.getElementById('family-form'); nForm.classList.remove('active'); fForm.classList.remove('active'); if (cat === 'Family') { fForm.classList.add('active'); document.getElementById('n_name').required = false; document.getElementById('n_mobile').required = false; } else { nForm.classList.add('active'); document.getElementById('n_name').required = true; document.getElementById('n_mobile').required = true; } }
 
-        // --- REMARKS LOGIC ---
         function openRemarksModal(btn) { document.getElementById('remarksTitle').innerText = btn.getAttribute('data-name'); document.getElementById('remarksBody').innerText = btn.getAttribute('data-remarks'); remarksModal.style.display = 'flex'; setTimeout(() => { remarksModal.classList.add('active'); }, 10); }
         function closeRemarksModal() { remarksModal.classList.remove('active'); setTimeout(() => { remarksModal.style.display = 'none'; }, 300); }
         

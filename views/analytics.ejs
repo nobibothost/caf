@@ -3,11 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-
     <title>Analytics</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
@@ -45,7 +43,6 @@
         .pc-date span { display: block; font-size: 0.75rem; color: #f59e0b; font-weight: 600; text-transform: uppercase; }
         .pc-date strong { font-size: 0.9rem; color: var(--text-main); }
         
-        /* Modal Styles */
         .form-section { display: none; }
         .form-section.active { display: block; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
@@ -54,13 +51,7 @@
         .section-label { font-size: 0.95rem; font-weight: 700; color: var(--primary); margin-bottom: 12px; display: block; }
         .flatpickr-input { background-color: #f8fafc !important; }
 
-        /* ✅ Refresh Button Style */
-        .refresh-btn { 
-            background: #f1f5f9; color: #64748b; border: none; 
-            padding: 8px 12px; border-radius: 8px; cursor: pointer; 
-            font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 5px;
-            text-decoration: none; transition: all 0.2s;
-        }
+        .refresh-btn { background: #f1f5f9; color: #64748b; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 5px; text-decoration: none; transition: all 0.2s; }
         .refresh-btn:hover { background: #e2e8f0; color: var(--text-main); }
     </style>
 </head>
@@ -108,8 +99,8 @@
             <% } else { %>
                 <% pendingList.forEach(c => { %>
                     <div class="pending-card">
-                        <div class="pc-info"><h4><%= c.name %> <span class="badge badge-<%= c.subType %>" style="font-size: 0.65rem;"><%= c.subType %></span></h4><p><i class="ri-smartphone-line"></i> <%= c.mobile %></p><% if(c.category === 'Family') { %><p style="font-size: 0.7rem; color: #8b5cf6;"><i class="ri-group-line"></i> Family (<%= c.familyRole %>)</p><% } %></div>
-                        <div class="pc-date"><span>Activates On</span><strong><%= c.activationDate.toLocaleDateString('en-GB') %></strong></div>
+                        <div class="pc-info"><h4><%= c.name %> <span class="badge badge-<%= c.subType %>" style="font-size: 0.65rem;"><%= c.subType %></span></h4><p><i class="ri-smartphone-line"></i> <%= c.mobile %></p><% if(c.category === 'Family') { %><p style="font-size: 0.7rem; color: #8b5cf6;"><i class="ri-group-line"></i> Family Connection</p><% } %></div>
+                        <div class="pc-date"><span>Activates On</span><strong><%= new Date(c.activationDate || c.createdAt).toLocaleDateString('en-GB') %></strong></div>
                     </div>
                 <% }) %>
             <% } %>
@@ -135,7 +126,20 @@
                     <div class="input-group"><label>Secondary Type</label><div class="input-wrapper"><i class="ri-sim-card-line icon-left"></i><select name="s_type" id="s_type"><option value="NC" selected>NC (Instant)</option><option value="P2P">P2P (Instant)</option><option value="MNP">MNP - Metro</option><option value="NMNP">NMNP - Non Metro</option></select></div></div>
                     <div class="input-group"><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="s_name" placeholder="Secondary Name"></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="s_mobile" placeholder="Secondary Mobile" pattern="[0-9]{10}"></div></div>
                 </div>
-                <div class="input-group" style="margin-top: 20px;"><label>Remarks</label><div class="input-wrapper"><i class="ri-sticky-note-line icon-left"></i><input type="text" name="remarks" placeholder="Optional notes..."></div></div>
+                <div class="input-group" style="margin-top: 15px;">
+                    <label>Bill Date (Optional)</label>
+                    <div class="input-wrapper">
+                        <i class="ri-calendar-todo-line icon-left"></i>
+                        <select name="billDate" id="billDate">
+                            <option value="">No Bill / Prepaid</option>
+                            <option value="11">11th</option>
+                            <option value="15">15th</option>
+                            <option value="24">24th</option>
+                            <option value="27">27th</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="input-group" style="margin-top: 15px;"><label>Remarks</label><div class="input-wrapper"><i class="ri-sticky-note-line icon-left"></i><input type="text" name="remarks" placeholder="Optional notes..."></div></div>
                 <button type="submit" class="btn-submit">Save Record</button>
             </form>
         </div>
@@ -144,6 +148,7 @@
     <div class="bottom-nav">
         <a href="/" class="nav-item"><i class="ri-home-4-line"></i><span>Home</span></a>
         <a href="/all" class="nav-item"><i class="ri-list-check"></i><span>All</span></a>
+        <a href="/pdd" class="nav-item"><i class="ri-file-paper-2-line"></i><span>PDD</span></a>
         <div class="nav-fab" onclick="openModal()"><i class="ri-add-line"></i></div>
         <a href="/manage" class="nav-item"><i class="ri-edit-2-line"></i><span>Edit</span></a>
         <a href="/analytics" class="nav-item active"><i class="ri-pie-chart-2-fill"></i><span>Analysis</span></a>
@@ -153,7 +158,6 @@
     <script>
         const modal = document.getElementById("addModal");
         const fpAdd = flatpickr("#customDate", { dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", allowInput: true, disableMobile: true });
-
         function openModal() { modal.style.display = 'flex'; setTimeout(() => { modal.classList.add('active'); }, 10); fpAdd.setDate(new Date()); handleCategoryChange(); }
         function closeModal() { modal.classList.remove('active'); setTimeout(() => { modal.style.display = 'none'; }, 300); }
         function handleCategoryChange() { const cat = document.getElementById('category').value; const nForm = document.getElementById('normal-form'); const fForm = document.getElementById('family-form'); nForm.classList.remove('active'); fForm.classList.remove('active'); if (cat === 'Family') { fForm.classList.add('active'); document.getElementById('n_name').required = false; document.getElementById('n_mobile').required = false; } else { nForm.classList.add('active'); document.getElementById('n_name').required = true; document.getElementById('n_mobile').required = true; } }

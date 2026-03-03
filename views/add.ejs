@@ -48,7 +48,6 @@
 
             <div id="family-form" class="form-section" style="display: none;">
                 <h3 style="color: var(--primary); margin: 15px 0 10px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">Primary Connection</h3>
-                
                 <div class="form-group">
                     <label>Primary Type <span style="color:red">*</span></label>
                     <select name="p_type" id="p_type">
@@ -70,7 +69,6 @@
                 </div>
 
                 <h3 style="color: var(--primary); margin: 20px 0 10px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">Secondary Connection (This SIM)</h3>
-                
                 <div class="form-group">
                     <label>Secondary Type <span style="color:red">*</span></label>
                     <select name="s_type" id="s_type">
@@ -91,6 +89,17 @@
             </div>
 
             <div class="form-group" style="margin-top: 20px;">
+                <label>Bill Date (Optional)</label>
+                <select name="billDate" id="billDate">
+                    <option value="">No Bill / Prepaid</option>
+                    <option value="11">11th of every month</option>
+                    <option value="15">15th of every month</option>
+                    <option value="24">24th of every month</option>
+                    <option value="27">27th of every month</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-top: 20px;">
                 <label>Remarks</label>
                 <input type="text" name="remarks" placeholder="Optional notes...">
             </div>
@@ -101,22 +110,15 @@
     
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
-        // ✅ Initialize Strict Picker
         const fpStandalone = flatpickr("#customDate", {
-            dateFormat: "Y-m-d",
-            altInput: true,
-            altFormat: "d/m/Y",
-            allowInput: true,
-            disableMobile: true,
-            defaultDate: new Date()
+            dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", allowInput: true, disableMobile: true, defaultDate: new Date()
         });
-        
+
         function toggleCategory() {
             const category = document.getElementById('category').value;
             const normalForm = document.getElementById('normal-form');
             const familyForm = document.getElementById('family-form');
             
-            // Get all input fields to toggle 'required' attribute
             const nName = document.getElementById('n_name');
             const nMobile = document.getElementById('n_mobile');
 
@@ -127,30 +129,24 @@
             const sMobile = document.getElementById('s_mobile');
             
             if (category === 'Family') {
-                // Show Family Form
                 normalForm.style.display = 'none';
                 familyForm.style.display = 'block';
 
-                // Remove requirement from Normal Form
                 nName.required = false;
                 nMobile.required = false;
 
-                // Add requirement to Family Form
                 pType.required = true;
                 pName.required = true;
                 pMobile.required = true;
                 sName.required = true;
                 sMobile.required = true;
             } else {
-                // Show Normal Form
                 normalForm.style.display = 'block';
                 familyForm.style.display = 'none';
 
-                // Add requirement to Normal Form
                 nName.required = true;
                 nMobile.required = true;
 
-                // Remove requirement from Family Form
                 pType.required = false;
                 pName.required = false;
                 pMobile.required = false;

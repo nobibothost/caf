@@ -24,13 +24,10 @@
         <div class="logo">
             <i class="ri-history-line"></i> History<span class="highlight">Log</span>
         </div>
-        <a href="/logout" class="logout-btn" onclick="return confirm('Securely Logout?');">
-            <i class="ri-logout-box-r-line"></i>
-        </a>
+        <a href="/logout" class="logout-btn" onclick="return confirm('Securely Logout?');"><i class="ri-logout-box-r-line"></i></a>
     </nav>
 
     <div class="container">
-        
         <div class="section-title">
             <h2><i class="ri-file-list-3-line"></i> <%= headerTitle %></h2>
             <p class="subtitle">Complete verification history.</p>
@@ -50,75 +47,83 @@
 
         <div class="grid-layout">
             <% customers.forEach(customer => { %>
-                <div class="card" style="<%= customer.status === 'completed' ? 'opacity: 0.8;' : '' %>">
-                    <div class="card-top">
+                <div class="card" style="<%= (customer.category !== 'Family' && customer.status === 'completed') ? 'opacity: 0.8;' : '' %>">
+                     <div class="card-top">
                         <div style="display: flex; gap: 5px;">
                             <% if (customer.category === 'Family') { %>
                                 <span class="badge badge-Family">Family</span>
-                                <span class="badge badge-<%= customer.subType %>"><%= customer.subType %></span>
                             <% } else { %>
                                 <span class="badge badge-<%= customer.category %>"><%= customer.category %></span>
                             <% } %>
                         </div>
-                        <span class="date-tag"><%= (customer.activationDate || customer.createdAt).toLocaleDateString('en-GB') %></span>
+                        <span class="date-tag"><%= new Date(customer.activationDate || customer.createdAt).toLocaleDateString('en-GB') %></span>
                     </div>
 
                     <% if (customer.category === 'Family') { %>
                         <div class="family-wrapper">
                             <div class="family-section primary-sec">
-                                <span class="fs-label primary-label">Primary Connection</span>
+                                <span class="fs-label primary-label">Primary Connection 
+                                    <% if (customer.primaryDoc) { %>
+                                        <span class="badge badge-<%= customer.primaryDoc.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= customer.primaryDoc.subType %></span>
+                                    <% } else { %>
+                                        <span class="badge" style="background:#e2e8f0; color:#475569; font-size: 0.6rem; padding: 2px 5px;">Existing</span>
+                                    <% } %>
+                                </span>
                                 <div class="fs-info">
                                     <h4><%= customer.linkedPrimaryName || 'Unknown' %></h4>
                                     <p><%= customer.linkedPrimaryNumber %></p>
-                                    <p style="font-size:0.7rem; color:#64748b;"><%= customer.linkedPrimaryStatus %></p>
                                 </div>
                                 <div class="fs-actions">
                                     <a href="whatsapp://send?phone=91<%= customer.linkedPrimaryNumber %>" class="mini-btn mini-wa"><i class="ri-whatsapp-line"></i></a>
                                     <a href="tel:<%= customer.linkedPrimaryNumber %>" class="mini-btn mini-call"><i class="ri-phone-fill"></i></a>
+                                    
+                                    <span style="flex:1; text-align:center; font-size: 0.75rem; color: <%= (customer.primaryDoc && customer.primaryDoc.status === 'completed') ? '#10b981' : (customer.primaryDoc ? '#f59e0b' : '#10b981') %>; padding: 5px;">
+                                        <%= (customer.primaryDoc && customer.primaryDoc.status === 'completed') ? '✅ Done' : (customer.primaryDoc ? '⏳ Pending' : '✅ Active') %>
+                                    </span>
                                 </div>
                             </div>
                             <div class="family-section secondary-sec">
-                                <span class="fs-label secondary-label">Secondary (This SIM)</span>
+                                <span class="fs-label secondary-label">Secondary (This SIM)
+                                    <span class="badge badge-<%= customer.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= customer.subType %></span>
+                                </span>
                                 <div class="fs-info">
                                     <h4 class="customer-name"><%= customer.name %></h4>
                                     <p class="mobile-txt"><%= customer.mobile %></p>
-                                    <p style="font-size:0.7rem; color:#64748b;">Type: <%= customer.subType %></p>
                                 </div>
                                 <div class="fs-actions">
                                     <a href="whatsapp://send?phone=91<%= customer.mobile %>" class="mini-btn mini-wa"><i class="ri-whatsapp-line"></i></a>
                                     <a href="tel:<%= customer.mobile %>" class="mini-btn mini-call"><i class="ri-phone-fill"></i></a>
+                                    
+                                    <span style="flex:1; text-align:center; font-size: 0.75rem; color: <%= customer.status === 'completed' ? '#10b981' : '#f59e0b' %>; padding: 5px;">
+                                        <%= customer.status === 'completed' ? '✅ Done' : '⏳ Pending' %>
+                                    </span>
                                 </div>
                             </div>
                         </div>
                     <% } else { %>
                         <div class="card-body">
-                            <h3 class="customer-name"><%= customer.name %></h3>
+                             <h3 class="customer-name"><%= customer.name %></h3>
                             <p class="meta-info mobile-txt"><i class="ri-smartphone-line"></i> <%= customer.mobile %></p>
                         </div>
                         <div class="card-actions" style="margin-bottom: 8px;">
-                            <a href="whatsapp://send?phone=91<%= customer.mobile %>" class="btn-whatsapp" style="flex: 1;">
-                                <i class="ri-whatsapp-line"></i> WhatsApp
-                            </a>
-                            <a href="tel:<%= customer.mobile %>" class="btn-call" style="flex: 1;">
-                                <i class="ri-phone-fill"></i> Call
-                            </a>
+                            <a href="whatsapp://send?phone=91<%= customer.mobile %>" class="btn-whatsapp" style="flex: 1;"><i class="ri-whatsapp-line"></i> WhatsApp</a>
+                            <a href="tel:<%= customer.mobile %>" class="btn-call" style="flex: 1;"><i class="ri-phone-fill"></i> Call</a>
                         </div>
                     <% } %>
 
                     <div class="card-actions" style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
                         <div style="display: flex; gap: 10px; align-items: center;">
                             <% if (customer.remarks && customer.remarks.trim() !== "") { %>
-                                <button class="btn-note" data-name="<%= customer.name %>" data-remarks="<%= customer.remarks %>" onclick="openRemarksModal(this)">
-                                    <i class="ri-sticky-note-fill"></i> Note
-                                </button>
+                                <button class="btn-note" data-name="<%= customer.name %>" data-remarks="<%= customer.remarks %>" onclick="openRemarksModal(this)"><i class="ri-sticky-note-fill"></i> Note</button>
                             <% } %>
                         </div>
-
-                        <span style="font-size: 0.8rem; font-weight: 600; color: <%= customer.status === 'completed' ? '#10b981' : '#f59e0b' %>;">
-                            <%= customer.status === 'completed' ? '✅ COMPLETED' : '⏳ PENDING' %>
-                        </span>
+                        <% if (customer.category !== 'Family') { %>
+                            <span style="font-size: 0.8rem; font-weight: 600; color: <%= customer.status === 'completed' ? '#10b981' : '#f59e0b' %>;">
+                                <%= customer.status === 'completed' ? '✅ COMPLETED' : '⏳ PENDING' %>
+                            </span>
+                        <% } %>
                     </div>
-                </div>
+                 </div>
             <% }) %>
         </div>
     </div>
@@ -137,9 +142,8 @@
                         <input type="text" name="customDate" id="customDate" required placeholder="DD/MM/YYYY">
                     </div>
                 </div>
-
                 <div class="input-group">
-                    <label>Category</label>
+                     <label>Category</label>
                     <div class="input-wrapper">
                         <i class="ri-list-check icon-left"></i>
                         <select name="category" id="category" onchange="handleCategoryChange()" required>
@@ -175,9 +179,7 @@
                     </div>
                     <div class="input-group"><div class="input-wrapper"><i class="ri-user-star-line icon-left"></i><input type="text" name="p_name" placeholder="Primary Name"></div></div>
                     <div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="p_mobile" placeholder="Primary Mobile" pattern="[0-9]{10}"></div></div>
-
                     <div class="divider"><span>AND</span></div>
-
                     <span class="section-label">Secondary Connection (This SIM)</span>
                     <div class="input-group">
                         <label>Secondary Type</label>
@@ -195,14 +197,27 @@
                     <div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="s_mobile" placeholder="Secondary Mobile" pattern="[0-9]{10}"></div></div>
                 </div>
 
-                <div class="input-group" style="margin-top: 20px;">
+                <div class="input-group" style="margin-top: 15px;">
+                    <label>Bill Date (Optional)</label>
+                    <div class="input-wrapper">
+                        <i class="ri-calendar-todo-line icon-left"></i>
+                        <select name="billDate" id="billDate">
+                            <option value="">No Bill / Prepaid</option>
+                            <option value="11">11th</option>
+                            <option value="15">15th</option>
+                            <option value="24">24th</option>
+                            <option value="27">27th</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="input-group" style="margin-top: 15px;">
                     <label>Remarks</label>
                     <div class="input-wrapper">
                         <i class="ri-sticky-note-line icon-left"></i>
                         <input type="text" name="remarks" placeholder="Optional notes...">
                     </div>
-                </div>
-
+                 </div>
                 <button type="submit" class="btn-submit">Save Record</button>
             </form>
         </div>
@@ -225,6 +240,7 @@
     <div class="bottom-nav">
         <a href="/" class="nav-item"><i class="ri-home-4-line"></i><span>Home</span></a>
         <a href="/all" class="nav-item active"><i class="ri-list-check-2"></i><span>All</span></a>
+        <a href="/pdd" class="nav-item"><i class="ri-file-paper-2-line"></i><span>PDD</span></a>
         <div class="nav-fab" onclick="openModal()"><i class="ri-add-line"></i></div>
         <a href="/manage" class="nav-item"><i class="ri-edit-2-line"></i><span>Edit</span></a>
         <a href="/analytics" class="nav-item"><i class="ri-pie-chart-line"></i><span>Analysis</span></a>
@@ -237,7 +253,6 @@
         
         const fpAdd = flatpickr("#customDate", { dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", allowInput: true, disableMobile: true });
 
-        // Add Modal
         function openModal() { modal.style.display = 'flex'; setTimeout(() => { modal.classList.add('active'); }, 10); fpAdd.setDate(new Date()); handleCategoryChange(); }
         function closeModal() { modal.classList.remove('active'); setTimeout(() => { modal.style.display = 'none'; }, 300); }
         
@@ -250,7 +265,6 @@
             else { normalForm.classList.add('active'); document.getElementById('n_name').required = true; document.getElementById('n_mobile').required = true; }
         }
 
-        // Remarks Modal
         function openRemarksModal(btn) {
             document.getElementById('remarksTitle').innerText = btn.getAttribute('data-name');
             document.getElementById('remarksBody').innerText = btn.getAttribute('data-remarks');
@@ -263,7 +277,7 @@
         }
 
         window.onclick = function(event) { 
-            if (event.target == modal) closeModal(); 
+            if (event.target == modal) closeModal();
             if (event.target == remarksModal) closeRemarksModal(); 
         }
     </script>
