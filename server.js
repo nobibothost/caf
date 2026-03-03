@@ -180,7 +180,7 @@ function calculateLogic(baseDate, type) {
     return { realActivationDate, realVerificationDate };
 }
 
-// --- HELPER: FETCH AND GROUP CUSTOMERS (UI FIX) ---
+// --- HELPER: FETCH AND GROUP CUSTOMERS ---
 async function fetchGroupedCustomers(baseQuery, sortObj) {
     const matchingDocs = await Customer.find(baseQuery).sort(sortObj).lean();
     
@@ -212,7 +212,7 @@ async function fetchGroupedCustomers(baseQuery, sortObj) {
                         displayMap.set(secondaryDoc._id.toString(), secondaryDoc);
                     }
                 } else {
-                    normalCustomers.push(doc); // Fallback for orphaned primary
+                    normalCustomers.push(doc);
                 }
             }
         } else {
@@ -222,7 +222,6 @@ async function fetchGroupedCustomers(baseQuery, sortObj) {
     
     let result = [...Array.from(displayMap.values()), ...normalCustomers];
     
-    // Maintain strict sorting after merge
     if (sortObj && sortObj.verificationDate) {
         result.sort((a, b) => {
             const dateA = a.verificationDate || a.createdAt;
@@ -454,7 +453,6 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
         stats.activated = realActivationCount;
         
         const pendingListRaw = monthlyEntries.filter(c => c.activationDate && c.activationDate > now);
-        // Exclude Primary from display to avoid double entry in analytics list
         const pendingList = pendingListRaw.filter(c => !(c.category === 'Family' && c.familyRole === 'Primary'));
         
         res.render('analytics', { stats, pendingList, page: 'analytics', monthOffset, headerTitle });
@@ -472,6 +470,31 @@ app.get('/manage', isAuthenticated, async (req, res) => {
         const customers = await fetchGroupedCustomers(query, { createdAt: -1 });
         res.render('manage', { customers, page: 'manage', monthOffset, headerTitle });
     } catch (err) { res.redirect('/'); }
+});
+
+// --- GLOBAL SEARCH ROUTE (NEW) ---
+app.get('/search', isAuthenticated, async (req, res) => {
+    try {
+        const q = req.query.q ? req.query.q.trim() : '';
+        let customers = [];
+        
+        if (q) {
+            const regex = new RegExp(q, 'i');
+            const query = {
+                $or: [
+                    { name: regex },
+                    { mobile: regex },
+                    { linkedPrimaryNumber: regex },
+                    { linkedPrimaryName: regex }
+                ]
+            };
+            customers = await fetchGroupedCustomers(query, { createdAt: -1 });
+        }
+        
+        res.render('search', { customers, query: q, page: 'search', headerTitle: "Global Search" });
+    } catch (err) {
+        res.redirect('/');
+    }
 });
 
 app.post('/add', isAuthenticated, async (req, res) => {
@@ -552,8 +575,8 @@ app.post('/edit/:id', isAuthenticated, async (req, res) => {
         updateData.verificationDate = vDate;
 
         await Customer.findByIdAndUpdate(req.params.id, updateData);
-        res.redirect('/manage');
-    } catch (err) { res.redirect('/manage'); }
+        res.redirect('back');
+    } catch (err) { res.redirect('back'); }
 });
 
 app.post('/delete/:id', isAuthenticated, async (req, res) => { 
@@ -563,8 +586,8 @@ app.post('/delete/:id', isAuthenticated, async (req, res) => {
             await Customer.findOneAndDelete({ category: 'Family', familyRole: 'Primary', mobile: doc.linkedPrimaryNumber });
         }
         await Customer.findByIdAndDelete(req.params.id); 
-        res.redirect('/manage'); 
-    } catch (err) { res.redirect('/manage'); } 
+        res.redirect('back'); 
+    } catch (err) { res.redirect('back'); } 
 });
 
 app.post('/complete/:id', isAuthenticated, async (req, res) => { 
@@ -586,8 +609,8 @@ app.post('/pay-bill/:id', isAuthenticated, async (req, res) => {
                 $addToSet: { paidMonths: cycleKey }
             });
         }
-        res.redirect('/pdd');
-    } catch(err) { res.redirect('/pdd'); }
+        res.redirect('back');
+    } catch(err) { res.redirect('back'); }
 });
 
 app.get('*', (req, res) => { res.redirect('/'); });
