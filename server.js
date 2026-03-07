@@ -98,7 +98,10 @@ const getEmailTemplate = (otp, type = 'Login') => {
 };
 
 // --- MIDDLEWARE ---
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(helmet({ 
+    contentSecurityPolicy: false,
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
+}));
 const loginLimiter = rateLimit({ windowMs: 15*60*1000, max: 5, message: "Too many login attempts." });
 const otpLimiter = rateLimit({ windowMs: 10*60*1000, max: 10, message: "Too many OTP attempts." });
 
@@ -302,16 +305,22 @@ app.get('/logout', (req, res) => {
 app.get('/', isAuthenticated, async (req, res) => {
     try {
         const monthQuery = req.query.month; 
-        let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
+        let monthOffset = (monthQuery === 'all') ? 'all' : ((monthQuery === undefined) ? 0 : parseInt(monthQuery));
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         
-        const { start, end, now } = getISTDate(monthOffset);
-        
-        const displayMonth = new Date(start);
-        displayMonth.setMinutes(displayMonth.getMinutes() + 330);
+        let query = { status: 'pending' };
+        let headerTitle = "All Pending";
 
-        const query = { verificationDate: { $gte: start, $lt: end, $lte: new Date(now.getTime() + 24*60*60*1000) }, status: 'pending' };
-        const headerTitle = "Pending: " + monthNames[displayMonth.getMonth()] + " " + displayMonth.getFullYear();
+        if (monthOffset !== 'all') {
+            const { start, end, now } = getISTDate(monthOffset);
+            const displayMonth = new Date(start);
+            displayMonth.setMinutes(displayMonth.getMinutes() + 330);
+            query.verificationDate = { $gte: start, $lt: end, $lte: new Date(now.getTime() + 24*60*60*1000) };
+            headerTitle = "Pending: " + monthNames[displayMonth.getMonth()] + " " + displayMonth.getFullYear();
+        } else {
+            const { now } = getISTDate(0);
+            query.verificationDate = { $lte: new Date(now.getTime() + 24*60*60*1000) };
+        }
         
         const customers = await fetchGroupedCustomers(query, { verificationDate: 1 });
         res.render('index', { customers, error: null, page: 'home', monthOffset, headerTitle });
@@ -320,11 +329,12 @@ app.get('/', isAuthenticated, async (req, res) => {
 
 app.get('/all', isAuthenticated, async (req, res) => {
     try {
-        const monthQuery = req.query.month; let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
+        const monthQuery = req.query.month; 
+        let monthOffset = (monthQuery === 'all') ? 'all' : ((monthQuery === undefined) ? 0 : parseInt(monthQuery));
         let query = {}; let headerTitle = "All History";
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         
-        if (monthQuery !== 'all') { 
+        if (monthOffset !== 'all') { 
             const { start, end } = getISTDate(monthOffset);
             query = { createdAt: { $gte: start, $lt: end } }; 
             
@@ -372,14 +382,19 @@ app.get('/pdd', isAuthenticated, async (req, res) => {
 
 app.get('/analytics', isAuthenticated, async (req, res) => {
     try {
-        const monthQuery = req.query.month; let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
+        const monthQuery = req.query.month; 
+        let monthOffset = (monthQuery === 'all') ? 'all' : ((monthQuery === undefined) ? 0 : parseInt(monthQuery));
         let entryQuery = {}; 
         let headerTitle = "All Time Analysis";
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         
-        const { start, end, now } = getISTDate(monthOffset);
+        const { now } = getISTDate(0);
+        let start, end;
         
-        if (req.query.month !== 'all') { 
+        if (monthOffset !== 'all') { 
+            const dates = getISTDate(monthOffset);
+            start = dates.start;
+            end = dates.end;
             entryQuery = { createdAt: { $gte: start, $lt: end } }; 
             
             const displayMonth = new Date(start);
@@ -389,7 +404,7 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
         const monthlyEntries = await Customer.find(entryQuery).sort({ activationDate: 1 }).lean();
 
         let activationQuery = {};
-        if (req.query.month === 'all') {
+        if (monthOffset === 'all') {
             activationQuery = { activationDate: { $lte: now } };
         } else {
             activationQuery = { activationDate: { $gte: start, $lt: end, $lte: now } };
@@ -461,9 +476,10 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
 
 app.get('/manage', isAuthenticated, async (req, res) => {
     try {
-        const monthQuery = req.query.month; let monthOffset = (monthQuery === undefined) ? 0 : parseInt(monthQuery);
+        const monthQuery = req.query.month; 
+        let monthOffset = (monthQuery === 'all') ? 'all' : ((monthQuery === undefined) ? 0 : parseInt(monthQuery));
         let query = {}; let headerTitle = "Managing All Records";
-        if (monthQuery !== 'all') { 
+        if (monthOffset !== 'all') { 
             const { start, end } = getISTDate(monthOffset);
             query = { createdAt: { $gte: start, $lt: end } }; 
         }
@@ -472,7 +488,6 @@ app.get('/manage', isAuthenticated, async (req, res) => {
     } catch (err) { res.redirect('/'); }
 });
 
-// --- GLOBAL SEARCH ROUTE (NEW) ---
 app.get('/search', isAuthenticated, async (req, res) => {
     try {
         const q = req.query.q ? req.query.q.trim() : '';
@@ -497,6 +512,16 @@ app.get('/search', isAuthenticated, async (req, res) => {
     }
 });
 
+// --- HELPER: SAFE REDIRECT TO FIX BROWSER REFERER ISSUES ---
+const safeRedirect = (req, res) => {
+    const returnUrl = req.body.returnUrl;
+    if (returnUrl && returnUrl.startsWith('/')) {
+        return res.redirect(returnUrl);
+    }
+    return res.redirect('back');
+};
+
+// --- STATE-PRESERVING POST ROUTES ---
 app.post('/add', isAuthenticated, async (req, res) => {
     try {
         const { category, customDate, remarks, p_type, p_name, p_mobile, s_type, s_name, s_mobile, n_name, n_mobile, billDate } = req.body;
@@ -529,8 +554,8 @@ app.post('/add', isAuthenticated, async (req, res) => {
             });
             await newCustomer.save();
         }
-        res.redirect('/');
-    } catch (err) { res.redirect('/'); }
+        safeRedirect(req, res);
+    } catch (err) { safeRedirect(req, res); }
 });
 
 app.post('/edit/:id', isAuthenticated, async (req, res) => {
@@ -575,8 +600,8 @@ app.post('/edit/:id', isAuthenticated, async (req, res) => {
         updateData.verificationDate = vDate;
 
         await Customer.findByIdAndUpdate(req.params.id, updateData);
-        res.redirect('back');
-    } catch (err) { res.redirect('back'); }
+        safeRedirect(req, res);
+    } catch (err) { safeRedirect(req, res); }
 });
 
 app.post('/delete/:id', isAuthenticated, async (req, res) => { 
@@ -586,12 +611,15 @@ app.post('/delete/:id', isAuthenticated, async (req, res) => {
             await Customer.findOneAndDelete({ category: 'Family', familyRole: 'Primary', mobile: doc.linkedPrimaryNumber });
         }
         await Customer.findByIdAndDelete(req.params.id); 
-        res.redirect('back'); 
-    } catch (err) { res.redirect('back'); } 
+        safeRedirect(req, res);
+    } catch (err) { safeRedirect(req, res); } 
 });
 
 app.post('/complete/:id', isAuthenticated, async (req, res) => { 
-    try { await Customer.findByIdAndUpdate(req.params.id, { status: 'completed' }); res.redirect('back'); } catch (err) { res.redirect('/'); } 
+    try { 
+        await Customer.findByIdAndUpdate(req.params.id, { status: 'completed' }); 
+        safeRedirect(req, res);
+    } catch (err) { safeRedirect(req, res); } 
 });
 
 app.post('/pay-bill/:id', isAuthenticated, async (req, res) => {
@@ -609,8 +637,63 @@ app.post('/pay-bill/:id', isAuthenticated, async (req, res) => {
                 $addToSet: { paidMonths: cycleKey }
             });
         }
-        res.redirect('back');
-    } catch(err) { res.redirect('back'); }
+        safeRedirect(req, res);
+    } catch(err) { safeRedirect(req, res); }
+});
+
+// --- PAY ALL BILLS ROUTE (NEW) ---
+app.post('/pay-all-bills', isAuthenticated, async (req, res) => {
+    try {
+        const customers = await Customer.find({ billDate: { $ne: null } });
+        const { now } = getISTDate();
+        const currentDay = now.getDate();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+
+        const bulkOps = [];
+
+        customers.forEach(c => {
+            let billYear = currentYear;
+            let billMonth = currentMonth;
+
+            if (currentDay < c.billDate) {
+                billMonth -= 1;
+                if (billMonth < 0) {
+                    billMonth = 11;
+                    billYear -= 1;
+                }
+            }
+
+            const cycleKey = `${billYear}-${String(billMonth + 1).padStart(2, '0')}`;
+
+            if (!c.paidMonths || !c.paidMonths.includes(cycleKey)) {
+                bulkOps.push({
+                    updateOne: {
+                        filter: { _id: c._id },
+                        update: { $addToSet: { paidMonths: cycleKey } }
+                    }
+                });
+                
+                // If it's a secondary family member, mark primary paid too internally
+                if (c.category === 'Family' && c.familyRole === 'Secondary') {
+                    bulkOps.push({
+                        updateOne: {
+                            filter: { category: 'Family', familyRole: 'Primary', mobile: c.linkedPrimaryNumber },
+                            update: { $addToSet: { paidMonths: cycleKey } }
+                        }
+                    });
+                }
+            }
+        });
+
+        if (bulkOps.length > 0) {
+            await Customer.bulkWrite(bulkOps);
+        }
+        
+        safeRedirect(req, res);
+    } catch(err) { 
+        safeRedirect(req, res); 
+    }
 });
 
 app.get('*', (req, res) => { res.redirect('/'); });
