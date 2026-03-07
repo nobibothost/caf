@@ -30,8 +30,11 @@
             <% customers.forEach(customer => { %>
                 <div class="card search-item">
                     <div class="card-top">
-                        <div style="display: flex; gap: 5px;">
+                        <div style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">
                             <% if (customer.category === 'Family') { %> <span class="badge badge-Family">Family</span> <% } else { %> <span class="badge badge-<%= customer.category %>"><%= customer.category %></span> <% } %>
+                            <% if (customer.billDate) { %>
+                                <span class="badge" style="background: rgba(14, 165, 233, 0.1); color: #0ea5e9;"><i class="ri-bill-line"></i> Bill: <%= customer.billDate %>th</span>
+                            <% } %>
                         </div>
                         <span class="date-tag"><%= new Date(customer.activationDate || customer.createdAt).toLocaleDateString('en-GB') %></span>
                     </div>
@@ -172,13 +175,13 @@
                 document.getElementById('editPType').value = pType; document.getElementById('editPName').value = btn.getAttribute('data-p-name');
                 document.getElementById('editPMobile').value = btn.getAttribute('data-p-mobile'); document.getElementById('editSType').value = btn.getAttribute('data-subtype'); document.getElementById('editSName').value = btn.getAttribute('data-name'); document.getElementById('editSMobile').value = btn.getAttribute('data-mobile');
             } else { document.getElementById('editNName').value = btn.getAttribute('data-name');
-                document.getElementById('editNMobile').value = btn.getAttribute('data-mobile'); document.getElementById('editSType').value = cat; } handleEditCategoryChange(); modal.style.display = 'flex'; setTimeout(() => { modal.classList.add('active'); }, 10);
+                document.getElementById('editNMobile').value = btn.getAttribute('data-mobile'); document.getElementById('editSType').value = cat; } handleEditCategoryChange(); 
+                
+            const m = document.getElementById("editModal");
+            if(m){ m.style.display = 'flex'; setTimeout(() => { m.classList.add('active'); }, 10); }
         }
-        function closeEditModal() { modal.classList.remove('active'); setTimeout(() => { modal.style.display = 'none'; }, 300); }
-        function handleEditCategoryChange() { const cat = document.getElementById('editCategory').value; const nForm = document.getElementById('edit-normal-form');
-            const fForm = document.getElementById('edit-family-form'); nForm.classList.remove('active'); fForm.classList.remove('active'); if (cat === 'Family') { fForm.classList.add('active'); document.getElementById('editNName').required = false; document.getElementById('editNMobile').required = false;
-            } else { nForm.classList.add('active'); document.getElementById('editNName').required = true; document.getElementById('editNMobile').required = true;
-            } }
+        function closeEditModal() { const m = document.getElementById("editModal"); if(m){ m.classList.remove('active'); setTimeout(() => { m.style.display = 'none'; }, 300); } }
+        function handleEditCategoryChange() { const cat = document.getElementById('editCategory').value; const nForm = document.getElementById('edit-normal-form'); const fForm = document.getElementById('edit-family-form'); if(!nForm || !fForm) return; nForm.classList.remove('active'); fForm.classList.remove('active'); if (cat === 'Family') { fForm.classList.add('active'); document.getElementById('editNName').required = false; document.getElementById('editNMobile').required = false; } else { nForm.classList.add('active'); document.getElementById('editNName').required = true; document.getElementById('editNMobile').required = true; } }
 
         // --- CUSTOM CONFIRM MODAL LOGIC ---
         let formToSubmit = null;
@@ -190,6 +193,8 @@
             const msgEl = document.getElementById('confirmMessage');
             const iconEl = document.getElementById('confirmIcon');
             const yesBtn = document.getElementById('confirmYesBtn');
+            const confirmModal = document.getElementById('customConfirmModal');
+            if(!confirmModal) return;
 
             yesBtn.className = 'btn-confirm-yes';
             
@@ -207,13 +212,16 @@
                 yesBtn.innerText = "Yes, Logout";
             }
 
-            document.getElementById('customConfirmModal').style.display = 'flex';
-            setTimeout(() => document.getElementById('customConfirmModal').classList.add('active'), 10);
+            confirmModal.style.display = 'flex';
+            setTimeout(() => confirmModal.classList.add('active'), 10);
         }
 
         function closeConfirmModal() {
-            document.getElementById('customConfirmModal').classList.remove('active');
-            setTimeout(() => document.getElementById('customConfirmModal').style.display = 'none', 300);
+            const confirmModal = document.getElementById('customConfirmModal');
+            if(confirmModal) {
+                confirmModal.classList.remove('active');
+                setTimeout(() => confirmModal.style.display = 'none', 300);
+            }
             formToSubmit = null;
         }
 
@@ -224,7 +232,10 @@
                 } else {
                     let returnInput = formToSubmit.querySelector('input[name="returnUrl"]');
                     if (!returnInput) {
-                        returnInput = document.createElement('input'); returnInput.type = 'hidden'; returnInput.name = 'returnUrl'; formToSubmit.appendChild(returnInput);
+                        returnInput = document.createElement('input'); 
+                        returnInput.type = 'hidden'; 
+                        returnInput.name = 'returnUrl'; 
+                        formToSubmit.appendChild(returnInput);
                     }
                     returnInput.value = window.location.pathname + window.location.search;
                     sessionStorage.setItem('scrollPos', window.scrollY);

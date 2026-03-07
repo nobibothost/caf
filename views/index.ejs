@@ -16,6 +16,8 @@
         .divider span { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 0 10px; color: #64748b; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; }
         .section-label { font-size: 0.95rem; font-weight: 700; color: var(--primary); margin-bottom: 12px; display: block; }
         .flatpickr-input { background-color: #f8fafc !important; }
+        .btn-inline-check { background: #f0fdf4; color: #10b981; border: 1px solid #10b981; flex: 1; justify-content: center; padding: 5px; border-radius: 6px; font-weight: 600; font-size: 0.8rem; display: flex; align-items: center; gap: 4px; }
+        .btn-inline-check:hover { background: #dcfce7; }
     </style>
 </head>
 <body>
@@ -65,11 +67,15 @@
                 <% customers.forEach(customer => { %>
                     <div class="card search-item">
                         <div class="card-top">
-                            <div style="display: flex; gap: 5px;">
+                            <div style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">
                                 <% if (customer.category === 'Family') { %>
                                     <span class="badge badge-Family">Family</span>
                                 <% } else { %>
                                     <span class="badge badge-<%= customer.category %>"><%= customer.category %></span>
+                                <% } %>
+                                
+                                <% if (customer.billDate) { %>
+                                    <span class="badge" style="background: rgba(14, 165, 233, 0.1); color: #0ea5e9;"><i class="ri-bill-line"></i> Bill: <%= customer.billDate %>th</span>
                                 <% } %>
                             </div>
                             <div style="display: flex; align-items: center; gap: 8px;">
@@ -185,6 +191,7 @@
                         <input type="text" name="customDate" id="customDate" required placeholder="DD/MM/YYYY">
                     </div>
                 </div>
+
                 <div class="input-group">
                     <label>Category</label>
                     <div class="input-wrapper">
@@ -238,7 +245,6 @@
                         <input type="text" name="remarks" placeholder="Optional notes...">
                     </div>
                 </div>
-
                 <button type="submit" class="btn-submit">Save Record</button>
             </form>
         </div>
@@ -284,18 +290,62 @@
     <script>
         function filterList() { let input = document.getElementById('searchInput').value.toLowerCase(); let items = document.getElementsByClassName('search-item'); for (let i = 0; i < items.length; i++) { let text = items[i].innerText.toLowerCase(); if (text.includes(input)) items[i].style.display = ""; else items[i].style.display = "none"; } }
 
-        const modal = document.getElementById("addModal");
-        const remarksModal = document.getElementById("remarksModal");
         const fpAdd = flatpickr("#customDate", { dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", allowInput: true, disableMobile: true });
 
-        function openModal() { modal.style.display = 'flex'; setTimeout(() => { modal.classList.add('active'); }, 10); fpAdd.setDate(new Date()); handleCategoryChange(); }
-        function closeModal() { modal.classList.remove('active'); setTimeout(() => { modal.style.display = 'none'; }, 300); }
-        function handleCategoryChange() { const cat = document.getElementById('category').value; const nForm = document.getElementById('normal-form'); const fForm = document.getElementById('family-form'); normalForm.classList.remove('active'); familyForm.classList.remove('active'); if (cat === 'Family') { familyForm.classList.add('active'); document.getElementById('n_name').required = false; document.getElementById('n_mobile').required = false; } else { normalForm.classList.add('active'); document.getElementById('n_name').required = true; document.getElementById('n_mobile').required = true; } }
-
-        function openRemarksModal(btn) { document.getElementById('remarksTitle').innerText = btn.getAttribute('data-name'); document.getElementById('remarksBody').innerText = document.getAttribute('data-remarks'); remarksModal.style.display = 'flex'; setTimeout(() => { remarksModal.classList.add('active'); }, 10); }
-        function closeRemarksModal() { remarksModal.classList.remove('active'); setTimeout(() => { remarksModal.style.display = 'none'; }, 300); }
+        function openModal() {
+            const m = document.getElementById("addModal");
+            if(!m) return;
+            m.style.display = 'flex';
+            setTimeout(() => { m.classList.add('active'); }, 10);
+            fpAdd.setDate(new Date());
+            handleCategoryChange();
+        }
+        function closeModal() { 
+            const m = document.getElementById("addModal");
+            if(!m) return;
+            m.classList.remove('active');
+            setTimeout(() => { m.style.display = 'none'; }, 300);
+        }
         
-        // --- CUSTOM CONFIRM MODAL LOGIC ---
+        function handleCategoryChange() {
+            const cat = document.getElementById('category').value;
+            const normalForm = document.getElementById('normal-form');
+            const familyForm = document.getElementById('family-form');
+            if(!normalForm || !familyForm) return;
+            
+            normalForm.classList.remove('active');
+            familyForm.classList.remove('active');
+
+            if (cat === 'Family') {
+                familyForm.classList.add('active');
+                document.getElementById('n_name').required = false;
+                document.getElementById('n_mobile').required = false;
+            } else {
+                normalForm.classList.add('active');
+                document.getElementById('n_name').required = true;
+                document.getElementById('n_mobile').required = true;
+            }
+        }
+
+        function openRemarksModal(btn) {
+            const rTitle = document.getElementById('remarksTitle');
+            const rBody = document.getElementById('remarksBody');
+            const rModal = document.getElementById('remarksModal');
+            if(rTitle && rBody && rModal) {
+                rTitle.innerText = btn.getAttribute('data-name');
+                rBody.innerText = btn.getAttribute('data-remarks');
+                rModal.style.display = 'flex';
+                setTimeout(() => { rModal.classList.add('active'); }, 10);
+            }
+        }
+        function closeRemarksModal() { 
+            const rModal = document.getElementById('remarksModal');
+            if(rModal) {
+                rModal.classList.remove('active');
+                setTimeout(() => { rModal.style.display = 'none'; }, 300);
+            }
+        }
+
         let formToSubmit = null;
         function openConfirmModal(event, element, actionType) {
             event.preventDefault();
@@ -305,6 +355,8 @@
             const msgEl = document.getElementById('confirmMessage');
             const iconEl = document.getElementById('confirmIcon');
             const yesBtn = document.getElementById('confirmYesBtn');
+            const confirmModal = document.getElementById('customConfirmModal');
+            if(!confirmModal) return;
 
             yesBtn.className = 'btn-confirm-yes';
             
@@ -314,6 +366,24 @@
                 iconEl.innerHTML = '<i class="ri-check-double-line" style="color: #10b981;"></i>';
                 yesBtn.classList.add('btn-confirm-success');
                 yesBtn.innerText = "Yes, Done";
+            } else if (actionType === 'delete') {
+                titleEl.innerText = "Delete Record?";
+                msgEl.innerText = "This action is permanent. Both primary and secondary info will be removed.";
+                iconEl.innerHTML = '<i class="ri-delete-bin-line" style="color: #ef4444;"></i>';
+                yesBtn.classList.add('btn-confirm-danger');
+                yesBtn.innerText = "Yes, Delete";
+            } else if (actionType === 'pay') {
+                titleEl.innerText = "Mark as Paid?";
+                msgEl.innerText = "Are you sure you want to mark this bill as paid?";
+                iconEl.innerHTML = '<i class="ri-money-rupee-circle-line" style="color: #10b981;"></i>';
+                yesBtn.classList.add('btn-confirm-success');
+                yesBtn.innerText = "Yes, Paid";
+            } else if (actionType === 'payAll') {
+                titleEl.innerText = "Mark ALL Paid?";
+                msgEl.innerText = "Are you sure you want to mark ALL pending bills as paid for this cycle?";
+                iconEl.innerHTML = '<i class="ri-checkbox-multiple-line" style="color: #10b981;"></i>';
+                yesBtn.classList.add('btn-confirm-success');
+                yesBtn.innerText = "Yes, Mark All";
             } else if (actionType === 'logout') {
                 titleEl.innerText = "Secure Logout?";
                 msgEl.innerText = "Are you sure you want to end your session?";
@@ -322,13 +392,16 @@
                 yesBtn.innerText = "Yes, Logout";
             }
 
-            document.getElementById('customConfirmModal').style.display = 'flex';
-            setTimeout(() => document.getElementById('customConfirmModal').classList.add('active'), 10);
+            confirmModal.style.display = 'flex';
+            setTimeout(() => confirmModal.classList.add('active'), 10);
         }
 
         function closeConfirmModal() {
-            document.getElementById('customConfirmModal').classList.remove('active');
-            setTimeout(() => document.getElementById('customConfirmModal').style.display = 'none', 300);
+            const confirmModal = document.getElementById('customConfirmModal');
+            if(confirmModal) {
+                confirmModal.classList.remove('active');
+                setTimeout(() => confirmModal.style.display = 'none', 300);
+            }
             formToSubmit = null;
         }
 
@@ -339,7 +412,10 @@
                 } else {
                     let returnInput = formToSubmit.querySelector('input[name="returnUrl"]');
                     if (!returnInput) {
-                        returnInput = document.createElement('input'); returnInput.type = 'hidden'; returnInput.name = 'returnUrl'; formToSubmit.appendChild(returnInput);
+                        returnInput = document.createElement('input'); 
+                        returnInput.type = 'hidden'; 
+                        returnInput.name = 'returnUrl'; 
+                        formToSubmit.appendChild(returnInput);
                     }
                     returnInput.value = window.location.pathname + window.location.search;
                     sessionStorage.setItem('scrollPos', window.scrollY);
@@ -349,13 +425,29 @@
             }
         });
 
-        window.onclick = function(event) { if (event.target == modal) closeModal(); if (event.target == remarksModal) closeRemarksModal(); if(event.target == document.getElementById('customConfirmModal')) closeConfirmModal(); }
+        window.onclick = function(event) { 
+            const addM = document.getElementById("addModal");
+            const editM = document.getElementById("editModal");
+            const remM = document.getElementById("remarksModal");
+            const confM = document.getElementById("customConfirmModal");
+            
+            if (addM && event.target == addM) closeModal(); 
+            if (editM && event.target == editM) closeEditModal(); 
+            if (remM && event.target == remM) closeRemarksModal(); 
+            if (confM && event.target == confM) closeConfirmModal(); 
+        }
 
-        // --- SCROLL RESTORE FOR ADD/EDIT FORMS ---
+        // --- SCROLL POSITION PRESERVATION & URL INJECTION ---
         document.querySelectorAll('form:not([onsubmit*="openConfirmModal"])').forEach(form => {
             form.addEventListener('submit', function() {
+                if(this.getAttribute('action') === '/search') return;
                 let returnInput = this.querySelector('input[name="returnUrl"]');
-                if (!returnInput) { returnInput = document.createElement('input'); returnInput.type = 'hidden'; returnInput.name = 'returnUrl'; this.appendChild(returnInput); }
+                if (!returnInput) {
+                    returnInput = document.createElement('input');
+                    returnInput.type = 'hidden';
+                    returnInput.name = 'returnUrl';
+                    this.appendChild(returnInput);
+                }
                 returnInput.value = window.location.pathname + window.location.search;
                 sessionStorage.setItem('scrollPos', window.scrollY);
                 sessionStorage.setItem('scrollPath', window.location.pathname + window.location.search);
@@ -367,9 +459,12 @@
             const currentPath = window.location.pathname + window.location.search;
             if (scrollPath === currentPath) {
                 const scrollPos = sessionStorage.getItem('scrollPos');
-                if (scrollPos) setTimeout(() => window.scrollTo(0, parseInt(scrollPos)), 50);
+                if (scrollPos) {
+                    setTimeout(() => window.scrollTo(0, parseInt(scrollPos)), 50);
+                }
             }
-            sessionStorage.removeItem('scrollPos'); sessionStorage.removeItem('scrollPath');
+            sessionStorage.removeItem('scrollPos');
+            sessionStorage.removeItem('scrollPath');
         });
     </script>
 </body>

@@ -91,7 +91,12 @@
             <% } else { %>
                 <% pendingList.forEach(c => { %>
                     <div class="pending-card">
-                        <div class="pc-info"><h4><%= c.name %> <span class="badge badge-<%= c.subType %>" style="font-size: 0.65rem;"><%= c.subType %></span></h4><p><i class="ri-smartphone-line"></i> <%= c.mobile %></p><% if(c.category === 'Family') { %><p style="font-size: 0.7rem; color: #8b5cf6;"><i class="ri-group-line"></i> Family Connection</p><% } %></div>
+                        <div class="pc-info">
+                            <h4><%= c.name %> <span class="badge badge-<%= c.subType %>" style="font-size: 0.65rem;"><%= c.subType %></span></h4>
+                            <p><i class="ri-smartphone-line"></i> <%= c.mobile %></p>
+                            <% if(c.category === 'Family') { %><p style="font-size: 0.7rem; color: #8b5cf6;"><i class="ri-group-line"></i> Family Connection</p><% } %>
+                            <% if(c.billDate) { %><p style="font-size: 0.7rem; color: #0ea5e9; margin-top: 2px;"><i class="ri-bill-line"></i> Bill Cycle: <%= c.billDate %>th</p><% } %>
+                        </div>
                         <div class="pc-date"><span>Activates On</span><strong><%= new Date(c.activationDate || c.createdAt).toLocaleDateString('en-GB') %></strong></div>
                     </div>
                 <% }) %>
@@ -164,16 +169,6 @@
         });
 
         window.onclick = function(event) { if(event.target == document.getElementById('customConfirmModal')) closeConfirmModal(); }
-
-        window.addEventListener('DOMContentLoaded', () => {
-            const scrollPath = sessionStorage.getItem('scrollPath');
-            const currentPath = window.location.pathname + window.location.search;
-            if (scrollPath === currentPath) {
-                const scrollPos = sessionStorage.getItem('scrollPos');
-                if (scrollPos) setTimeout(() => window.scrollTo(0, parseInt(scrollPos)), 50);
-            }
-            sessionStorage.removeItem('scrollPos'); sessionStorage.removeItem('scrollPath');
-        });
     </script>
 </body>
 </html>
