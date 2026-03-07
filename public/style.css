@@ -167,6 +167,19 @@ body {
 .icon-btn { background: none; border: none; font-size: 1.5rem; color: var(--text-muted); cursor: pointer; }
 .remarks-content { background: #f8fafc; padding: 15px; border-radius: 12px; border-left: 4px solid var(--primary); margin: 10px 0 20px 0; color: var(--text-main); font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; }
 
+/* --- CUSTOM CONFIRM MODAL STYLES --- */
+.confirm-icon { font-size: 3.5rem; margin-bottom: 10px; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+@keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.confirm-actions { display: flex; gap: 12px; width: 100%; margin-top: 15px; }
+.btn-confirm-cancel { flex: 1; background: #f1f5f9; color: var(--text-main); border: 1px solid var(--border); padding: 12px; border-radius: 10px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+.btn-confirm-cancel:hover { background: #e2e8f0; }
+.btn-confirm-yes { flex: 1; color: white; border: none; padding: 12px; border-radius: 10px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: transform 0.1s, filter 0.2s; }
+.btn-confirm-yes:active { transform: scale(0.95); }
+.btn-confirm-danger { background: #ef4444; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3); }
+.btn-confirm-danger:hover { filter: brightness(1.1); }
+.btn-confirm-success { background: #10b981; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); }
+.btn-confirm-success:hover { filter: brightness(1.1); }
+
 /* --- FORMS --- */
 .input-group { margin-bottom: 12px; }
 .input-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 5px; color: var(--text-main); }
