@@ -19,7 +19,7 @@
     </style>
 </head>
 <body>
-    <nav class="navbar"><div class="logo"><i class="ri-edit-box-line"></i> Manage<span class="highlight">Data</span></div><a href="/logout" class="logout-btn" onclick="return confirm('Securely Logout?');"><i class="ri-logout-box-r-line"></i></a></nav>
+    <nav class="navbar"><div class="logo"><i class="ri-edit-box-line"></i> Manage<span class="highlight">Data</span></div><a href="#" class="logout-btn" onclick="openConfirmModal(event, '/logout', 'logout')"><i class="ri-logout-box-r-line"></i></a></nav>
 
     <div class="container">
         <div class="section-title"><h2><i class="ri-settings-4-line"></i> <%= headerTitle %></h2><p class="subtitle">Search, edit or delete records.</p></div>
@@ -118,52 +118,30 @@
                 <div class="input-group" style="margin-top: 15px;"><label>Remarks</label><div class="input-wrapper"><i class="ri-sticky-note-line icon-left"></i><input type="text" name="remarks" id="editRemarks"></div></div>
                 <button type="submit" class="btn-submit">Update Record</button>
             </form>
-            <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;"><form id="deleteForm" method="POST" onsubmit="return confirm('Delete permanently? Both Primary and Secondary info will be deleted.');"><button type="submit" class="btn-delete"><i class="ri-delete-bin-line"></i> Delete Full Entry</button></form>
-        </div>
-    </div>
-
-    <div id="addModal" class="modal-overlay" style="display: none;">
-        <div class="modal-card">
-            <div class="modal-header"><h3>New Verification</h3><button onclick="closeModal()" class="icon-btn"><i class="ri-close-line"></i></button></div>
-            <form action="/add" method="POST" id="addForm">
-                <div class="input-group"><label>Activation Date</label><div class="input-wrapper"><i class="ri-calendar-line icon-left"></i><input type="text" name="customDate" id="customDate" required placeholder="DD/MM/YYYY"></div></div>
-                <div class="input-group"><label>Category</label><div class="input-wrapper"><i class="ri-list-check icon-left"></i><select name="category" id="category" onchange="handleCategoryChange()" required><option value="" disabled selected>Select Category</option><option value="NC">NC</option><option value="P2P">P2P</option><option value="MNP">MNP</option><option value="NMNP">NMNP</option><option value="Family">Family</option></select></div></div>
-                <div id="normal-form" class="form-section"><div class="input-group"><label>Name</label><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="n_name" id="n_name"></div></div><div class="input-group"><label>Mobile</label><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="n_mobile" id="n_mobile" pattern="[0-9]{10}"></div></div></div>
-                <div id="family-form" class="form-section">
-                    <span class="section-label">Primary Connection</span>
-                    <div class="input-group"><label>Primary Type</label><div class="input-wrapper"><i class="ri-shield-user-line icon-left"></i><select name="p_type" id="p_type"><option value="Existing">Existing (Active)</option><option value="NC">New Entry (NC)</option><option value="P2P">New Entry (P2P)</option><option value="MNP">New MNP</option><option value="NMNP">New NMNP</option></select></div></div>
-                    <div class="input-group"><div class="input-wrapper"><i class="ri-user-star-line icon-left"></i><input type="text" name="p_name" placeholder="Primary Name"></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="p_mobile" placeholder="Primary Mobile" pattern="[0-9]{10}"></div></div>
-                    <div class="divider"><span>AND</span></div>
-                    <span class="section-label">Secondary Connection (This SIM)</span>
-                    <div class="input-group"><label>Secondary Type</label><div class="input-wrapper"><i class="ri-sim-card-line icon-left"></i><select name="s_type" id="s_type"><option value="NC" selected>NC</option><option value="P2P">P2P</option><option value="MNP">MNP</option><option value="NMNP">NMNP</option></select></div></div>
-                    <div class="input-group"><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="s_name" placeholder="Secondary Name"></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="s_mobile" placeholder="Secondary Mobile" pattern="[0-9]{10}"></div></div>
-                </div>
-                <div class="input-group" style="margin-top: 15px;">
-                    <label>Bill Date (Optional)</label>
-                    <div class="input-wrapper">
-                        <i class="ri-calendar-todo-line icon-left"></i>
-                        <select name="billDate" id="billDate">
-                            <option value="">No Bill / Prepaid</option>
-                            <option value="11">11th</option>
-                            <option value="15">15th</option>
-                            <option value="24">24th</option>
-                            <option value="27">27th</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="input-group" style="margin-top: 15px;"><label>Remarks</label><div class="input-wrapper"><i class="ri-sticky-note-line icon-left"></i><input type="text" name="remarks" placeholder="Optional notes..."></div></div>
-                <button type="submit" class="btn-submit">Save Record</button>
+            <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+            <form id="deleteForm" method="POST" onsubmit="openConfirmModal(event, this, 'delete')">
+                <button type="submit" class="btn-delete"><i class="ri-delete-bin-line"></i> Delete Full Entry</button>
             </form>
         </div>
     </div>
 
-    <div id="remarksModal" class="modal-overlay" style="display: none;"><div class="modal-card"><div class="modal-header"><h3><i class="ri-sticky-note-fill" style="color: var(--primary);"></i> Remarks</h3><button onclick="closeRemarksModal()" class="icon-btn"><i class="ri-close-line"></i></button></div><div><strong id="remarksTitle" style="color: var(--primary); font-size: 1.1rem; display:block; margin-bottom:5px;"></strong><div id="remarksBody" class="remarks-content"></div></div><button onclick="closeRemarksModal()" class="btn-submit" style="background: var(--text-main); margin-top: 10px;">Close</button></div></div>
-    
+    <div id="customConfirmModal" class="modal-overlay" style="display: none; z-index: 10000;">
+        <div class="modal-card" style="text-align: center; max-width: 340px; padding: 30px 20px;">
+            <div id="confirmIcon" class="confirm-icon"></div>
+            <h3 id="confirmTitle" style="margin-bottom: 10px; font-size: 1.3rem;"></h3>
+            <p id="confirmMessage" style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 25px; line-height: 1.5;"></p>
+            <div class="confirm-actions">
+                <button type="button" class="btn-confirm-cancel" onclick="closeConfirmModal()">Cancel</button>
+                <button type="button" id="confirmYesBtn" class="btn-confirm-yes">Yes</button>
+            </div>
+        </div>
+    </div>
+
     <div class="bottom-nav">
         <a href="/" class="nav-item"><i class="ri-home-4-line"></i><span>Home</span></a>
         <a href="/all" class="nav-item"><i class="ri-list-check"></i><span>All</span></a>
         <a href="/pdd" class="nav-item"><i class="ri-file-paper-2-line"></i><span>PDD</span></a>
-        <div class="nav-fab" onclick="openModal()"><i class="ri-add-line"></i></div>
+        <div class="nav-fab" onclick="window.location.href='/'"><i class="ri-add-line"></i></div>
         <a href="/search" class="nav-item"><i class="ri-search-line"></i><span>Search</span></a>
         <a href="/manage" class="nav-item active"><i class="ri-edit-2-fill"></i><span>Edit</span></a>
         <a href="/analytics" class="nav-item"><i class="ri-pie-chart-line"></i><span>Analysis</span></a>
@@ -171,14 +149,10 @@
 
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
-        function filterList() { let input = document.getElementById('searchInput').value.toLowerCase(); let items = document.getElementsByClassName('search-item'); for (let i = 0; i < items.length; i++) { let name = items[i].getElementsByClassName('customer-name')[0].innerText.toLowerCase(); let mobile = items[i].getElementsByClassName('mobile-txt')[0].innerText.toLowerCase(); if (name.includes(input) || mobile.includes(input)) items[i].style.display = ""; else items[i].style.display = "none"; } }
+        function filterList() { let input = document.getElementById('searchInput').value.toLowerCase(); let items = document.getElementsByClassName('search-item'); for (let i = 0; i < items.length; i++) { let text = items[i].innerText.toLowerCase(); if (text.includes(input)) items[i].style.display = ""; else items[i].style.display = "none"; } }
         
         const modal = document.getElementById("editModal");
-        const addModal = document.getElementById("addModal"); 
-        const remarksModal = document.getElementById("remarksModal");
-        
         const fpEdit = flatpickr("#editDate", { dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", allowInput: true, disableMobile: true });
-        const fpAdd = flatpickr("#customDate", { dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", allowInput: true, disableMobile: true });
         
         function openEditModal(btn) { 
             document.getElementById('editForm').action = "/edit/" + btn.getAttribute('data-id');
@@ -206,14 +180,82 @@
             } else { nForm.classList.add('active'); document.getElementById('editNName').required = true; document.getElementById('editNMobile').required = true;
             } }
 
-        function openModal() { addModal.style.display = 'flex'; setTimeout(() => { addModal.classList.add('active'); }, 10); fpAdd.setDate(new Date()); handleCategoryChange(); }
-        function closeModal() { addModal.classList.remove('active'); setTimeout(() => { addModal.style.display = 'none'; }, 300); }
-        function handleCategoryChange() { const cat = document.getElementById('category').value; const nForm = document.getElementById('normal-form'); const fForm = document.getElementById('family-form'); nForm.classList.remove('active'); fForm.classList.remove('active'); if (cat === 'Family') { fForm.classList.add('active'); document.getElementById('n_name').required = false; document.getElementById('n_mobile').required = false; } else { nForm.classList.add('active'); document.getElementById('n_name').required = true; document.getElementById('n_mobile').required = true; } }
+        // --- CUSTOM CONFIRM MODAL LOGIC ---
+        let formToSubmit = null;
+        function openConfirmModal(event, element, actionType) {
+            event.preventDefault();
+            formToSubmit = element;
+            
+            const titleEl = document.getElementById('confirmTitle');
+            const msgEl = document.getElementById('confirmMessage');
+            const iconEl = document.getElementById('confirmIcon');
+            const yesBtn = document.getElementById('confirmYesBtn');
 
-        function openRemarksModal(btn) { document.getElementById('remarksTitle').innerText = btn.getAttribute('data-name'); document.getElementById('remarksBody').innerText = btn.getAttribute('data-remarks'); remarksModal.style.display = 'flex'; setTimeout(() => { remarksModal.classList.add('active'); }, 10); }
-        function closeRemarksModal() { remarksModal.classList.remove('active'); setTimeout(() => { remarksModal.style.display = 'none'; }, 300); }
-        
-        window.onclick = function(event) { if (event.target == modal) closeEditModal(); if (event.target == addModal) closeModal(); if (event.target == remarksModal) closeRemarksModal(); }
+            yesBtn.className = 'btn-confirm-yes';
+            
+            if (actionType === 'delete') {
+                titleEl.innerText = "Delete Record?";
+                msgEl.innerText = "This action is permanent. Both primary and secondary info will be removed.";
+                iconEl.innerHTML = '<i class="ri-delete-bin-line" style="color: #ef4444;"></i>';
+                yesBtn.classList.add('btn-confirm-danger');
+                yesBtn.innerText = "Yes, Delete";
+            } else if (actionType === 'logout') {
+                titleEl.innerText = "Secure Logout?";
+                msgEl.innerText = "Are you sure you want to end your session?";
+                iconEl.innerHTML = '<i class="ri-logout-circle-line" style="color: #ef4444;"></i>';
+                yesBtn.classList.add('btn-confirm-danger');
+                yesBtn.innerText = "Yes, Logout";
+            }
+
+            document.getElementById('customConfirmModal').style.display = 'flex';
+            setTimeout(() => document.getElementById('customConfirmModal').classList.add('active'), 10);
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('customConfirmModal').classList.remove('active');
+            setTimeout(() => document.getElementById('customConfirmModal').style.display = 'none', 300);
+            formToSubmit = null;
+        }
+
+        document.getElementById('confirmYesBtn').addEventListener('click', function() {
+            if (formToSubmit) {
+                if (typeof formToSubmit === 'string') {
+                    window.location.href = formToSubmit;
+                } else {
+                    let returnInput = formToSubmit.querySelector('input[name="returnUrl"]');
+                    if (!returnInput) {
+                        returnInput = document.createElement('input'); returnInput.type = 'hidden'; returnInput.name = 'returnUrl'; formToSubmit.appendChild(returnInput);
+                    }
+                    returnInput.value = window.location.pathname + window.location.search;
+                    sessionStorage.setItem('scrollPos', window.scrollY);
+                    sessionStorage.setItem('scrollPath', window.location.pathname + window.location.search);
+                    formToSubmit.submit();
+                }
+            }
+        });
+
+        window.onclick = function(event) { if (event.target == modal) closeEditModal(); if(event.target == document.getElementById('customConfirmModal')) closeConfirmModal(); }
+
+        // --- SCROLL RESTORE FOR EDIT FORM ---
+        document.querySelectorAll('form:not([onsubmit*="openConfirmModal"])').forEach(form => {
+            form.addEventListener('submit', function() {
+                let returnInput = this.querySelector('input[name="returnUrl"]');
+                if (!returnInput) { returnInput = document.createElement('input'); returnInput.type = 'hidden'; returnInput.name = 'returnUrl'; this.appendChild(returnInput); }
+                returnInput.value = window.location.pathname + window.location.search;
+                sessionStorage.setItem('scrollPos', window.scrollY);
+                sessionStorage.setItem('scrollPath', window.location.pathname + window.location.search);
+            });
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const scrollPath = sessionStorage.getItem('scrollPath');
+            const currentPath = window.location.pathname + window.location.search;
+            if (scrollPath === currentPath) {
+                const scrollPos = sessionStorage.getItem('scrollPos');
+                if (scrollPos) setTimeout(() => window.scrollTo(0, parseInt(scrollPos)), 50);
+            }
+            sessionStorage.removeItem('scrollPos'); sessionStorage.removeItem('scrollPath');
+        });
     </script>
 </body>
 </html>
