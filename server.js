@@ -242,6 +242,15 @@ async function fetchGroupedCustomers(baseQuery, sortObj) {
     return result;
 }
 
+// --- HELPER: SAFE REDIRECT TO FIX BROWSER REFERER ISSUES ---
+const safeRedirect = (req, res) => {
+    const returnUrl = req.body.returnUrl;
+    if (returnUrl && returnUrl.startsWith('/')) {
+        return res.redirect(returnUrl);
+    }
+    return res.redirect('back');
+};
+
 // --- ROUTES ---
 app.get('/health', (req, res) => res.status(200).send('OK'));
 
@@ -347,13 +356,17 @@ app.get('/all', isAuthenticated, async (req, res) => {
     } catch (err) { res.redirect('/'); }
 });
 
+// --- PDD ROUTE WITH ACTIVATION LOGIC ---
 app.get('/pdd', isAuthenticated, async (req, res) => {
     try {
         const customers = await fetchGroupedCustomers({ billDate: { $ne: null } }, { billDate: 1 });
-        const { now } = getISTDate();
-        const currentDay = now.getDate();
-        const currentMonth = now.getMonth();
-        const currentYear = now.getFullYear();
+        
+        // Exact current IST Date
+        const today = new Date();
+        const istNow = new Date(today.getTime() + (330 * 60000));
+        const currentDay = istNow.getUTCDate();
+        const currentMonth = istNow.getUTCMonth();
+        const currentYear = istNow.getUTCFullYear();
 
         let pendingBills = [];
 
@@ -369,10 +382,24 @@ app.get('/pdd', isAuthenticated, async (req, res) => {
                 }
             }
 
-            const cycleKey = `${billYear}-${String(billMonth + 1).padStart(2, '0')}`;
+            // Extract Exact Activation Date in IST safely
+            const actDate = new Date(c.activationDate || c.createdAt);
+            const actIst = new Date(actDate.getTime() + (330 * 60000));
+            const actYear = actIst.getUTCFullYear();
+            const actMonth = actIst.getUTCMonth();
+            const actDay = actIst.getUTCDate();
 
-            if (!c.paidMonths || !c.paidMonths.includes(cycleKey)) {
-                pendingBills.push({ ...c, cycleKey });
+            // Convert to comparable YYYYMMDD format
+            const calcBillVal = billYear * 10000 + billMonth * 100 + c.billDate;
+            const actVal = actYear * 10000 + actMonth * 100 + actDay;
+
+            // ONLY show if the generated bill date is strictly >= the date of activation
+            if (calcBillVal >= actVal) {
+                const cycleKey = `${billYear}-${String(billMonth + 1).padStart(2, '0')}`;
+
+                if (!c.paidMonths || !c.paidMonths.includes(cycleKey)) {
+                    pendingBills.push({ ...c, cycleKey });
+                }
             }
         });
 
@@ -512,15 +539,6 @@ app.get('/search', isAuthenticated, async (req, res) => {
     }
 });
 
-// --- HELPER: SAFE REDIRECT TO FIX BROWSER REFERER ISSUES ---
-const safeRedirect = (req, res) => {
-    const returnUrl = req.body.returnUrl;
-    if (returnUrl && returnUrl.startsWith('/')) {
-        return res.redirect(returnUrl);
-    }
-    return res.redirect('back');
-};
-
 // --- STATE-PRESERVING POST ROUTES ---
 app.post('/add', isAuthenticated, async (req, res) => {
     try {
@@ -641,14 +659,16 @@ app.post('/pay-bill/:id', isAuthenticated, async (req, res) => {
     } catch(err) { safeRedirect(req, res); }
 });
 
-// --- PAY ALL BILLS ROUTE (NEW) ---
+// --- PAY ALL BILLS ROUTE WITH ACTIVATION LOGIC ---
 app.post('/pay-all-bills', isAuthenticated, async (req, res) => {
     try {
         const customers = await Customer.find({ billDate: { $ne: null } });
-        const { now } = getISTDate();
-        const currentDay = now.getDate();
-        const currentMonth = now.getMonth();
-        const currentYear = now.getFullYear();
+        
+        const today = new Date();
+        const istNow = new Date(today.getTime() + (330 * 60000));
+        const currentDay = istNow.getUTCDate();
+        const currentMonth = istNow.getUTCMonth();
+        const currentYear = istNow.getUTCFullYear();
 
         const bulkOps = [];
 
@@ -664,24 +684,35 @@ app.post('/pay-all-bills', isAuthenticated, async (req, res) => {
                 }
             }
 
-            const cycleKey = `${billYear}-${String(billMonth + 1).padStart(2, '0')}`;
+            const actDate = new Date(c.activationDate || c.createdAt);
+            const actIst = new Date(actDate.getTime() + (330 * 60000));
+            const actYear = actIst.getUTCFullYear();
+            const actMonth = actIst.getUTCMonth();
+            const actDay = actIst.getUTCDate();
 
-            if (!c.paidMonths || !c.paidMonths.includes(cycleKey)) {
-                bulkOps.push({
-                    updateOne: {
-                        filter: { _id: c._id },
-                        update: { $addToSet: { paidMonths: cycleKey } }
-                    }
-                });
-                
-                // If it's a secondary family member, mark primary paid too internally
-                if (c.category === 'Family' && c.familyRole === 'Secondary') {
+            const calcBillVal = billYear * 10000 + billMonth * 100 + c.billDate;
+            const actVal = actYear * 10000 + actMonth * 100 + actDay;
+
+            // Only mark as paid if their bill should actually be visible in PDD
+            if (calcBillVal >= actVal) {
+                const cycleKey = `${billYear}-${String(billMonth + 1).padStart(2, '0')}`;
+
+                if (!c.paidMonths || !c.paidMonths.includes(cycleKey)) {
                     bulkOps.push({
                         updateOne: {
-                            filter: { category: 'Family', familyRole: 'Primary', mobile: c.linkedPrimaryNumber },
+                            filter: { _id: c._id },
                             update: { $addToSet: { paidMonths: cycleKey } }
                         }
                     });
+                    
+                    if (c.category === 'Family' && c.familyRole === 'Secondary') {
+                        bulkOps.push({
+                            updateOne: {
+                                filter: { category: 'Family', familyRole: 'Primary', mobile: c.linkedPrimaryNumber },
+                                update: { $addToSet: { paidMonths: cycleKey } }
+                            }
+                        });
+                    }
                 }
             }
         });
