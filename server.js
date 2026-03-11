@@ -374,7 +374,8 @@ app.get('/pdd', isAuthenticated, async (req, res) => {
             let billYear = currentYear;
             let billMonth = currentMonth;
 
-            if (currentDay < c.billDate) {
+            // Updated condition: <= instead of < delays bill showing by 1 day
+            if (currentDay <= c.billDate) {
                 billMonth -= 1;
                 if (billMonth < 0) {
                     billMonth = 11;
@@ -676,7 +677,8 @@ app.post('/pay-all-bills', isAuthenticated, async (req, res) => {
             let billYear = currentYear;
             let billMonth = currentMonth;
 
-            if (currentDay < c.billDate) {
+            // Updated condition: <= instead of < delays bill showing by 1 day for bulk pay logic as well
+            if (currentDay <= c.billDate) {
                 billMonth -= 1;
                 if (billMonth < 0) {
                     billMonth = 11;
