@@ -19,6 +19,8 @@ const ADMIN_EMAIL_RECEIVER = process.env.ADMIN_EMAIL_RECEIVER || 'your-email@gma
 const SESSION_SECRET = process.env.SESSION_SECRET || 'supersecretkey';
 const MONGO_URI = process.env.MONGO_URI;
 
+const ITEMS_PER_PAGE = 10;
+
 /* ==========================================================================
    🔥 BUSINESS LOGIC & RULES 🔥
    ========================================================================== */
@@ -313,6 +315,7 @@ app.get('/logout', (req, res) => {
 // --- PAGES ---
 app.get('/', isAuthenticated, async (req, res) => {
     try {
+        const page = parseInt(req.query.page) || 1;
         const monthQuery = req.query.month; 
         let monthOffset = (monthQuery === 'all') ? 'all' : ((monthQuery === undefined) ? 0 : parseInt(monthQuery));
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -331,13 +334,18 @@ app.get('/', isAuthenticated, async (req, res) => {
             query.verificationDate = { $lte: new Date(now.getTime() + 24*60*60*1000) };
         }
         
-        const customers = await fetchGroupedCustomers(query, { verificationDate: 1 });
-        res.render('index', { customers, error: null, page: 'home', monthOffset, headerTitle });
-    } catch (err) { res.render('index', { customers: [], error: "Connection Error", page: 'home', monthOffset: 0, headerTitle: "Error" }); }
+        const fullCustomers = await fetchGroupedCustomers(query, { verificationDate: 1 });
+        
+        const totalPages = Math.ceil(fullCustomers.length / ITEMS_PER_PAGE);
+        const paginatedCustomers = fullCustomers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+
+        res.render('index', { customers: paginatedCustomers, error: null, page: 'home', monthOffset, headerTitle, currentPage: page, totalPages });
+    } catch (err) { res.render('index', { customers: [], error: "Connection Error", page: 'home', monthOffset: 0, headerTitle: "Error", currentPage: 1, totalPages: 1 }); }
 });
 
 app.get('/all', isAuthenticated, async (req, res) => {
     try {
+        const page = parseInt(req.query.page) || 1;
         const monthQuery = req.query.month; 
         let monthOffset = (monthQuery === 'all') ? 'all' : ((monthQuery === undefined) ? 0 : parseInt(monthQuery));
         let query = {}; let headerTitle = "All History";
@@ -351,17 +359,21 @@ app.get('/all', isAuthenticated, async (req, res) => {
             displayMonth.setMinutes(displayMonth.getMinutes() + 330);
             headerTitle = "History: " + monthNames[displayMonth.getMonth()] + " " + displayMonth.getFullYear(); 
         }
-        const customers = await fetchGroupedCustomers(query, { createdAt: -1 });
-        res.render('all', { customers, page: 'all', monthOffset, headerTitle });
+        const fullCustomers = await fetchGroupedCustomers(query, { createdAt: -1 });
+
+        const totalPages = Math.ceil(fullCustomers.length / ITEMS_PER_PAGE);
+        const paginatedCustomers = fullCustomers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+
+        res.render('all', { customers: paginatedCustomers, page: 'all', monthOffset, headerTitle, currentPage: page, totalPages });
     } catch (err) { res.redirect('/'); }
 });
 
 // --- PDD ROUTE WITH ACTIVATION LOGIC ---
 app.get('/pdd', isAuthenticated, async (req, res) => {
     try {
+        const page = parseInt(req.query.page) || 1;
         const customers = await fetchGroupedCustomers({ billDate: { $ne: null } }, { billDate: 1 });
         
-        // Exact current IST Date
         const today = new Date();
         const istNow = new Date(today.getTime() + (330 * 60000));
         const currentDay = istNow.getUTCDate();
@@ -374,7 +386,6 @@ app.get('/pdd', isAuthenticated, async (req, res) => {
             let billYear = currentYear;
             let billMonth = currentMonth;
 
-            // Updated condition: <= instead of < delays bill showing by 1 day
             if (currentDay <= c.billDate) {
                 billMonth -= 1;
                 if (billMonth < 0) {
@@ -383,18 +394,15 @@ app.get('/pdd', isAuthenticated, async (req, res) => {
                 }
             }
 
-            // Extract Exact Activation Date in IST safely
             const actDate = new Date(c.activationDate || c.createdAt);
             const actIst = new Date(actDate.getTime() + (330 * 60000));
             const actYear = actIst.getUTCFullYear();
             const actMonth = actIst.getUTCMonth();
             const actDay = actIst.getUTCDate();
 
-            // Convert to comparable YYYYMMDD format
             const calcBillVal = billYear * 10000 + billMonth * 100 + c.billDate;
             const actVal = actYear * 10000 + actMonth * 100 + actDay;
 
-            // ONLY show if the generated bill date is strictly >= the date of activation
             if (calcBillVal >= actVal) {
                 const cycleKey = `${billYear}-${String(billMonth + 1).padStart(2, '0')}`;
 
@@ -404,7 +412,10 @@ app.get('/pdd', isAuthenticated, async (req, res) => {
             }
         });
 
-        res.render('pdd', { pendingBills, page: 'pdd', headerTitle: "PDD Tracking" });
+        const totalPages = Math.ceil(pendingBills.length / ITEMS_PER_PAGE);
+        const paginatedBills = pendingBills.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+
+        res.render('pdd', { pendingBills: paginatedBills, page: 'pdd', headerTitle: "PDD Tracking", currentPage: page, totalPages });
     } catch (err) { res.redirect('/'); }
 });
 
@@ -504,6 +515,7 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
 
 app.get('/manage', isAuthenticated, async (req, res) => {
     try {
+        const page = parseInt(req.query.page) || 1;
         const monthQuery = req.query.month; 
         let monthOffset = (monthQuery === 'all') ? 'all' : ((monthQuery === undefined) ? 0 : parseInt(monthQuery));
         let query = {}; let headerTitle = "Managing All Records";
@@ -511,15 +523,20 @@ app.get('/manage', isAuthenticated, async (req, res) => {
             const { start, end } = getISTDate(monthOffset);
             query = { createdAt: { $gte: start, $lt: end } }; 
         }
-        const customers = await fetchGroupedCustomers(query, { createdAt: -1 });
-        res.render('manage', { customers, page: 'manage', monthOffset, headerTitle });
+        const fullCustomers = await fetchGroupedCustomers(query, { createdAt: -1 });
+
+        const totalPages = Math.ceil(fullCustomers.length / ITEMS_PER_PAGE);
+        const paginatedCustomers = fullCustomers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+
+        res.render('manage', { customers: paginatedCustomers, page: 'manage', monthOffset, headerTitle, currentPage: page, totalPages });
     } catch (err) { res.redirect('/'); }
 });
 
 app.get('/search', isAuthenticated, async (req, res) => {
     try {
+        const page = parseInt(req.query.page) || 1;
         const q = req.query.q ? req.query.q.trim() : '';
-        let customers = [];
+        let fullCustomers = [];
         
         if (q) {
             const regex = new RegExp(q, 'i');
@@ -531,10 +548,13 @@ app.get('/search', isAuthenticated, async (req, res) => {
                     { linkedPrimaryName: regex }
                 ]
             };
-            customers = await fetchGroupedCustomers(query, { createdAt: -1 });
+            fullCustomers = await fetchGroupedCustomers(query, { createdAt: -1 });
         }
         
-        res.render('search', { customers, query: q, page: 'search', headerTitle: "Global Search" });
+        const totalPages = Math.ceil(fullCustomers.length / ITEMS_PER_PAGE);
+        const paginatedCustomers = fullCustomers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+
+        res.render('search', { customers: paginatedCustomers, query: q, page: 'search', headerTitle: "Global Search", currentPage: page, totalPages, totalItems: fullCustomers.length });
     } catch (err) {
         res.redirect('/');
     }
@@ -677,7 +697,6 @@ app.post('/pay-all-bills', isAuthenticated, async (req, res) => {
             let billYear = currentYear;
             let billMonth = currentMonth;
 
-            // Updated condition: <= instead of < delays bill showing by 1 day for bulk pay logic as well
             if (currentDay <= c.billDate) {
                 billMonth -= 1;
                 if (billMonth < 0) {
@@ -695,7 +714,6 @@ app.post('/pay-all-bills', isAuthenticated, async (req, res) => {
             const calcBillVal = billYear * 10000 + billMonth * 100 + c.billDate;
             const actVal = actYear * 10000 + actMonth * 100 + actDay;
 
-            // Only mark as paid if their bill should actually be visible in PDD
             if (calcBillVal >= actVal) {
                 const cycleKey = `${billYear}-${String(billMonth + 1).padStart(2, '0')}`;
 
