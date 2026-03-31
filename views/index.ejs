@@ -8,102 +8,119 @@
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="/style.css">
-    <style>
-        .form-section { display: none; animation: fadeIn 0.3s ease-in-out; }
-        .form-section.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-        .divider { height: 1px; background: #e2e8f0; margin: 20px 0; position: relative; }
-        .divider span { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 0 10px; color: #64748b; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; }
-        .section-label { font-size: 0.95rem; font-weight: 700; color: var(--primary); margin-bottom: 12px; display: block; }
-        .flatpickr-input { background-color: #f8fafc !important; }
-        .btn-inline-check { background: #f0fdf4; color: #10b981; border: 1px solid #10b981; flex: 1; justify-content: center; padding: 5px; border-radius: 6px; font-weight: 600; font-size: 0.8rem; display: flex; align-items: center; gap: 4px; }
-        .btn-inline-check:hover { background: #dcfce7; }
-    </style>
 </head>
 <body>
-    
+
     <nav class="navbar">
         <div class="logo">
             <i class="ri-shield-check-fill"></i> Verify<span class="highlight">Hub</span>
         </div>
-        <a href="#" class="logout-btn" onclick="openConfirmModal(event, '/logout', 'logout')"><i class="ri-logout-box-r-line"></i></a>
+        <a href="#" class="logout-btn" onclick="openConfirmModal(event, null, 'logout')"><i class="ri-logout-box-r-line"></i></a>
     </nav>
 
-    <div class="container">
-        <div class="section-title">
-            <h2><i class="ri-calendar-check-line"></i> <%= headerTitle %></h2>
-            <p class="subtitle">Showing pending tasks.</p>
-        </div>
-
-        <form action="/" method="GET" class="filter-form">
-            <div class="filter-wrapper">
-                <i class="ri-filter-3-line"></i>
-                <select name="month" class="filter-select" onchange="this.form.submit()">
-                    <option value="0" <%= monthOffset == 0 ? 'selected' : '' %>>This Month</option>
-                    <option value="1" <%= monthOffset == 1 ? 'selected' : '' %>>Last Month</option>
-                    <option value="2" <%= monthOffset == 2 ? 'selected' : '' %>>2 Months Ago</option>
-                    <option value="all" <%= monthOffset === 'all' ? 'selected' : '' %>>Show All Pending</option>
-                </select>
+    <div id="app-main">
+        <div class="container">
+            <div class="section-title">
+                <h2><i class="ri-calendar-check-line"></i> <%= headerTitle %></h2>
+                <p class="subtitle">Showing pending tasks.</p>
             </div>
-        </form>
 
-        <div class="search-box" style="margin-bottom: 20px;">
-            <i class="ri-search-line"></i>
-            <input type="text" id="searchInput" onkeyup="filterList()" placeholder="Quick filter on this page...">
-        </div>
-
-        <% if (error) { %>
-            <div class="alert error"><i class="ri-wifi-off-line"></i> <%= error %></div>
-        <% } %>
-
-        <div class="grid-layout">
-            <% if (customers.length === 0 && !error) { %>
-                <div class="empty-state">
-                    <div class="icon-box"><i class="ri-checkbox-circle-line"></i></div>
-                    <h3>No Pendings!</h3>
-                    <p>No pending tasks found.</p>
+            <form action="/" method="GET" class="filter-form">
+                <div class="filter-wrapper">
+                    <i class="ri-filter-3-line"></i>
+                    <select name="month" class="filter-select" onchange="handleFilterChange(event, this)">
+                        <option value="0" <%= monthOffset == 0 ? 'selected' : '' %>>This Month</option>
+                        <option value="1" <%= monthOffset == 1 ? 'selected' : '' %>>Last Month</option>
+                        <option value="2" <%= monthOffset == 2 ? 'selected' : '' %>>2 Months Ago</option>
+                        <option value="all" <%= monthOffset === 'all' ? 'selected' : '' %>>Show All Pending</option>
+                    </select>
                 </div>
-            <% } else { %>
-                <% customers.forEach(customer => { %>
-                    <div class="card search-item">
-                        <div class="card-top">
-                            <div style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">
-                                <% if (customer.category === 'Family') { %>
-                                    <span class="badge badge-Family">Family</span>
-                                <% } else { %>
-                                    <span class="badge badge-<%= customer.category %>"><%= customer.category %></span>
-                                <% } %>
-                                
-                                <% if (customer.billDate) { %>
-                                    <span class="badge" style="background: rgba(14, 165, 233, 0.1); color: #0ea5e9;"><i class="ri-bill-line"></i> Bill: <%= customer.billDate %>th</span>
-                                <% } %>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <span class="date-tag">Due: <%= new Date(customer.verificationDate).getDate() %></span>
-                            </div>
-                        </div>
+            </form>
 
-                        <% if (customer.category === 'Family') { %>
-                            <div class="family-wrapper">
-                                <div class="family-section primary-sec">
-                                    <span class="fs-label primary-label">Primary Connection 
-                                        <% if (customer.primaryDoc) { %>
-                                            <span class="badge badge-<%= customer.primaryDoc.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= customer.primaryDoc.subType %></span>
-                                        <% } else { %>
-                                            <span class="badge" style="background:#e2e8f0; color:#475569; font-size: 0.6rem; padding: 2px 5px;">Existing</span>
-                                        <% } %>
-                                    </span>
-                                    <div class="fs-info">
-                                        <h4><%= customer.linkedPrimaryName || 'Unknown' %></h4>
-                                        <p><i class="ri-smartphone-line"></i> <%= customer.linkedPrimaryNumber %></p>
+            <div class="search-box" style="margin-bottom: 20px;">
+                <i class="ri-search-line"></i>
+                <input type="text" id="searchInput" onkeyup="filterList()" placeholder="Quick filter on this page...">
+            </div>
+
+            <% if (typeof error !== 'undefined' && error) { %>
+                <div class="alert error"><i class="ri-wifi-off-line"></i> <%= error %></div>
+            <% } %>
+
+            <div class="grid-layout" data-current-page="<%= typeof currentPage !== 'undefined' ? currentPage : 1 %>" data-total-pages="<%= typeof totalPages !== 'undefined' ? totalPages : 1 %>">
+                <% if (customers.length === 0) { %>
+                    <div class="empty-state" style="grid-column: 1 / -1;">
+                        <div class="icon-box"><i class="ri-checkbox-circle-line"></i></div>
+                        <h3>No Pendings!</h3>
+                        <p>No pending tasks found for this page.</p>
+                    </div>
+                <% } else { %>
+                    <% customers.forEach(customer => { %>
+                        <div class="card search-item">
+                            <div class="card-top">
+                                <div style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">
+                                    <% if (customer.category === 'Family') { %>
+                                        <span class="badge badge-Family">Family</span>
+                                    <% } else { %>
+                                        <span class="badge badge-<%= customer.category %>"><%= customer.category %></span>
+                                    <% } %>
+                                    
+                                    <% if (customer.billDate) { %>
+                                        <span class="badge" style="background: rgba(14, 165, 233, 0.1); color: #0ea5e9;"><i class="ri-bill-line"></i> Bill: <%= customer.billDate %>th</span>
+                                    <% } %>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span class="date-tag">Due: <%= new Date(customer.verificationDate).getDate() %></span>
+                                </div>
+                            </div>
+
+                            <% if (customer.category === 'Family') { %>
+                                <div class="family-wrapper">
+                                    <div class="family-section primary-sec">
+                                        <span class="fs-label primary-label">Primary Connection 
+                                            <% if (customer.primaryDoc) { %>
+                                                <span class="badge badge-<%= customer.primaryDoc.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= customer.primaryDoc.subType %></span>
+                                            <% } else { %>
+                                                <span class="badge" style="background:#e2e8f0; color:#475569; font-size: 0.6rem; padding: 2px 5px;">Existing</span>
+                                            <% } %>
+                                        </span>
+                                        <div class="fs-info">
+                                            <h4><%= customer.linkedPrimaryName || 'Unknown' %></h4>
+                                            <p><i class="ri-smartphone-line"></i> <%= customer.linkedPrimaryNumber %></p>
+                                        </div>
+                                        <div class="fs-actions">
+                                            <a href="whatsapp://send?phone=91<%= customer.linkedPrimaryNumber %>" class="mini-btn mini-wa"><i class="ri-whatsapp-line"></i> WA</a>
+                                            <a href="tel:<%= customer.linkedPrimaryNumber %>" class="mini-btn mini-call"><i class="ri-phone-fill"></i> Call</a>
+                                            
+                                            <% if (customer.primaryDoc) { %>
+                                                <% if (customer.primaryDoc.status === 'pending') { %>
+                                                    <form action="/complete/<%= customer.primaryDoc._id %>" method="POST" style="flex: 1; display: flex;" onsubmit="openConfirmModal(event, this, 'done')">
+                                                        <button type="submit" class="mini-btn btn-inline-check" style="width: 100%; cursor: pointer;">
+                                                            <i class="ri-check-line"></i> Done
+                                                        </button>
+                                                    </form>
+                                                <% } else { %>
+                                                    <span class="mini-btn btn-inline-check" style="cursor: default;"><i class="ri-check-double-line"></i> Done</span>
+                                                <% } %>
+                                            <% } else { %>
+                                                 <span class="mini-btn btn-inline-check" style="cursor: default;"><i class="ri-check-double-line"></i> Active</span>
+                                            <% } %>
+                                        </div>
                                     </div>
-                                    <div class="fs-actions">
-                                        <a href="whatsapp://send?phone=91<%= customer.linkedPrimaryNumber %>" class="mini-btn mini-wa"><i class="ri-whatsapp-line"></i> WA</a>
-                                        <a href="tel:<%= customer.linkedPrimaryNumber %>" class="mini-btn mini-call"><i class="ri-phone-fill"></i> Call</a>
-                                        
-                                        <% if (customer.primaryDoc) { %>
-                                            <% if (customer.primaryDoc.status === 'pending') { %>
-                                                <form action="/complete/<%= customer.primaryDoc._id %>" method="POST" style="flex: 1; display: flex;" onsubmit="openConfirmModal(event, this, 'done')">
+
+                                    <div class="family-section secondary-sec">
+                                        <span class="fs-label secondary-label">Secondary (This SIM)
+                                            <span class="badge badge-<%= customer.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= customer.subType %></span>
+                                        </span>
+                                        <div class="fs-info">
+                                            <h4><%= customer.name %></h4>
+                                            <p><i class="ri-smartphone-line"></i> <%= customer.mobile %></p>
+                                        </div>
+                                        <div class="fs-actions">
+                                            <a href="whatsapp://send?phone=91<%= customer.mobile %>" class="mini-btn mini-wa"><i class="ri-whatsapp-line"></i> WA</a>
+                                            <a href="tel:<%= customer.mobile %>" class="mini-btn mini-call"><i class="ri-phone-fill"></i> Call</a>
+                                            
+                                            <% if (customer.status === 'pending') { %>
+                                                <form action="/complete/<%= customer._id %>" method="POST" style="flex: 1; display: flex;" onsubmit="openConfirmModal(event, this, 'done')">
                                                     <button type="submit" class="mini-btn btn-inline-check" style="width: 100%; cursor: pointer;">
                                                         <i class="ri-check-line"></i> Done
                                                     </button>
@@ -111,172 +128,148 @@
                                             <% } else { %>
                                                 <span class="mini-btn btn-inline-check" style="cursor: default;"><i class="ri-check-double-line"></i> Done</span>
                                             <% } %>
-                                        <% } else { %>
-                                             <span class="mini-btn btn-inline-check" style="cursor: default;"><i class="ri-check-double-line"></i> Active</span>
-                                        <% } %>
+                                        </div>
                                     </div>
                                 </div>
-
-                                <div class="family-section secondary-sec">
-                                    <span class="fs-label secondary-label">Secondary (This SIM)
-                                        <span class="badge badge-<%= customer.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= customer.subType %></span>
-                                    </span>
-                                    <div class="fs-info">
-                                        <h4><%= customer.name %></h4>
-                                        <p><i class="ri-smartphone-line"></i> <%= customer.mobile %></p>
-                                    </div>
-                                    <div class="fs-actions">
-                                        <a href="whatsapp://send?phone=91<%= customer.mobile %>" class="mini-btn mini-wa"><i class="ri-whatsapp-line"></i> WA</a>
-                                        <a href="tel:<%= customer.mobile %>" class="mini-btn mini-call"><i class="ri-phone-fill"></i> Call</a>
-                                        
-                                        <% if (customer.status === 'pending') { %>
-                                            <form action="/complete/<%= customer._id %>" method="POST" style="flex: 1; display: flex;" onsubmit="openConfirmModal(event, this, 'done')">
-                                                <button type="submit" class="mini-btn btn-inline-check" style="width: 100%; cursor: pointer;">
-                                                    <i class="ri-check-line"></i> Done
-                                                </button>
-                                            </form>
-                                        <% } else { %>
-                                            <span class="mini-btn btn-inline-check" style="cursor: default;"><i class="ri-check-double-line"></i> Done</span>
-                                        <% } %>
-                                    </div>
+                            <% } else { %>
+                                <div class="card-body">
+                                    <h3 class="customer-name"><%= customer.name %></h3>
+                                    <p class="meta-info" style="color: var(--text-main); font-weight: 500;">
+                                        <i class="ri-smartphone-line"></i> <%= customer.mobile %>
+                                    </p>
+                                    <p class="meta-info">
+                                        <i class="ri-calendar-check-line"></i> 
+                                        Activation: <%= new Date(customer.activationDate || customer.createdAt).toLocaleDateString('en-GB') %>
+                                    </p>
                                 </div>
-                            </div>
-                        <% } else { %>
-                            <div class="card-body">
-                                <h3 class="customer-name"><%= customer.name %></h3>
-                                <p class="meta-info" style="color: var(--text-main); font-weight: 500;">
-                                    <i class="ri-smartphone-line"></i> <%= customer.mobile %>
-                                </p>
-                                <p class="meta-info">
-                                    <i class="ri-calendar-check-line"></i> 
-                                    Activation: <%= new Date(customer.activationDate || customer.createdAt).toLocaleDateString('en-GB') %>
-                                </p>
-                            </div>
-                            <div class="card-actions">
-                                <a href="tel:<%= customer.mobile %>" class="btn-call"><i class="ri-phone-fill"></i> Call</a>
-                                <a href="whatsapp://send?phone=91<%= customer.mobile %>" class="btn-whatsapp"><i class="ri-whatsapp-line"></i> WhatsApp</a>
-                            </div>
-                        <% } %>
+                                <div class="card-actions">
+                                    <a href="tel:<%= customer.mobile %>" class="btn-call"><i class="ri-phone-fill"></i> Call</a>
+                                    <a href="whatsapp://send?phone=91<%= customer.mobile %>" class="btn-whatsapp"><i class="ri-whatsapp-line"></i> WhatsApp</a>
+                                </div>
+                            <% } %>
 
-                        <div class="card-actions" style="margin-top: 12px; border-top: 1px solid #f1f5f9; padding-top: 10px;">
-                            <% if (customer.remarks && customer.remarks.trim() !== "") { %>
-                                <button class="btn-note" data-name="<%= customer.name %>" data-remarks="<%= customer.remarks %>" onclick="openRemarksModal(this)" style="flex: 0 0 auto;">
-                                    <i class="ri-sticky-note-fill"></i> Note
-                                </button>
-                            <% } %>
-                            
-                            <% if (customer.category !== 'Family') { %>
-                                <form action="/complete/<%= customer._id %>" method="POST" style="flex: 1;" onsubmit="openConfirmModal(event, this, 'done')">
-                                    <button type="submit" class="btn-check"><i class="ri-check-line"></i> Done</button>
-                                </form>
-                            <% } %>
+                            <div class="card-actions" style="margin-top: 12px; border-top: 1px solid #f1f5f9; padding-top: 10px;">
+                                <% if (customer.remarks && customer.remarks.trim() !== "") { %>
+                                    <button class="btn-note" data-name="<%= customer.name %>" data-remarks="<%= customer.remarks %>" onclick="openRemarksModal(this)" style="flex: 0 0 auto;">
+                                        <i class="ri-sticky-note-fill"></i> Note
+                                    </button>
+                                <% } %>
+                                
+                                <% if (customer.category !== 'Family') { %>
+                                    <form action="/complete/<%= customer._id %>" method="POST" style="flex: 1;" onsubmit="openConfirmModal(event, this, 'done')">
+                                        <button type="submit" class="btn-check"><i class="ri-check-line"></i> Done</button>
+                                    </form>
+                                <% } %>
+                            </div>
+                        </div>
+                    <% }) %>
+                <% } %>
+            </div>
+            
+            <div id="autoLoadSpinner" class="scroll-loader">
+                <i class="ri-loader-4-line"></i><br>Loading more...
+            </div>
+        </div>
+
+        <div id="addModal" class="modal-overlay" style="display: none;">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3>New Verification</h3>
+                    <button onclick="closeModal()" class="icon-btn"><i class="ri-close-line"></i></button>
+                </div>
+                <form action="/add" method="POST" id="addForm">
+                    <div class="input-group">
+                        <label>Activation Date</label>
+                        <div class="input-wrapper">
+                            <i class="ri-calendar-line icon-left"></i>
+                            <input type="text" name="customDate" id="customDate" required placeholder="DD/MM/YYYY">
                         </div>
                     </div>
-                <% }) %>
-            <% } %>
-        </div>
-    </div>
 
-    <div id="addModal" class="modal-overlay" style="display: none;">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h3>New Verification</h3>
-                <button onclick="closeModal()" class="icon-btn"><i class="ri-close-line"></i></button>
-            </div>
-            <form action="/add" method="POST" id="addForm">
-                <div class="input-group">
-                    <label>Activation Date</label>
-                    <div class="input-wrapper">
-                        <i class="ri-calendar-line icon-left"></i>
-                        <input type="text" name="customDate" id="customDate" required placeholder="DD/MM/YYYY">
+                    <div class="input-group">
+                        <label>Category</label>
+                        <div class="input-wrapper">
+                            <i class="ri-list-check icon-left"></i>
+                            <select name="category" id="category" onchange="handleCategoryChange()" required>
+                                <option value="" disabled selected>Select Category</option>
+                                <option value="NC">NC</option>
+                                <option value="P2P">P2P</option>
+                                <option value="MNP">MNP - Metro</option>
+                                <option value="NMNP">NMNP - Non Metro</option>
+                                <option value="Family">Family</option>
+                            </select>
+                        </div>
                     </div>
-                </div>
 
-                <div class="input-group">
-                    <label>Category</label>
-                    <div class="input-wrapper">
-                        <i class="ri-list-check icon-left"></i>
-                        <select name="category" id="category" onchange="handleCategoryChange()" required>
-                            <option value="" disabled selected>Select Category</option>
-                            <option value="NC">NC</option>
-                            <option value="P2P">P2P</option>
-                            <option value="MNP">MNP - Metro</option>
-                            <option value="NMNP">NMNP - Non Metro</option>
-                            <option value="Family">Family</option>
-                        </select>
+                    <div id="normal-form" class="form-section">
+                        <div class="input-group"><label>Name</label><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="n_name" id="n_name"></div></div>
+                        <div class="input-group"><label>Mobile</label><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="n_mobile" id="n_mobile" pattern="[0-9]{10}"></div></div>
                     </div>
-                </div>
 
-                <div id="normal-form" class="form-section">
-                    <div class="input-group"><label>Name</label><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="n_name" id="n_name"></div></div>
-                    <div class="input-group"><label>Mobile</label><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="n_mobile" id="n_mobile" pattern="[0-9]{10}"></div></div>
-                </div>
-
-                <div id="family-form" class="form-section">
-                    <span class="section-label">Primary Connection Details</span>
-                    <div class="input-group"><label>Primary Type</label><div class="input-wrapper"><i class="ri-shield-user-line icon-left"></i><select name="p_type" id="p_type"><option value="Existing">Existing (Active)</option><option value="NC">New Entry (NC)</option><option value="P2P">New Entry (P2P)</option><option value="MNP">New MNP - Metro</option><option value="NMNP">New NMNP - Non Metro</option></select></div></div>
-                    <div class="input-group"><div class="input-wrapper"><i class="ri-user-star-line icon-left"></i><input type="text" name="p_name" placeholder="Primary Name"></div></div>
-                    <div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="p_mobile" placeholder="Primary Mobile" pattern="[0-9]{10}"></div></div>
-                    <div class="divider"><span>AND</span></div>
-                    <span class="section-label">Secondary Connection (This SIM)</span>
-                    <div class="input-group"><label>Secondary Type</label><div class="input-wrapper"><i class="ri-sim-card-line icon-left"></i><select name="s_type" id="s_type"><option value="NC" selected>NC (Instant)</option><option value="P2P">P2P (Instant)</option><option value="MNP">MNP - Metro</option><option value="NMNP">NMNP - Non Metro</option></select></div></div>
-                    <div class="input-group"><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="s_name" placeholder="Secondary Name"></div></div>
-                    <div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="s_mobile" placeholder="Secondary Mobile" pattern="[0-9]{10}"></div></div>
-                </div>
-
-                <div class="input-group" style="margin-top: 15px;">
-                    <label>Bill Date (Optional)</label>
-                    <div class="input-wrapper">
-                        <i class="ri-calendar-todo-line icon-left"></i>
-                        <select name="billDate" id="billDate">
-                            <option value="">No Bill / Prepaid</option>
-                            <option value="11">11th</option>
-                            <option value="15">15th</option>
-                            <option value="24">24th</option>
-                            <option value="27">27th</option>
-                        </select>
+                    <div id="family-form" class="form-section">
+                        <span class="section-label">Primary Connection Details</span>
+                        <div class="input-group"><label>Primary Type</label><div class="input-wrapper"><i class="ri-shield-user-line icon-left"></i><select name="p_type" id="p_type"><option value="Existing">Existing (Active)</option><option value="NC">New Entry (NC)</option><option value="P2P">New Entry (P2P)</option><option value="MNP">New MNP - Metro</option><option value="NMNP">New NMNP - Non Metro</option></select></div></div>
+                        <div class="input-group"><div class="input-wrapper"><i class="ri-user-star-line icon-left"></i><input type="text" name="p_name" placeholder="Primary Name"></div></div>
+                        <div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="p_mobile" placeholder="Primary Mobile" pattern="[0-9]{10}"></div></div>
+                        <div class="divider"><span>AND</span></div>
+                        <span class="section-label">Secondary Connection (This SIM)</span>
+                        <div class="input-group"><label>Secondary Type</label><div class="input-wrapper"><i class="ri-sim-card-line icon-left"></i><select name="s_type" id="s_type"><option value="NC" selected>NC (Instant)</option><option value="P2P">P2P (Instant)</option><option value="MNP">MNP - Metro</option><option value="NMNP">NMNP - Non Metro</option></select></div></div>
+                        <div class="input-group"><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="s_name" placeholder="Secondary Name"></div></div>
+                        <div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="s_mobile" placeholder="Secondary Mobile" pattern="[0-9]{10}"></div></div>
                     </div>
-                </div>
 
-                <div class="input-group" style="margin-top: 15px;">
-                    <label>Remarks</label>
-                    <div class="input-wrapper">
-                        <i class="ri-sticky-note-line icon-left"></i>
-                        <input type="text" name="remarks" placeholder="Optional notes...">
+                    <div class="input-group" style="margin-top: 15px;">
+                        <label>Bill Date (Optional)</label>
+                        <div class="input-wrapper">
+                            <i class="ri-calendar-todo-line icon-left"></i>
+                            <select name="billDate" id="billDate">
+                                <option value="">No Bill / Prepaid</option>
+                                <option value="11">11th</option>
+                                <option value="15">15th</option>
+                                <option value="24">24th</option>
+                                <option value="27">27th</option>
+                            </select>
+                        </div>
                     </div>
-                </div>
-                <button type="submit" class="btn-submit">Save Record</button>
-            </form>
-        </div>
-    </div>
 
-    <div id="remarksModal" class="modal-overlay" style="display: none;">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h3><i class="ri-sticky-note-fill" style="color: var(--primary);"></i> Remarks</h3>
-                <button onclick="closeRemarksModal()" class="icon-btn"><i class="ri-close-line"></i></button>
-            </div>
-            <div>
-                <strong id="remarksTitle" style="color: var(--primary); font-size: 1.1rem; display:block; margin-bottom:5px;"></strong>
-                <div id="remarksBody" class="remarks-content"></div>
-            </div>
-            <button onclick="closeRemarksModal()" class="btn-submit" style="background: var(--text-main); margin-top: 10px;">Close</button>
-        </div>
-    </div>
-
-    <div id="customConfirmModal" class="modal-overlay" style="display: none; z-index: 10000;">
-        <div class="modal-card" style="text-align: center; max-width: 340px; padding: 30px 20px;">
-            <div id="confirmIcon" class="confirm-icon"></div>
-            <h3 id="confirmTitle" style="margin-bottom: 10px; font-size: 1.3rem;"></h3>
-            <p id="confirmMessage" style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 25px; line-height: 1.5;"></p>
-            <div class="confirm-actions">
-                <button type="button" class="btn-confirm-cancel" onclick="closeConfirmModal()">Cancel</button>
-                <button type="button" id="confirmYesBtn" class="btn-confirm-yes">Yes</button>
+                    <div class="input-group" style="margin-top: 15px;">
+                        <label>Remarks</label>
+                        <div class="input-wrapper">
+                            <i class="ri-sticky-note-line icon-left"></i>
+                            <input type="text" name="remarks" placeholder="Optional notes...">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-submit">Save Record</button>
+                </form>
             </div>
         </div>
-    </div>
 
-    <div class="bottom-nav">
+        <div id="remarksModal" class="modal-overlay" style="display: none;">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3><i class="ri-sticky-note-fill" style="color: var(--primary);"></i> Remarks</h3>
+                    <button onclick="closeRemarksModal()" class="icon-btn"><i class="ri-close-line"></i></button>
+                </div>
+                <div>
+                    <strong id="remarksTitle" style="color: var(--primary); font-size: 1.1rem; display:block; margin-bottom:5px;"></strong>
+                    <div id="remarksBody" class="remarks-content"></div>
+                </div>
+                <button onclick="closeRemarksModal()" class="btn-submit" style="background: var(--text-main); margin-top: 10px;">Close</button>
+            </div>
+        </div>
+
+        <div id="customConfirmModal" class="modal-overlay" style="display: none; z-index: 10000;">
+            <div class="modal-card" style="text-align: center; max-width: 340px; padding: 30px 20px;">
+                <div id="confirmIcon" class="confirm-icon"></div>
+                <h3 id="confirmTitle" style="margin-bottom: 10px; font-size: 1.3rem;"></h3>
+                <p id="confirmMessage" style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 25px; line-height: 1.5;"></p>
+                <div class="confirm-actions">
+                    <button type="button" class="btn-confirm-cancel" onclick="closeConfirmModal()">Cancel</button>
+                    <button type="button" id="confirmYesBtn" class="btn-confirm-yes">Yes</button>
+                </div>
+            </div>
+        </div>
+    </div> <div class="bottom-nav">
         <a href="/" class="nav-item active"><i class="ri-home-4-fill"></i><span>Home</span></a>
         <a href="/all" class="nav-item"><i class="ri-list-check"></i><span>All</span></a>
         <a href="/pdd" class="nav-item"><i class="ri-file-paper-2-line"></i><span>PDD</span></a>
@@ -287,185 +280,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script>
-        function filterList() { let input = document.getElementById('searchInput').value.toLowerCase(); let items = document.getElementsByClassName('search-item'); for (let i = 0; i < items.length; i++) { let text = items[i].innerText.toLowerCase(); if (text.includes(input)) items[i].style.display = ""; else items[i].style.display = "none"; } }
-
-        const fpAdd = flatpickr("#customDate", { dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", allowInput: true, disableMobile: true });
-
-        function openModal() {
-            const m = document.getElementById("addModal");
-            if(!m) return;
-            m.style.display = 'flex';
-            setTimeout(() => { m.classList.add('active'); }, 10);
-            fpAdd.setDate(new Date());
-            handleCategoryChange();
-        }
-        function closeModal() { 
-            const m = document.getElementById("addModal");
-            if(!m) return;
-            m.classList.remove('active');
-            setTimeout(() => { m.style.display = 'none'; }, 300);
-        }
-        
-        function handleCategoryChange() {
-            const cat = document.getElementById('category').value;
-            const normalForm = document.getElementById('normal-form');
-            const familyForm = document.getElementById('family-form');
-            if(!normalForm || !familyForm) return;
-            
-            normalForm.classList.remove('active');
-            familyForm.classList.remove('active');
-
-            if (cat === 'Family') {
-                familyForm.classList.add('active');
-                document.getElementById('n_name').required = false;
-                document.getElementById('n_mobile').required = false;
-            } else {
-                normalForm.classList.add('active');
-                document.getElementById('n_name').required = true;
-                document.getElementById('n_mobile').required = true;
-            }
-        }
-
-        function openRemarksModal(btn) {
-            const rTitle = document.getElementById('remarksTitle');
-            const rBody = document.getElementById('remarksBody');
-            const rModal = document.getElementById('remarksModal');
-            if(rTitle && rBody && rModal) {
-                rTitle.innerText = btn.getAttribute('data-name');
-                rBody.innerText = btn.getAttribute('data-remarks');
-                rModal.style.display = 'flex';
-                setTimeout(() => { rModal.classList.add('active'); }, 10);
-            }
-        }
-        function closeRemarksModal() { 
-            const rModal = document.getElementById('remarksModal');
-            if(rModal) {
-                rModal.classList.remove('active');
-                setTimeout(() => { rModal.style.display = 'none'; }, 300);
-            }
-        }
-
-        let formToSubmit = null;
-        function openConfirmModal(event, element, actionType) {
-            event.preventDefault();
-            formToSubmit = element;
-            
-            const titleEl = document.getElementById('confirmTitle');
-            const msgEl = document.getElementById('confirmMessage');
-            const iconEl = document.getElementById('confirmIcon');
-            const yesBtn = document.getElementById('confirmYesBtn');
-            const confirmModal = document.getElementById('customConfirmModal');
-            if(!confirmModal) return;
-
-            yesBtn.className = 'btn-confirm-yes';
-            
-            if (actionType === 'done') {
-                titleEl.innerText = "Mark as Done?";
-                msgEl.innerText = "Are you sure this verification is completed?";
-                iconEl.innerHTML = '<i class="ri-check-double-line" style="color: #10b981;"></i>';
-                yesBtn.classList.add('btn-confirm-success');
-                yesBtn.innerText = "Yes, Done";
-            } else if (actionType === 'delete') {
-                titleEl.innerText = "Delete Record?";
-                msgEl.innerText = "This action is permanent. Both primary and secondary info will be removed.";
-                iconEl.innerHTML = '<i class="ri-delete-bin-line" style="color: #ef4444;"></i>';
-                yesBtn.classList.add('btn-confirm-danger');
-                yesBtn.innerText = "Yes, Delete";
-            } else if (actionType === 'pay') {
-                titleEl.innerText = "Mark as Paid?";
-                msgEl.innerText = "Are you sure you want to mark this bill as paid?";
-                iconEl.innerHTML = '<i class="ri-money-rupee-circle-line" style="color: #10b981;"></i>';
-                yesBtn.classList.add('btn-confirm-success');
-                yesBtn.innerText = "Yes, Paid";
-            } else if (actionType === 'payAll') {
-                titleEl.innerText = "Mark ALL Paid?";
-                msgEl.innerText = "Are you sure you want to mark ALL pending bills as paid for this cycle?";
-                iconEl.innerHTML = '<i class="ri-checkbox-multiple-line" style="color: #10b981;"></i>';
-                yesBtn.classList.add('btn-confirm-success');
-                yesBtn.innerText = "Yes, Mark All";
-            } else if (actionType === 'logout') {
-                titleEl.innerText = "Secure Logout?";
-                msgEl.innerText = "Are you sure you want to end your session?";
-                iconEl.innerHTML = '<i class="ri-logout-circle-line" style="color: #ef4444;"></i>';
-                yesBtn.classList.add('btn-confirm-danger');
-                yesBtn.innerText = "Yes, Logout";
-            }
-
-            confirmModal.style.display = 'flex';
-            setTimeout(() => confirmModal.classList.add('active'), 10);
-        }
-
-        function closeConfirmModal() {
-            const confirmModal = document.getElementById('customConfirmModal');
-            if(confirmModal) {
-                confirmModal.classList.remove('active');
-                setTimeout(() => confirmModal.style.display = 'none', 300);
-            }
-            formToSubmit = null;
-        }
-
-        document.getElementById('confirmYesBtn').addEventListener('click', function() {
-            if (formToSubmit) {
-                if (typeof formToSubmit === 'string') {
-                    window.location.href = formToSubmit;
-                } else {
-                    let returnInput = formToSubmit.querySelector('input[name="returnUrl"]');
-                    if (!returnInput) {
-                        returnInput = document.createElement('input'); 
-                        returnInput.type = 'hidden'; 
-                        returnInput.name = 'returnUrl'; 
-                        formToSubmit.appendChild(returnInput);
-                    }
-                    returnInput.value = window.location.pathname + window.location.search;
-                    sessionStorage.setItem('scrollPos', window.scrollY);
-                    sessionStorage.setItem('scrollPath', window.location.pathname + window.location.search);
-                    formToSubmit.submit();
-                }
-            }
-        });
-
-        window.onclick = function(event) { 
-            const addM = document.getElementById("addModal");
-            const editM = document.getElementById("editModal");
-            const remM = document.getElementById("remarksModal");
-            const confM = document.getElementById("customConfirmModal");
-            
-            if (addM && event.target == addM) closeModal(); 
-            if (editM && event.target == editM) closeEditModal(); 
-            if (remM && event.target == remM) closeRemarksModal(); 
-            if (confM && event.target == confM) closeConfirmModal(); 
-        }
-
-        // --- SCROLL POSITION PRESERVATION & URL INJECTION ---
-        document.querySelectorAll('form:not([onsubmit*="openConfirmModal"])').forEach(form => {
-            form.addEventListener('submit', function() {
-                if(this.getAttribute('action') === '/search') return;
-                let returnInput = this.querySelector('input[name="returnUrl"]');
-                if (!returnInput) {
-                    returnInput = document.createElement('input');
-                    returnInput.type = 'hidden';
-                    returnInput.name = 'returnUrl';
-                    this.appendChild(returnInput);
-                }
-                returnInput.value = window.location.pathname + window.location.search;
-                sessionStorage.setItem('scrollPos', window.scrollY);
-                sessionStorage.setItem('scrollPath', window.location.pathname + window.location.search);
-            });
-        });
-
-        window.addEventListener('DOMContentLoaded', () => {
-            const scrollPath = sessionStorage.getItem('scrollPath');
-            const currentPath = window.location.pathname + window.location.search;
-            if (scrollPath === currentPath) {
-                const scrollPos = sessionStorage.getItem('scrollPos');
-                if (scrollPos) {
-                    setTimeout(() => window.scrollTo(0, parseInt(scrollPos)), 50);
-                }
-            }
-            sessionStorage.removeItem('scrollPos');
-            sessionStorage.removeItem('scrollPath');
-        });
-    </script>
+    <script src="/app.js"></script>
 </body>
 </html>
