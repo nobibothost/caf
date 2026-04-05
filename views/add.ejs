@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Customer</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .flatpickr-input { background-color: #f8fafc !important; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Add New Verification</h1>
+            <a href="/" class="btn-back">← Back</a>
+        </header>
+
+        <form action="/add" method="POST" class="form-box">
+            <div class="form-group">
+                <label>Activation Date</label>
+                <input type="text" name="customDate" id="customDate" required placeholder="DD/MM/YYYY">
+            </div>
+
+            <div class="form-group">
+                <label>Category</label>
+                <select name="category" id="category" onchange="toggleCategory()" required>
+                    <option value="" disabled selected>Select Category</option>
+                    <option value="NC">NC (Instant)</option>
+                    <option value="P2P">P2P (Instant)</option>
+                    <option value="MNP">MNP - Metro (3 Days)</option>
+                    <option value="NMNP">NMNP - Non Metro (5 Days)</option>
+                    <option value="Family">Family</option>
+                </select>
+            </div>
+
+            <div id="normal-form" class="form-section">
+                <div class="form-group">
+                    <label>Customer Name <span style="color:red">*</span></label>
+                    <input type="text" name="n_name" id="n_name" placeholder="Enter Name">
+                </div>
+                <div class="form-group">
+                    <label>Mobile Number <span style="color:red">*</span></label>
+                    <input type="tel" name="n_mobile" id="n_mobile" placeholder="Enter Mobile Number" pattern="[0-9]{10}">
+                </div>
+            </div>
+
+            <div id="family-form" class="form-section" style="display: none;">
+                <h3 style="color: var(--primary); margin: 15px 0 10px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">Primary Connection</h3>
+                <div class="form-group">
+                    <label>Primary Type <span style="color:red">*</span></label>
+                    <select name="p_type" id="p_type">
+                        <option value="" disabled selected>Select Primary Type</option>
+                        <option value="Existing">Existing (Active)</option>
+                        <option value="NC">New NC (Instant)</option>
+                        <option value="P2P">New P2P (Instant)</option>
+                        <option value="MNP">New MNP - Metro (3 Days)</option>
+                        <option value="NMNP">New NMNP - Non Metro (5 Days)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Primary Name <span style="color:red">*</span></label>
+                    <input type="text" name="p_name" id="p_name" placeholder="Primary Name">
+                </div>
+                <div class="form-group">
+                    <label>Primary Mobile <span style="color:red">*</span></label>
+                    <input type="tel" name="p_mobile" id="p_mobile" placeholder="Primary Mobile" pattern="[0-9]{10}">
+                </div>
+
+                <h3 style="color: var(--primary); margin: 20px 0 10px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">Secondary Connection (This SIM)</h3>
+                <div class="form-group">
+                    <label>Secondary Type <span style="color:red">*</span></label>
+                    <select name="s_type" id="s_type">
+                        <option value="NC" selected>NC (Instant)</option>
+                        <option value="P2P">P2P (Instant)</option>
+                        <option value="MNP">MNP - Metro (3 Days)</option>
+                        <option value="NMNP">NMNP - Non Metro (5 Days)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Secondary Name <span style="color:red">*</span></label>
+                    <input type="text" name="s_name" id="s_name" placeholder="Secondary Name">
+                </div>
+                <div class="form-group">
+                    <label>Secondary Mobile <span style="color:red">*</span></label>
+                    <input type="tel" name="s_mobile" id="s_mobile" placeholder="Secondary Mobile" pattern="[0-9]{10}">
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Bill Date (Optional)</label>
+                <select name="billDate" id="billDate">
+                    <option value="">No Bill / Prepaid</option>
+                    <option value="11">11th of every month</option>
+                    <option value="15">15th of every month</option>
+                    <option value="24">24th of every month</option>
+                    <option value="27">27th of every month</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Remarks</label>
+                <input type="text" name="remarks" placeholder="Optional notes...">
+            </div>
+
+            <button type="submit" class="btn-submit">Save Data</button>
+        </form>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        const fpStandalone = flatpickr("#customDate", {
+            dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", allowInput: true, disableMobile: true, defaultDate: new Date()
+        });
+
+        function toggleCategory() {
+            const category = document.getElementById('category').value;
+            const normalForm = document.getElementById('normal-form');
+            const familyForm = document.getElementById('family-form');
+            
+            const nName = document.getElementById('n_name');
+            const nMobile = document.getElementById('n_mobile');
+
+            const pType = document.getElementById('p_type');
+            const pName = document.getElementById('p_name');
+            const pMobile = document.getElementById('p_mobile');
+            const sName = document.getElementById('s_name');
+            const sMobile = document.getElementById('s_mobile');
+            
+            if (category === 'Family') {
+                normalForm.style.display = 'none';
+                familyForm.style.display = 'block';
+
+                nName.required = false;
+                nMobile.required = false;
+
+                pType.required = true;
+                pName.required = true;
+                pMobile.required = true;
+                sName.required = true;
+                sMobile.required = true;
+            } else {
+                normalForm.style.display = 'block';
+                familyForm.style.display = 'none';
+
+                nName.required = true;
+                nMobile.required = true;
+
+                pType.required = false;
+                pName.required = false;
+                pMobile.required = false;
+                sName.required = false;
+                sMobile.required = false;
+            }
+        }
+    </script>
+</body>
+</html>
