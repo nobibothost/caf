@@ -6,6 +6,8 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
+    <meta name="theme-color" content="#4f46e5">
+    <link rel="manifest" href="/manifest.json">
     <title>Analytics</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
@@ -13,128 +15,26 @@
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-
-    <nav class="navbar">
-        <div class="logo"><i class="ri-pie-chart-2-fill"></i> Analytics</div>
-        <a href="javascript:location.reload()" class="refresh-btn">
-            <i class="ri-refresh-line"></i> Sync
-        </a>
-        <a href="#" class="logout-btn" onclick="openConfirmModal(event, null, 'logout')"><i class="ri-logout-box-r-line"></i></a>
-    </nav>
-
+    <nav class="navbar"><div class="logo"><i class="ri-pie-chart-2-fill"></i> Analytics</div><a href="javascript:location.reload()" class="refresh-btn"><i class="ri-refresh-line"></i> Sync</a><a href="#" class="logout-btn" onclick="openConfirmModal(event, null, 'logout')"><i class="ri-logout-box-r-line"></i></a></nav>
     <div id="app-main">
         <div class="container">
-            <div class="section-title">
-                <h2><i class="ri-calendar-event-line"></i> <%= headerTitle %></h2>
-                <p class="subtitle">Performance overview.</p>
-            </div>
-
-            <form action="/analytics" method="GET" class="filter-form">
-                <div class="filter-wrapper"><i class="ri-filter-3-line"></i>
-                    <select name="month" class="filter-select" onchange="handleFilterChange(event, this)">
-                        <option value="0" <%= monthOffset == 0 ? 'selected' : '' %>>This Month</option>
-                        <option value="1" <%= monthOffset == 1 ? 'selected' : '' %>>Last Month</option>
-                        <option value="2" <%= monthOffset == 2 ? 'selected' : '' %>>2 Months Ago</option>
-                        <option value="all" <%= monthOffset === 'all' ? 'selected' : '' %>>All Time</option>
-                    </select>
-                </div>
-            </form>
-
-            <div class="stats-grid">
-                <div class="stat-card stat-primary"><span class="stat-number"><%= stats.total %></span><span class="stat-label">Total Entries</span></div>
-                <div class="stat-card stat-success"><span class="stat-number"><%= stats.activated %></span><span class="stat-label">Actually Activated</span></div>
-                <div class="stat-card stat-runs"><span class="stat-number"><i class="ri-flashlight-fill" style="font-size:1.2rem; margin-right:2px;"></i><%= stats.runs %></span><span class="stat-label">Score (Runs)</span></div>
-            </div>
-
+            <div class="section-title"><h2><i class="ri-calendar-event-line"></i> <%= headerTitle %></h2><p class="subtitle">Performance overview.</p></div>
+            <form action="/analytics" method="GET" class="filter-form"><div class="filter-wrapper"><i class="ri-filter-3-line"></i><select name="month" class="filter-select" onchange="handleFilterChange(event, this)"><option value="0" <%= monthOffset == 0 ? 'selected' : '' %>>This Month</option><option value="1" <%= monthOffset == 1 ? 'selected' : '' %>>Last Month</option><option value="2" <%= monthOffset == 2 ? 'selected' : '' %>>2 Months Ago</option><option value="all" <%= monthOffset === 'all' ? 'selected' : '' %>>All Time</option></select></div></form>
+            <div class="stats-grid"><div class="stat-card stat-primary"><span class="stat-number"><%= stats.total %></span><span class="stat-label">Total Entries</span></div><div class="stat-card stat-success"><span class="stat-number"><%= stats.activated %></span><span class="stat-label">Actually Activated</span></div><div class="stat-card stat-runs"><span class="stat-number"><i class="ri-flashlight-fill" style="font-size:1.2rem; margin-right:2px;"></i><%= stats.runs %></span><span class="stat-label">Score (Runs)</span></div></div>
             <h3 class="section-label" style="margin-bottom: 15px; display: flex; align-items: center; gap: 8px;"><i class="ri-layout-grid-line"></i> Category Breakdown</h3>
-            <div class="breakdown-grid">
-                <div class="mini-stat bd-nc"><span class="mini-num" style="color: #10b981;"><%= stats.nc %></span><span class="mini-lbl">NC</span></div>
-                <div class="mini-stat bd-p2p"><span class="mini-num" style="color: #3b82f6;"><%= stats.p2p %></span><span class="mini-lbl">P2P</span></div>
-                <div class="mini-stat bd-mnp"><span class="mini-num" style="color: #f59e0b;"><%= stats.mnp %></span><span class="mini-lbl">MNP</span></div>
-                <div class="mini-stat bd-nmnp"><span class="mini-num" style="color: #ef4444;"><%= stats.nmnp %></span><span class="mini-lbl">NMNP</span></div>
-                <div class="mini-stat bd-fam" style="grid-column: 1 / -1;"><span class="mini-num" style="color: #8b5cf6;"><%= stats.family %></span><span class="mini-lbl">Family SIMs</span></div>
-            </div>
-
-            <div class="progress-section">
-                <div class="progress-header"><span style="color: #10b981;"><i class="ri-check-double-line"></i> Verified: <%= stats.completed %></span><span style="color: #f59e0b;"><i class="ri-loader-4-line"></i> Pending: <%= stats.pending %></span></div>
-                <div class="progress-bar">
-                    <% 
-                        let total = stats.completed + stats.pending; 
-                        let pct = total > 0 ? (stats.completed / total) * 100 : 0; 
-                    %>
-                    <div class="progress-fill" style="width: <%= pct %>%; background: #10b981;"></div>
-                    <div class="progress-fill" style="width: <%= 100 - pct %>%; background: #f59e0b;"></div>
-                </div>
-            </div>
-
+            <div class="breakdown-grid"><div class="mini-stat bd-nc"><span class="mini-num" style="color: #10b981;"><%= stats.nc %></span><span class="mini-lbl">NC</span></div><div class="mini-stat bd-p2p"><span class="mini-num" style="color: #3b82f6;"><%= stats.p2p %></span><span class="mini-lbl">P2P</span></div><div class="mini-stat bd-mnp"><span class="mini-num" style="color: #f59e0b;"><%= stats.mnp %></span><span class="mini-lbl">MNP</span></div><div class="mini-stat bd-nmnp"><span class="mini-num" style="color: #ef4444;"><%= stats.nmnp %></span><span class="mini-lbl">NMNP</span></div><div class="mini-stat bd-fam" style="grid-column: 1 / -1;"><span class="mini-num" style="color: #8b5cf6;"><%= stats.family %></span><span class="mini-lbl">Family SIMs</span></div></div>
+            <div class="progress-section"><div class="progress-header"><span style="color: #10b981;"><i class="ri-check-double-line"></i> Verified: <%= stats.completed %></span><span style="color: #f59e0b;"><i class="ri-loader-4-line"></i> Pending: <%= stats.pending %></span></div><div class="progress-bar"><% let total = stats.completed + stats.pending; let pct = total > 0 ? (stats.completed / total) * 100 : 0; %><div class="progress-fill" style="width: <%= pct %>%; background: #10b981;"></div><div class="progress-fill" style="width: <%= 100 - pct %>%; background: #f59e0b;"></div></div></div>
             <div class="pending-list">
                 <h3 class="section-label" style="color: #f59e0b; display: flex; align-items: center; gap: 8px;"><i class="ri-hourglass-2-fill"></i> Waiting for Activation (<%= pendingList.length %>)</h3>
-                <% if (pendingList.length === 0) { %>
-                    <div style="text-align: center; padding: 20px; color: #94a3b8; background: white; border-radius: 12px; border: 1px dashed #e2e8f0;"><i class="ri-check-double-line" style="font-size: 1.5rem;"></i><p>No pending activations for this period.</p></div>
-                <% } else { %>
-                    <% pendingList.forEach(c => { %>
-                        <div class="pending-card">
-                            <div class="pc-info">
-                                <h4><%= c.name %> <span class="badge badge-<%= c.subType %>" style="font-size: 0.65rem;"><%= c.subType %></span></h4>
-                                <p><i class="ri-smartphone-line"></i> <%= c.mobile %></p>
-                                <% if(c.category === 'Family') { %><p style="font-size: 0.7rem; color: #8b5cf6;"><i class="ri-group-line"></i> Family Connection</p><% } %>
-                                <% if(c.billDate) { %><p style="font-size: 0.7rem; color: #0ea5e9; margin-top: 2px;"><i class="ri-bill-line"></i> Bill Cycle: <%= c.billDate %>th</p><% } %>
-                            </div>
-                            <div class="pc-date"><span>Activates On</span><strong><%= new Date(c.activationDate || c.createdAt).toLocaleDateString('en-GB') %></strong></div>
-                        </div>
-                    <% }) %>
-                <% } %>
+                <% if (pendingList.length === 0) { %><div style="text-align: center; padding: 20px; color: #94a3b8; background: white; border-radius: 12px; border: 1px dashed #e2e8f0;"><i class="ri-check-double-line" style="font-size: 1.5rem;"></i><p>No pending activations for this period.</p></div><% } else { %><% pendingList.forEach(c => { %><div class="pending-card"><div class="pc-info"><h4><%= c.name %> <span class="badge badge-<%= c.subType %>" style="font-size: 0.65rem;"><%= c.subType %></span></h4><p><i class="ri-smartphone-line"></i> <%= c.mobile %></p><% if(c.category === 'Family') { %><p style="font-size: 0.7rem; color: #8b5cf6;"><i class="ri-group-line"></i> Family Connection</p><% } %><% if(c.billDate) { %><p style="font-size: 0.7rem; color: #0ea5e9; margin-top: 2px;"><i class="ri-bill-line"></i> Bill Cycle: <%= c.billDate %>th</p><% } %></div><div class="pc-date"><span>Activates On</span><strong><%= new Date(c.activationDate || c.createdAt).toLocaleDateString('en-GB') %></strong></div></div><% }) %><% } %>
             </div>
         </div>
 
-        <div id="addModal" class="modal-overlay" style="display: none;">
-            <div class="modal-card">
-                <div class="modal-header">
-                    <h3>New Verification</h3>
-                    <button onclick="closeModal()" class="icon-btn"><i class="ri-close-line"></i></button>
-                </div>
-                <form action="/add" method="POST" id="addForm">
-                    <div class="input-group"><label>Activation Date</label><div class="input-wrapper"><i class="ri-calendar-line icon-left"></i><input type="text" name="customDate" id="customDate" required placeholder="DD/MM/YYYY"></div></div>
-                    <div class="input-group"><label>Category</label><div class="input-wrapper"><i class="ri-list-check icon-left"></i><select name="category" id="category" onchange="handleCategoryChange()" required><option value="" disabled selected>Select Category</option><option value="NC">NC</option><option value="P2P">P2P</option><option value="MNP">MNP - Metro</option><option value="NMNP">NMNP - Non Metro</option><option value="Family">Family</option></select></div></div>
-                    <div id="normal-form" class="form-section"><div class="input-group"><label>Name</label><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="n_name" id="n_name"></div></div><div class="input-group"><label>Mobile</label><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="n_mobile" id="n_mobile" pattern="[0-9]{10}"></div></div></div>
-                    <div id="family-form" class="form-section">
-                        <span class="section-label">Primary Connection Details</span>
-                        <div class="input-group"><label>Primary Type</label><div class="input-wrapper"><i class="ri-shield-user-line icon-left"></i><select name="p_type" id="p_type"><option value="Existing">Existing (Active)</option><option value="NC">New Entry (NC)</option><option value="P2P">New Entry (P2P)</option><option value="MNP">New MNP - Metro</option><option value="NMNP">New NMNP - Non Metro</option></select></div></div>
-                        <div class="input-group"><div class="input-wrapper"><i class="ri-user-star-line icon-left"></i><input type="text" name="p_name" placeholder="Primary Name"></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="p_mobile" placeholder="Primary Mobile" pattern="[0-9]{10}"></div></div>
-                        <div class="divider"><span>AND</span></div>
-                        <span class="section-label">Secondary Connection (This SIM)</span>
-                        <div class="input-group"><label>Secondary Type</label><div class="input-wrapper"><i class="ri-sim-card-line icon-left"></i><select name="s_type" id="s_type"><option value="NC" selected>NC (Instant)</option><option value="P2P">P2P (Instant)</option><option value="MNP">MNP - Metro</option><option value="NMNP">NMNP - Non Metro</option></select></div></div>
-                        <div class="input-group"><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="s_name" placeholder="Secondary Name"></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="s_mobile" placeholder="Secondary Mobile" pattern="[0-9]{10}"></div></div>
-                    </div>
-                    <div class="input-group" style="margin-top: 15px;"><label>Bill Date (Optional)</label><div class="input-wrapper"><i class="ri-calendar-todo-line icon-left"></i><select name="billDate" id="billDate"><option value="">No Bill / Prepaid</option><option value="11">11th</option><option value="15">15th</option><option value="24">24th</option><option value="27">27th</option></select></div></div>
-                    <div class="input-group" style="margin-top: 15px;"><label>Remarks</label><div class="input-wrapper"><i class="ri-sticky-note-line icon-left"></i><input type="text" name="remarks" placeholder="Optional notes..."></div></div>
-                    <button type="submit" class="btn-submit">Save Record</button>
-                </form>
-            </div>
-        </div>
+        <div id="addModal" class="modal-overlay" style="display: none;"><div class="modal-card"><div class="modal-header"><h3>New Verification</h3><button onclick="closeModal()" class="icon-btn"><i class="ri-close-line"></i></button></div><form action="/add" method="POST" id="addForm"><div class="input-group"><label>Activation Date</label><div class="input-wrapper"><i class="ri-calendar-line icon-left"></i><input type="text" name="customDate" id="customDate" required placeholder="DD/MM/YYYY"></div></div><div class="input-group"><label>Category</label><div class="input-wrapper"><i class="ri-list-check icon-left"></i><select name="category" id="category" onchange="handleCategoryChange()" required><option value="" disabled selected>Select Category</option><option value="NC">NC</option><option value="P2P">P2P</option><option value="MNP">MNP - Metro</option><option value="NMNP">NMNP - Non Metro</option><option value="Family">Family</option></select></div></div><div id="normal-form" class="form-section"><div class="input-group"><label>Name</label><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="n_name" id="n_name"></div></div><div class="input-group"><label>Mobile</label><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="n_mobile" id="n_mobile" pattern="[0-9]{10}"></div></div></div><div id="family-form" class="form-section"><span class="section-label">Primary Connection Details</span><div class="input-group"><label>Primary Type</label><div class="input-wrapper"><i class="ri-shield-user-line icon-left"></i><select name="p_type" id="p_type"><option value="Existing">Existing (Active)</option><option value="NC">New Entry (NC)</option><option value="P2P">New Entry (P2P)</option><option value="MNP">New MNP - Metro</option><option value="NMNP">New NMNP - Non Metro</option></select></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-user-star-line icon-left"></i><input type="text" name="p_name" placeholder="Primary Name"></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="p_mobile" placeholder="Primary Mobile" pattern="[0-9]{10}"></div></div><div class="divider"><span>AND</span></div><span class="section-label">Secondary Connection (This SIM)</span><div class="input-group"><label>Secondary Type</label><div class="input-wrapper"><i class="ri-sim-card-line icon-left"></i><select name="s_type" id="s_type"><option value="NC" selected>NC (Instant)</option><option value="P2P">P2P (Instant)</option><option value="MNP">MNP - Metro</option><option value="NMNP">NMNP - Non Metro</option></select></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="s_name" placeholder="Secondary Name"></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="s_mobile" placeholder="Secondary Mobile" pattern="[0-9]{10}"></div></div></div><div class="input-group" style="margin-top: 15px;"><label>Bill Date (Optional)</label><div class="input-wrapper"><i class="ri-calendar-todo-line icon-left"></i><select name="billDate" id="billDate"><option value="">No Bill / Prepaid</option><option value="11">11th</option><option value="15">15th</option><option value="24">24th</option><option value="27">27th</option></select></div></div><div class="input-group" style="margin-top: 15px;"><label>Remarks</label><div class="input-wrapper"><i class="ri-sticky-note-line icon-left"></i><input type="text" name="remarks" placeholder="Optional notes..."></div></div><button type="submit" class="btn-submit">Save Record</button></form></div></div>
+        
+        <div id="customConfirmModal" class="modal-overlay" style="display: none; z-index: 10000;"><div class="modal-card" style="text-align: center; max-width: 340px; padding: 30px 20px;"><div id="confirmIcon" class="confirm-icon"></div><h3 id="confirmTitle" style="margin-bottom: 10px; font-size: 1.3rem;"></h3><p id="confirmMessage" style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 25px; line-height: 1.5;"></p><div class="confirm-actions"><button type="button" class="btn-confirm-cancel" onclick="closeConfirmModal()">Cancel</button><button type="button" id="confirmYesBtn" class="btn-confirm-yes">Yes</button></div></div></div>
+    </div> <div class="bottom-nav"><a href="/" class="nav-item"><i class="ri-home-4-line"></i><span>Home</span></a><a href="/all" class="nav-item"><i class="ri-list-check"></i><span>All</span></a><a href="/pdd" class="nav-item"><i class="ri-file-paper-2-line"></i><span>PDD</span></a><div class="nav-fab" onclick="openModal()"><i class="ri-add-line"></i></div><a href="/search" class="nav-item"><i class="ri-search-line"></i><span>Search</span></a><a href="/manage" class="nav-item"><i class="ri-edit-2-line"></i><span>Edit</span></a><a href="/analytics" class="nav-item active"><i class="ri-pie-chart-2-fill"></i><span>Analysis</span></a></div>
 
-        <div id="customConfirmModal" class="modal-overlay" style="display: none; z-index: 10000;">
-            <div class="modal-card" style="text-align: center; max-width: 340px; padding: 30px 20px;">
-                <div id="confirmIcon" class="confirm-icon"></div>
-                <h3 id="confirmTitle" style="margin-bottom: 10px; font-size: 1.3rem;"></h3>
-                <p id="confirmMessage" style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 25px; line-height: 1.5;"></p>
-                <div class="confirm-actions">
-                    <button type="button" class="btn-confirm-cancel" onclick="closeConfirmModal()">Cancel</button>
-                    <button type="button" id="confirmYesBtn" class="btn-confirm-yes">Yes</button>
-                </div>
-            </div>
-        </div>
-    </div> <div class="bottom-nav">
-        <a href="/" class="nav-item"><i class="ri-home-4-line"></i><span>Home</span></a>
-        <a href="/all" class="nav-item"><i class="ri-list-check"></i><span>All</span></a>
-        <a href="/pdd" class="nav-item"><i class="ri-file-paper-2-line"></i><span>PDD</span></a>
-        <div class="nav-fab" onclick="openModal()"><i class="ri-add-line"></i></div>
-        <a href="/search" class="nav-item"><i class="ri-search-line"></i><span>Search</span></a>
-        <a href="/manage" class="nav-item"><i class="ri-edit-2-line"></i><span>Edit</span></a>
-        <a href="/analytics" class="nav-item active"><i class="ri-pie-chart-2-fill"></i><span>Analysis</span></a>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="/app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script><script src="/app.js"></script>
 </body>
 </html>

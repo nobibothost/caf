@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#4f46e5">
+    <link rel="manifest" href="/manifest.json">
     <title>History</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
@@ -10,174 +12,33 @@
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-
-    <nav class="navbar">
-        <div class="logo">
-            <i class="ri-history-line"></i> History<span class="highlight">Log</span>
-        </div>
-        <a href="#" class="logout-btn" onclick="openConfirmModal(event, null, 'logout')"><i class="ri-logout-box-r-line"></i></a>
-    </nav>
-
+    <nav class="navbar"><div class="logo"><i class="ri-history-line"></i> History<span class="highlight">Log</span></div><a href="#" class="logout-btn" onclick="openConfirmModal(event, null, 'logout')"><i class="ri-logout-box-r-line"></i></a></nav>
     <div id="app-main">
         <div class="container">
-            <div class="section-title">
-                <h2><i class="ri-file-list-3-line"></i> <%= headerTitle %></h2>
-                <p class="subtitle">Complete verification history.</p>
-            </div>
-
-            <form action="/all" method="GET" class="filter-form">
-                <div class="filter-wrapper">
-                    <i class="ri-filter-3-line"></i>
-                    <select name="month" class="filter-select" onchange="handleFilterChange(event, this)">
-                        <option value="0" <%= monthOffset == 0 ? 'selected' : '' %>>This Month</option>
-                        <option value="1" <%= monthOffset == 1 ? 'selected' : '' %>>Last Month</option>
-                        <option value="2" <%= monthOffset == 2 ? 'selected' : '' %>>2 Months Ago</option>
-                        <option value="all" <%= monthOffset === 'all' ? 'selected' : '' %>>Show All History</option>
-                    </select>
-                </div>
-            </form>
-
+            <div class="section-title"><h2><i class="ri-file-list-3-line"></i> <%= headerTitle %></h2><p class="subtitle">Complete verification history.</p></div>
+            <form action="/all" method="GET" class="filter-form"><div class="filter-wrapper"><i class="ri-filter-3-line"></i><select name="month" class="filter-select" onchange="handleFilterChange(event, this)"><option value="0" <%= monthOffset == 0 ? 'selected' : '' %>>This Month</option><option value="1" <%= monthOffset == 1 ? 'selected' : '' %>>Last Month</option><option value="2" <%= monthOffset == 2 ? 'selected' : '' %>>2 Months Ago</option><option value="all" <%= monthOffset === 'all' ? 'selected' : '' %>>Show All History</option></select></div></form>
             <div class="grid-layout" data-current-page="<%= typeof currentPage !== 'undefined' ? currentPage : 1 %>" data-total-pages="<%= typeof totalPages !== 'undefined' ? totalPages : 1 %>">
                 <% customers.forEach(customer => { %>
                     <div class="card" style="<%= (customer.category !== 'Family' && customer.status === 'completed') ? 'opacity: 0.8;' : '' %>">
-                        <div class="card-top">
-                            <div style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">
-                                <% if (customer.category === 'Family') { %>
-                                    <span class="badge badge-Family">Family</span>
-                                <% } else { %>
-                                    <span class="badge badge-<%= customer.category %>"><%= customer.category %></span>
-                                <% } %>
-                                <% if (customer.billDate) { %>
-                                    <span class="badge" style="background: rgba(14, 165, 233, 0.1); color: #0ea5e9;"><i class="ri-bill-line"></i> Bill: <%= customer.billDate %>th</span>
-                                <% } %>
-                            </div>
-                            <span class="date-tag"><%= new Date(customer.activationDate || customer.createdAt).toLocaleDateString('en-GB') %></span>
-                        </div>
-
+                        <div class="card-top"><div style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;"><% if (customer.category === 'Family') { %><span class="badge badge-Family">Family</span><% } else { %><span class="badge badge-<%= customer.category %>"><%= customer.category %></span><% } %><% if (customer.billDate) { %><span class="badge" style="background: rgba(14, 165, 233, 0.1); color: #0ea5e9;"><i class="ri-bill-line"></i> Bill: <%= customer.billDate %>th</span><% } %></div><span class="date-tag"><%= new Date(customer.activationDate || customer.createdAt).toLocaleDateString('en-GB') %></span></div>
                         <% if (customer.category === 'Family') { %>
                             <div class="family-wrapper">
-                                <div class="family-section primary-sec">
-                                    <span class="fs-label primary-label">Primary Connection 
-                                        <% if (customer.primaryDoc) { %>
-                                            <span class="badge badge-<%= customer.primaryDoc.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= customer.primaryDoc.subType %></span>
-                                        <% } else { %>
-                                            <span class="badge" style="background:#e2e8f0; color:#475569; font-size: 0.6rem; padding: 2px 5px;">Existing</span>
-                                        <% } %>
-                                    </span>
-                                    <div class="fs-info">
-                                        <h4><%= customer.linkedPrimaryName || 'Unknown' %></h4>
-                                        <p><%= customer.linkedPrimaryNumber %></p>
-                                    </div>
-                                    <div class="fs-actions">
-                                        <a href="whatsapp://send?phone=91<%= customer.linkedPrimaryNumber %>" class="mini-btn mini-wa"><i class="ri-whatsapp-line"></i></a>
-                                        <a href="tel:<%= customer.linkedPrimaryNumber %>" class="mini-btn mini-call"><i class="ri-phone-fill"></i></a>
-                                        <span style="flex:1; text-align:center; font-size: 0.75rem; color: <%= (customer.primaryDoc && customer.primaryDoc.status === 'completed') ? '#10b981' : (customer.primaryDoc ? '#f59e0b' : '#10b981') %>; padding: 5px;">
-                                            <%= (customer.primaryDoc && customer.primaryDoc.status === 'completed') ? '✅ Done' : (customer.primaryDoc ? '⏳ Pending' : '✅ Active') %>
-                                        </span>
-                                    </div>
-                                </div>
-                                <div class="family-section secondary-sec">
-                                    <span class="fs-label secondary-label">Secondary (This SIM)
-                                        <span class="badge badge-<%= customer.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= customer.subType %></span>
-                                    </span>
-                                    <div class="fs-info">
-                                        <h4 class="customer-name"><%= customer.name %></h4>
-                                        <p class="mobile-txt"><%= customer.mobile %></p>
-                                    </div>
-                                    <div class="fs-actions">
-                                        <a href="whatsapp://send?phone=91<%= customer.mobile %>" class="mini-btn mini-wa"><i class="ri-whatsapp-line"></i></a>
-                                        <a href="tel:<%= customer.mobile %>" class="mini-btn mini-call"><i class="ri-phone-fill"></i></a>
-                                        <span style="flex:1; text-align:center; font-size: 0.75rem; color: <%= customer.status === 'completed' ? '#10b981' : '#f59e0b' %>; padding: 5px;">
-                                            <%= customer.status === 'completed' ? '✅ Done' : '⏳ Pending' %>
-                                        </span>
-                                    </div>
-                                </div>
+                                <div class="family-section primary-sec"><span class="fs-label primary-label">Primary Connection <% if (customer.primaryDoc) { %><span class="badge badge-<%= customer.primaryDoc.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= customer.primaryDoc.subType %></span><% } else { %><span class="badge" style="background:#e2e8f0; color:#475569; font-size: 0.6rem; padding: 2px 5px;">Existing</span><% } %></span><div class="fs-info"><h4><%= customer.linkedPrimaryName || 'Unknown' %></h4><p><%= customer.linkedPrimaryNumber %></p></div><div class="fs-actions"><a href="whatsapp://send?phone=91<%= customer.linkedPrimaryNumber %>" class="mini-btn mini-wa"><i class="ri-whatsapp-line"></i></a><a href="tel:<%= customer.linkedPrimaryNumber %>" class="mini-btn mini-call"><i class="ri-phone-fill"></i></a><span style="flex:1; text-align:center; font-size: 0.75rem; color: <%= (customer.primaryDoc && customer.primaryDoc.status === 'completed') ? '#10b981' : (customer.primaryDoc ? '#f59e0b' : '#10b981') %>; padding: 5px;"><%= (customer.primaryDoc && customer.primaryDoc.status === 'completed') ? '✅ Done' : (customer.primaryDoc ? '⏳ Pending' : '✅ Active') %></span></div></div>
+                                <div class="family-section secondary-sec"><span class="fs-label secondary-label">Secondary (This SIM)<span class="badge badge-<%= customer.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= customer.subType %></span></span><div class="fs-info"><h4 class="customer-name"><%= customer.name %></h4><p class="mobile-txt"><%= customer.mobile %></p></div><div class="fs-actions"><a href="whatsapp://send?phone=91<%= customer.mobile %>" class="mini-btn mini-wa"><i class="ri-whatsapp-line"></i></a><a href="tel:<%= customer.mobile %>" class="mini-btn mini-call"><i class="ri-phone-fill"></i></a><span style="flex:1; text-align:center; font-size: 0.75rem; color: <%= customer.status === 'completed' ? '#10b981' : '#f59e0b' %>; padding: 5px;"><%= customer.status === 'completed' ? '✅ Done' : '⏳ Pending' %></span></div></div>
                             </div>
                         <% } else { %>
-                            <div class="card-body">
-                                 <h3 class="customer-name"><%= customer.name %></h3>
-                                <p class="meta-info mobile-txt"><i class="ri-smartphone-line"></i> <%= customer.mobile %></p>
-                            </div>
-                            <div class="card-actions" style="margin-bottom: 8px;">
-                                <a href="whatsapp://send?phone=91<%= customer.mobile %>" class="btn-whatsapp" style="flex: 1;"><i class="ri-whatsapp-line"></i> WhatsApp</a>
-                                <a href="tel:<%= customer.mobile %>" class="btn-call" style="flex: 1;"><i class="ri-phone-fill"></i> Call</a>
-                            </div>
+                            <div class="card-body"><h3 class="customer-name"><%= customer.name %></h3><p class="meta-info mobile-txt"><i class="ri-smartphone-line"></i> <%= customer.mobile %></p></div><div class="card-actions" style="margin-bottom: 8px;"><a href="whatsapp://send?phone=91<%= customer.mobile %>" class="btn-whatsapp" style="flex: 1;"><i class="ri-whatsapp-line"></i> WhatsApp</a><a href="tel:<%= customer.mobile %>" class="btn-call" style="flex: 1;"><i class="ri-phone-fill"></i> Call</a></div>
                         <% } %>
-
-                        <div class="card-actions" style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
-                            <div style="display: flex; gap: 10px; align-items: center;">
-                                <% if (customer.remarks && customer.remarks.trim() !== "") { %>
-                                    <button class="btn-note" data-name="<%= customer.name %>" data-remarks="<%= customer.remarks %>" onclick="openRemarksModal(this)"><i class="ri-sticky-note-fill"></i> Note</button>
-                                <% } %>
-                            </div>
-                            <% if (customer.category !== 'Family') { %>
-                                <span style="font-size: 0.8rem; font-weight: 600; color: <%= customer.status === 'completed' ? '#10b981' : '#f59e0b' %>;">
-                                    <%= customer.status === 'completed' ? '✅ COMPLETED' : '⏳ PENDING' %>
-                                </span>
-                            <% } %>
-                        </div>
+                        <div class="card-actions" style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;"><div style="display: flex; gap: 10px; align-items: center;"><% if (customer.remarks && customer.remarks.trim() !== "") { %><button class="btn-note" data-name="<%= customer.name %>" data-remarks="<%= customer.remarks %>" onclick="openRemarksModal(this)"><i class="ri-sticky-note-fill"></i> Note</button><% } %></div><% if (customer.category !== 'Family') { %><span style="font-size: 0.8rem; font-weight: 600; color: <%= customer.status === 'completed' ? '#10b981' : '#f59e0b' %>;"><%= customer.status === 'completed' ? '✅ COMPLETED' : '⏳ PENDING' %></span><% } %></div>
                      </div>
                 <% }) %>
-            </div>
-
-            <div id="autoLoadSpinner" class="scroll-loader">
-                <i class="ri-loader-4-line"></i><br>Loading more...
-            </div>
+            </div><div id="autoLoadSpinner" class="scroll-loader"><i class="ri-loader-4-line"></i><br>Loading more...</div>
         </div>
-
-        <div id="addModal" class="modal-overlay" style="display: none;">
-            <div class="modal-card">
-                <div class="modal-header">
-                    <h3>New Verification</h3>
-                    <button onclick="closeModal()" class="icon-btn"><i class="ri-close-line"></i></button>
-                </div>
-                <form action="/add" method="POST" id="addForm">
-                    <div class="input-group"><label>Activation Date</label><div class="input-wrapper"><i class="ri-calendar-line icon-left"></i><input type="text" name="customDate" id="customDate" required placeholder="DD/MM/YYYY"></div></div>
-                    <div class="input-group"><label>Category</label><div class="input-wrapper"><i class="ri-list-check icon-left"></i><select name="category" id="category" onchange="handleCategoryChange()" required><option value="" disabled selected>Select Category</option><option value="NC">NC</option><option value="P2P">P2P</option><option value="MNP">MNP - Metro</option><option value="NMNP">NMNP - Non Metro</option><option value="Family">Family</option></select></div></div>
-                    <div id="normal-form" class="form-section"><div class="input-group"><label>Name</label><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="n_name" id="n_name"></div></div><div class="input-group"><label>Mobile</label><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="n_mobile" id="n_mobile" pattern="[0-9]{10}"></div></div></div>
-                    <div id="family-form" class="form-section">
-                        <span class="section-label">Primary Connection Details</span>
-                        <div class="input-group"><label>Primary Type</label><div class="input-wrapper"><i class="ri-shield-user-line icon-left"></i><select name="p_type" id="p_type"><option value="Existing">Existing (Active)</option><option value="NC">New Entry (NC)</option><option value="P2P">New Entry (P2P)</option><option value="MNP">New MNP - Metro</option><option value="NMNP">New NMNP - Non Metro</option></select></div></div>
-                        <div class="input-group"><div class="input-wrapper"><i class="ri-user-star-line icon-left"></i><input type="text" name="p_name" placeholder="Primary Name"></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="p_mobile" placeholder="Primary Mobile" pattern="[0-9]{10}"></div></div>
-                        <div class="divider"><span>AND</span></div>
-                        <span class="section-label">Secondary Connection (This SIM)</span>
-                        <div class="input-group"><label>Secondary Type</label><div class="input-wrapper"><i class="ri-sim-card-line icon-left"></i><select name="s_type" id="s_type"><option value="NC" selected>NC (Instant)</option><option value="P2P">P2P (Instant)</option><option value="MNP">MNP - Metro</option><option value="NMNP">NMNP - Non Metro</option></select></div></div>
-                        <div class="input-group"><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="s_name" placeholder="Secondary Name"></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="s_mobile" placeholder="Secondary Mobile" pattern="[0-9]{10}"></div></div>
-                    </div>
-                    <div class="input-group" style="margin-top: 15px;"><label>Bill Date (Optional)</label><div class="input-wrapper"><i class="ri-calendar-todo-line icon-left"></i><select name="billDate" id="billDate"><option value="">No Bill / Prepaid</option><option value="11">11th</option><option value="15">15th</option><option value="24">24th</option><option value="27">27th</option></select></div></div>
-                    <div class="input-group" style="margin-top: 15px;"><label>Remarks</label><div class="input-wrapper"><i class="ri-sticky-note-line icon-left"></i><input type="text" name="remarks" placeholder="Optional notes..."></div></div>
-                    <button type="submit" class="btn-submit">Save Record</button>
-                </form>
-            </div>
-        </div>
-
-        <div id="remarksModal" class="modal-overlay" style="display: none;">
-            <div class="modal-card">
-                <div class="modal-header"><h3><i class="ri-sticky-note-fill" style="color: var(--primary);"></i> Remarks</h3><button onclick="closeRemarksModal()" class="icon-btn"><i class="ri-close-line"></i></button></div>
-                <div><strong id="remarksTitle" style="color: var(--primary); font-size: 1.1rem; display:block; margin-bottom:5px;"></strong><div id="remarksBody" class="remarks-content"></div></div>
-                <button onclick="closeRemarksModal()" class="btn-submit" style="background: var(--text-main); margin-top: 10px;">Close</button>
-            </div>
-        </div>
-
-        <div id="customConfirmModal" class="modal-overlay" style="display: none; z-index: 10000;">
-            <div class="modal-card" style="text-align: center; max-width: 340px; padding: 30px 20px;">
-                <div id="confirmIcon" class="confirm-icon"></div>
-                <h3 id="confirmTitle" style="margin-bottom: 10px; font-size: 1.3rem;"></h3>
-                <p id="confirmMessage" style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 25px; line-height: 1.5;"></p>
-                <div class="confirm-actions"><button type="button" class="btn-confirm-cancel" onclick="closeConfirmModal()">Cancel</button><button type="button" id="confirmYesBtn" class="btn-confirm-yes">Yes</button></div>
-            </div>
-        </div>
-    </div> <div class="bottom-nav">
-        <a href="/" class="nav-item"><i class="ri-home-4-line"></i><span>Home</span></a>
-        <a href="/all" class="nav-item active"><i class="ri-list-check-2"></i><span>All</span></a>
-        <a href="/pdd" class="nav-item"><i class="ri-file-paper-2-line"></i><span>PDD</span></a>
-        <div class="nav-fab" onclick="openModal()"><i class="ri-add-line"></i></div>
-        <a href="/search" class="nav-item"><i class="ri-search-line"></i><span>Search</span></a>
-        <a href="/manage" class="nav-item"><i class="ri-edit-2-line"></i><span>Edit</span></a>
-        <a href="/analytics" class="nav-item"><i class="ri-pie-chart-line"></i><span>Analysis</span></a>
+        <div id="addModal" class="modal-overlay" style="display: none;"><div class="modal-card"><div class="modal-header"><h3>New Verification</h3><button onclick="closeModal()" class="icon-btn"><i class="ri-close-line"></i></button></div><form action="/add" method="POST" id="addForm"><div class="input-group"><label>Activation Date</label><div class="input-wrapper"><i class="ri-calendar-line icon-left"></i><input type="text" name="customDate" id="customDate" required placeholder="DD/MM/YYYY"></div></div><div class="input-group"><label>Category</label><div class="input-wrapper"><i class="ri-list-check icon-left"></i><select name="category" id="category" onchange="handleCategoryChange()" required><option value="" disabled selected>Select Category</option><option value="NC">NC</option><option value="P2P">P2P</option><option value="MNP">MNP - Metro</option><option value="NMNP">NMNP - Non Metro</option><option value="Family">Family</option></select></div></div><div id="normal-form" class="form-section"><div class="input-group"><label>Name</label><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="n_name" id="n_name"></div></div><div class="input-group"><label>Mobile</label><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="n_mobile" id="n_mobile" pattern="[0-9]{10}"></div></div></div><div id="family-form" class="form-section"><span class="section-label">Primary Connection Details</span><div class="input-group"><label>Primary Type</label><div class="input-wrapper"><i class="ri-shield-user-line icon-left"></i><select name="p_type" id="p_type"><option value="Existing">Existing (Active)</option><option value="NC">New Entry (NC)</option><option value="P2P">New Entry (P2P)</option><option value="MNP">New MNP - Metro</option><option value="NMNP">New NMNP - Non Metro</option></select></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-user-star-line icon-left"></i><input type="text" name="p_name" placeholder="Primary Name"></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="p_mobile" placeholder="Primary Mobile" pattern="[0-9]{10}"></div></div><div class="divider"><span>AND</span></div><span class="section-label">Secondary Connection (This SIM)</span><div class="input-group"><label>Secondary Type</label><div class="input-wrapper"><i class="ri-sim-card-line icon-left"></i><select name="s_type" id="s_type"><option value="NC" selected>NC (Instant)</option><option value="P2P">P2P (Instant)</option><option value="MNP">MNP - Metro</option><option value="NMNP">NMNP - Non Metro</option></select></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="s_name" placeholder="Secondary Name"></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="s_mobile" placeholder="Secondary Mobile" pattern="[0-9]{10}"></div></div></div><div class="input-group" style="margin-top: 15px;"><label>Bill Date (Optional)</label><div class="input-wrapper"><i class="ri-calendar-todo-line icon-left"></i><select name="billDate" id="billDate"><option value="">No Bill / Prepaid</option><option value="11">11th</option><option value="15">15th</option><option value="24">24th</option><option value="27">27th</option></select></div></div><div class="input-group" style="margin-top: 15px;"><label>Remarks</label><div class="input-wrapper"><i class="ri-sticky-note-line icon-left"></i><input type="text" name="remarks" placeholder="Optional notes..."></div></div><button type="submit" class="btn-submit">Save Record</button></form></div></div>
+        <div id="remarksModal" class="modal-overlay" style="display: none;"><div class="modal-card"><div class="modal-header"><h3><i class="ri-sticky-note-fill" style="color: var(--primary);"></i> Remarks</h3><button onclick="closeRemarksModal()" class="icon-btn"><i class="ri-close-line"></i></button></div><div><strong id="remarksTitle" style="color: var(--primary); font-size: 1.1rem; display:block; margin-bottom:5px;"></strong><div id="remarksBody" class="remarks-content"></div></div><button onclick="closeRemarksModal()" class="btn-submit" style="background: var(--text-main); margin-top: 10px;">Close</button></div></div>
+        <div id="customConfirmModal" class="modal-overlay" style="display: none; z-index: 10000;"><div class="modal-card" style="text-align: center; max-width: 340px; padding: 30px 20px;"><div id="confirmIcon" class="confirm-icon"></div><h3 id="confirmTitle" style="margin-bottom: 10px; font-size: 1.3rem;"></h3><p id="confirmMessage" style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 25px; line-height: 1.5;"></p><div class="confirm-actions"><button type="button" class="btn-confirm-cancel" onclick="closeConfirmModal()">Cancel</button><button type="button" id="confirmYesBtn" class="btn-confirm-yes">Yes</button></div></div></div>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="/app.js"></script>
+    <div class="bottom-nav"><a href="/" class="nav-item"><i class="ri-home-4-line"></i><span>Home</span></a><a href="/all" class="nav-item active"><i class="ri-list-check-2"></i><span>All</span></a><a href="/pdd" class="nav-item"><i class="ri-file-paper-2-line"></i><span>PDD</span></a><div class="nav-fab" onclick="openModal()"><i class="ri-add-line"></i></div><a href="/search" class="nav-item"><i class="ri-search-line"></i><span>Search</span></a><a href="/manage" class="nav-item"><i class="ri-edit-2-line"></i><span>Edit</span></a><a href="/analytics" class="nav-item"><i class="ri-pie-chart-line"></i><span>Analysis</span></a></div>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script><script src="/app.js"></script>
 </body>
 </html>
