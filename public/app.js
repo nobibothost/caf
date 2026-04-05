@@ -20,7 +20,6 @@ function initApp() {
 
     const searchInput = document.getElementById('searchInput');
     if (searchInput && searchInput.closest('form') && searchInput.closest('form').action.includes('/search')) {
-        // Only attach event listener if it hasn't been attached yet to prevent double-firing
         if (!searchInput.dataset.listenerAttached) {
             searchInput.addEventListener('input', function() {
                 clearTimeout(window.typingTimer);
@@ -50,7 +49,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // --- INSTANT SKELETON, SMART CACHE & SPA ROUTING ---
 async function navigateTo(url, push = true) {
-    // Update Active Tab Instantly
     document.querySelectorAll('.bottom-nav .nav-item').forEach(link => {
         link.classList.remove('active');
         if (link.getAttribute('href') === url.split('?')[0] || (url === '/' && link.getAttribute('href') === '/')) {
@@ -61,18 +59,14 @@ async function navigateTo(url, push = true) {
     const mainApp = document.getElementById('app-main');
     const cacheKey = url;
 
-    // --- STEP 1: CACHE FIRST APPROACH ---
     if (window.appCache[cacheKey]) {
         if(mainApp) mainApp.innerHTML = window.appCache[cacheKey];
         if (push) history.pushState({}, '', url);
         initApp();
-        
-        // Background silent check for updates
         silentRevalidate(url, cacheKey);
-        return; // Stop execution here, don't show skeleton
+        return; 
     }
 
-    // --- STEP 2: SHOW SKELETON FOR FIRST TIME LOAD ---
     if(mainApp) {
         mainApp.innerHTML = `
             <div class="container" style="padding-top: 10px;">
@@ -89,7 +83,6 @@ async function navigateTo(url, push = true) {
     }
     window.scrollTo(0,0);
 
-    // --- STEP 3: INITIAL FETCH ---
     try {
         const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
         const html = await res.text();
@@ -101,18 +94,17 @@ async function navigateTo(url, push = true) {
         if (newMain && mainApp) {
             const finalHTML = newMain.innerHTML;
             mainApp.innerHTML = finalHTML;
-            window.appCache[cacheKey] = finalHTML; // Store in Memory
+            window.appCache[cacheKey] = finalHTML; 
             if (push) history.pushState({}, '', url);
             initApp(); 
         } else {
-            window.location.href = url; // Fallback
+            window.location.href = url; 
         }
     } catch (err) {
         window.location.href = url;
     }
 }
 
-// --- SILENT BACKGROUND UPDATER ---
 async function silentRevalidate(url, cacheKey) {
     try {
         const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
@@ -123,26 +115,22 @@ async function silentRevalidate(url, cacheKey) {
         
         if (newMain) {
             const freshHTML = newMain.innerHTML;
-            // If data has changed since we cached it
             if (window.appCache[cacheKey] !== freshHTML) {
-                window.appCache[cacheKey] = freshHTML; // Update Cache silently
+                window.appCache[cacheKey] = freshHTML; 
                 
                 const mainApp = document.getElementById('app-main');
                 const isCurrentUrl = (window.location.pathname + window.location.search) === url;
-                
-                // Safety check: Don't replace DOM if user is actively typing in a search box
                 const isTyping = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
                 
                 if (mainApp && isCurrentUrl && !isTyping) {
-                    mainApp.innerHTML = freshHTML; // Inject fresh data into UI
-                    initApp(); // Re-bind JS
+                    mainApp.innerHTML = freshHTML; 
+                    initApp(); 
                 }
             }
         }
     } catch(e) { console.warn('Background sync failed silently.', e); }
 }
 
-// Intercept all bottom-nav clicks
 document.addEventListener('click', e => {
     const navItem = e.target.closest('.bottom-nav .nav-item');
     if (navItem && navItem.getAttribute('href') && navItem.getAttribute('href') !== '#' && !navItem.getAttribute('onclick')) {
@@ -153,13 +141,11 @@ document.addEventListener('click', e => {
     }
 });
 
-// Browser Back/Forward buttons
 window.addEventListener('popstate', () => {
     navigateTo(window.location.pathname + window.location.search, false);
 });
 
-// Intercept Filter Dropdowns
-function handleFilterChange(e, selectEl) {
+window.handleFilterChange = function(e, selectEl) {
     e.preventDefault();
     const form = selectEl.closest('form');
     const url = new URL(form.action || window.location.href, window.location.origin);
@@ -167,8 +153,7 @@ function handleFilterChange(e, selectEl) {
     navigateTo(url.pathname + url.search);
 }
 
-// --- QUICK LOCAL SEARCH ---
-function filterList() { 
+window.filterList = function() { 
     const input = document.getElementById('searchInput');
     if(!input) return;
     const filter = input.value.toLowerCase(); 
@@ -179,7 +164,6 @@ function filterList() {
     } 
 }
 
-// --- GLOBAL LIVE SEARCH (API) ---
 async function performLiveSearch(query) {
     const targetUrl = query ? `/search?q=${encodeURIComponent(query)}` : '/search';
     window.history.replaceState(null, '', targetUrl); 
@@ -202,7 +186,7 @@ async function performLiveSearch(query) {
 }
 
 // --- MODAL CONTROLS ---
-window.openModal = function() { const m = document.getElementById("addModal"); if(!m) return; m.style.display = 'flex'; setTimeout(() => m.classList.add('active'), 10); if(window.fpAdd) window.fpAdd.setDate(new Date()); handleCategoryChange(); }
+window.openModal = function() { const m = document.getElementById("addModal"); if(!m) return; m.style.display = 'flex'; setTimeout(() => m.classList.add('active'), 10); if(window.fpAdd) window.fpAdd.setDate(new Date()); window.handleCategoryChange(); }
 window.closeModal = function() { const m = document.getElementById("addModal"); if(!m) return; m.classList.remove('active'); setTimeout(() => m.style.display = 'none', 300); }
 
 window.handleCategoryChange = function() { 
@@ -226,7 +210,7 @@ window.openEditModal = function(btn) {
         if (pStatus.includes('NMNP')) pType = 'NMNP'; else if (pStatus.includes('MNP')) pType = 'MNP'; else if (pStatus.includes('NC')) pType = 'NC'; else if (pStatus.includes('P2P')) pType = 'P2P'; 
         document.getElementById('editPType').value = pType; document.getElementById('editPName').value = btn.getAttribute('data-p-name'); document.getElementById('editPMobile').value = btn.getAttribute('data-p-mobile'); document.getElementById('editSType').value = btn.getAttribute('data-subtype'); document.getElementById('editSName').value = btn.getAttribute('data-name'); document.getElementById('editSMobile').value = btn.getAttribute('data-mobile');
     } else { document.getElementById('editNName').value = btn.getAttribute('data-name'); document.getElementById('editNMobile').value = btn.getAttribute('data-mobile'); document.getElementById('editSType').value = cat; } 
-    handleEditCategoryChange(); 
+    window.handleEditCategoryChange(); 
     const m = document.getElementById("editModal"); m.style.display = 'flex'; setTimeout(() => m.classList.add('active'), 10); 
 }
 window.closeEditModal = function() { const m = document.getElementById("editModal"); if(m) { m.classList.remove('active'); setTimeout(() => m.style.display = 'none', 300); } }
@@ -259,7 +243,7 @@ window.openConfirmModal = function(event, element, actionType) {
 
 window.closeConfirmModal = function() { const m = document.getElementById('customConfirmModal'); if(m) { m.classList.remove('active'); setTimeout(() => m.style.display = 'none', 300); } window.formToSubmit = null; }
 
-// --- EVENT DELEGATION ---
+// --- EVENT DELEGATION & FORM SUBMISSION SPINNER ---
 document.addEventListener('click', function(e) {
     if (e.target && e.target.id === 'confirmYesBtn') {
         if (window.formToSubmit) {
@@ -270,7 +254,6 @@ document.addEventListener('click', function(e) {
                 returnInput.value = window.location.pathname + window.location.search;
                 sessionStorage.setItem('scrollPos', window.scrollY); sessionStorage.setItem('scrollPath', window.location.pathname + window.location.search);
                 
-                // Clear cache for current page since we are modifying data
                 delete window.appCache[window.location.pathname + window.location.search];
                 window.formToSubmit.submit();
             }
@@ -281,12 +264,28 @@ document.addEventListener('click', function(e) {
 
 document.addEventListener('submit', function(e) {
     const form = e.target;
+
+    // --- FORM SPINNER LOGIC (ADD / EDIT) ---
+    if (form.id === 'addForm' || form.id === 'editForm') {
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            if (submitBtn.dataset.loading === 'true') {
+                e.preventDefault();
+                return;
+            }
+            submitBtn.dataset.loading = 'true';
+            const actionText = form.id === 'addForm' ? 'Saving...' : 'Updating...';
+            submitBtn.innerHTML = `<i class="ri-loader-4-line btn-spinner"></i> ${actionText}`;
+            submitBtn.style.opacity = '0.7';
+            submitBtn.style.cursor = 'not-allowed';
+        }
+    }
+
     if(form.getAttribute('action') !== '/search' && !form.getAttribute('onsubmit')) {
         let returnInput = form.querySelector('input[name="returnUrl"]');
         if (!returnInput) { returnInput = document.createElement('input'); returnInput.type = 'hidden'; returnInput.name = 'returnUrl'; form.appendChild(returnInput); }
         returnInput.value = window.location.pathname + window.location.search;
         sessionStorage.setItem('scrollPos', window.scrollY); sessionStorage.setItem('scrollPath', window.location.pathname + window.location.search);
-        // Clear cache
         delete window.appCache[window.location.pathname + window.location.search];
     }
 });
@@ -308,7 +307,6 @@ window.addEventListener('scroll', async () => {
             newCards.forEach(card => grid.appendChild(card));
             grid.setAttribute('data-current-page', current);
             
-            // Update cache string to include new items
             const mainApp = document.getElementById('app-main');
             if(mainApp) window.appCache[window.location.pathname + window.location.search] = mainApp.innerHTML;
         } catch (e) { console.error('Auto-load error', e); } 

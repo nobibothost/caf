@@ -189,8 +189,15 @@ body {
 .input-wrapper input, .input-wrapper select { width: 100%; padding: 10px 10px 10px 40px; border: 1px solid var(--border); border-radius: 10px; font-size: 0.95rem; background: #f8fafc; outline: none; transition: all 0.2s; -webkit-appearance: none; height: 45px; }
 .input-wrapper input:focus, .input-wrapper select:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1); }
 #family-form, #normal-form, #region-group { transition: all 0.3s ease-in-out; }
-.btn-submit { width: 100%; background: var(--text-main); color: white; padding: 12px; border: none; border-radius: 12px; font-size: 1rem; font-weight: 600; margin-top: 10px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+.btn-submit { width: 100%; background: var(--text-main); color: white; padding: 12px; border: none; border-radius: 12px; font-size: 1rem; font-weight: 600; margin-top: 10px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: opacity 0.2s; }
 .btn-submit:active { transform: scale(0.98); }
+
+/* Form Spinner Icon */
+.btn-spinner {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+    margin-right: 6px;
+}
 
 /* --- FILTERS & SEARCH --- */
 .filter-form { margin-bottom: 20px; }
