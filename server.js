@@ -43,6 +43,7 @@ function getISTDate(offsetMonths = 0) {
     
     let targetYear = nd.getFullYear();
     let targetMonth = nd.getMonth() - offsetMonths;
+    while(targetMonth < 0) { targetMonth += 12; targetYear -= 1; }
 
     const start = new Date(Date.UTC(targetYear, targetMonth, 1));
     start.setHours(start.getHours() - 5);
@@ -52,7 +53,21 @@ function getISTDate(offsetMonths = 0) {
     end.setHours(end.getHours() - 5);
     end.setMinutes(end.getMinutes() - 30);
 
-    return { start, end, now: new Date() };
+    return { start, end, now: new Date() }; // Strictly returns real UTC Date for comparisons
+}
+
+// --- HELPER: STRICT ENTRY DATE PARSER (IST FREEZE) ---
+function parseISTDateString(dateStr) {
+    if (!dateStr) return new Date();
+    let parsedDate;
+    if (dateStr.includes('/')) {
+        const [d, m, y] = dateStr.split('/');
+        parsedDate = new Date(`${y}-${m}-${d}T00:00:00.000Z`);
+    } else {
+        parsedDate = new Date(`${dateStr}T00:00:00.000Z`);
+    }
+    // Set strictly to IST midnight so it doesn't jump days back
+    return new Date(parsedDate.getTime() - (330 * 60000));
 }
 
 // --- HELPER: CALCULATE RUNS ---
@@ -239,12 +254,17 @@ async function fetchGroupedCustomers(baseQuery, sortObj) {
             const dateB = b.createdAt;
             return sortObj.createdAt === 1 ? dateA - dateB : dateB - dateA;
         });
+    } else if (sortObj && sortObj.activationDate) {
+         result.sort((a, b) => {
+            const dateA = a.activationDate || a.createdAt;
+            const dateB = b.activationDate || b.createdAt;
+            return sortObj.activationDate === 1 ? dateA - dateB : dateB - dateA;
+        });
     }
 
     return result;
 }
 
-// --- HELPER: SAFE REDIRECT TO FIX BROWSER REFERER ISSUES ---
 const safeRedirect = (req, res) => {
     const returnUrl = req.body.returnUrl;
     if (returnUrl && returnUrl.startsWith('/')) {
@@ -323,15 +343,20 @@ app.get('/', isAuthenticated, async (req, res) => {
         let query = { status: 'pending' };
         let headerTitle = "All Pending";
 
-        if (monthOffset !== 'all') {
+        if (monthOffset === 'all') {
+            const { now } = getISTDate(0);
+            query.verificationDate = { $lte: new Date(now.getTime() + 24*60*60*1000) };
+        } else {
             const { start, end, now } = getISTDate(monthOffset);
             const displayMonth = new Date(start);
             displayMonth.setMinutes(displayMonth.getMinutes() + 330);
-            query.verificationDate = { $gte: start, $lt: end, $lte: new Date(now.getTime() + 24*60*60*1000) };
+            
+            if (monthOffset === 0) {
+                query.verificationDate = { $lte: new Date(now.getTime() + 24*60*60*1000) };
+            } else {
+                query.verificationDate = { $gte: start, $lt: end, $lte: new Date(now.getTime() + 24*60*60*1000) };
+            }
             headerTitle = "Pending: " + monthNames[displayMonth.getMonth()] + " " + displayMonth.getFullYear();
-        } else {
-            const { now } = getISTDate(0);
-            query.verificationDate = { $lte: new Date(now.getTime() + 24*60*60*1000) };
         }
         
         const fullCustomers = await fetchGroupedCustomers(query, { verificationDate: 1 });
@@ -353,13 +378,18 @@ app.get('/all', isAuthenticated, async (req, res) => {
         
         if (monthOffset !== 'all') { 
             const { start, end } = getISTDate(monthOffset);
-            query = { createdAt: { $gte: start, $lt: end } }; 
+            query = { 
+                $or: [
+                    { createdAt: { $gte: start, $lt: end } },
+                    { activationDate: { $gte: start, $lt: end } }
+                ] 
+            }; 
             
             const displayMonth = new Date(start);
             displayMonth.setMinutes(displayMonth.getMinutes() + 330);
             headerTitle = "History: " + monthNames[displayMonth.getMonth()] + " " + displayMonth.getFullYear(); 
         }
-        const fullCustomers = await fetchGroupedCustomers(query, { createdAt: -1 });
+        const fullCustomers = await fetchGroupedCustomers(query, { activationDate: -1 });
 
         const totalPages = Math.ceil(fullCustomers.length / ITEMS_PER_PAGE);
         const paginatedCustomers = fullCustomers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
@@ -368,7 +398,6 @@ app.get('/all', isAuthenticated, async (req, res) => {
     } catch (err) { res.redirect('/'); }
 });
 
-// --- PDD ROUTE WITH ACTIVATION LOGIC ---
 app.get('/pdd', isAuthenticated, async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
@@ -394,7 +423,9 @@ app.get('/pdd', isAuthenticated, async (req, res) => {
                 }
             }
 
-            const actDate = new Date(c.activationDate || c.createdAt);
+            const dynamicLogic = calculateLogic(c.createdAt, c.subType || c.category);
+            const actDate = dynamicLogic.realActivationDate;
+            
             const actIst = new Date(actDate.getTime() + (330 * 60000));
             const actYear = actIst.getUTCFullYear();
             const actMonth = actIst.getUTCMonth();
@@ -423,32 +454,18 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
     try {
         const monthQuery = req.query.month; 
         let monthOffset = (monthQuery === 'all') ? 'all' : ((monthQuery === undefined) ? 0 : parseInt(monthQuery));
-        let entryQuery = {}; 
-        let headerTitle = "All Time Analysis";
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        
-        const { now } = getISTDate(0);
-        let start, end;
-        
-        if (monthOffset !== 'all') { 
-            const dates = getISTDate(monthOffset);
-            start = dates.start;
-            end = dates.end;
-            entryQuery = { createdAt: { $gte: start, $lt: end } }; 
-            
+        let headerTitle = "All Time Analysis";
+
+        const { start, end, now } = getISTDate(monthOffset === 'all' ? 0 : monthOffset);
+
+        if (monthOffset !== 'all') {
             const displayMonth = new Date(start);
             displayMonth.setMinutes(displayMonth.getMinutes() + 330);
             headerTitle = "Analysis: " + monthNames[displayMonth.getMonth()] + " " + displayMonth.getFullYear();
         }
-        const monthlyEntries = await Customer.find(entryQuery).sort({ activationDate: 1 }).lean();
 
-        let activationQuery = {};
-        if (monthOffset === 'all') {
-            activationQuery = { activationDate: { $lte: now } };
-        } else {
-            activationQuery = { activationDate: { $gte: start, $lt: end, $lte: now } };
-        }
-        const monthlyActivations = await Customer.find(activationQuery);
+        const allCustomers = await Customer.find().lean();
 
         const stats = { 
             total: 0, activated: 0, runs: 0, 
@@ -456,59 +473,93 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
             completed: 0, pending: 0 
         };
 
-        monthlyEntries.forEach(c => {
-            stats.total++; 
-            if (c.status === 'completed') stats.completed++; else stats.pending++;
+        const pendingListRaw = [];
 
-            if (c.subType === 'NC') stats.nc++;
-            else if (c.subType === 'P2P') stats.p2p++;
-            else if (c.subType === 'MNP') stats.mnp++;
-            else if (c.subType === 'NMNP') stats.nmnp++;
+        allCustomers.forEach(c => {
+            const cEntry = new Date(c.createdAt);
             
-            if (c.category === 'Family') stats.family++;
+            const dynamicLogic = calculateLogic(c.createdAt, c.subType || c.category);
+            let cAct = dynamicLogic.realActivationDate; 
 
-            if (c.category === 'Family' && c.familyRole === 'Secondary') {
-                const pStatus = c.linkedPrimaryStatus || '';
-                if (!pStatus.includes('Existing') && !pStatus.includes('Active')) {
-                    const primaryDoc = monthlyEntries.find(p => p.category === 'Family' && p.familyRole === 'Primary' && p.mobile === c.linkedPrimaryNumber);
-                    if (!primaryDoc) {
-                        stats.total++;
-                        stats.family++;
-                        if (c.status === 'completed') stats.completed++; else stats.pending++;
-                        if (pStatus.includes('NC')) stats.nc++;
-                        else if (pStatus.includes('P2P')) stats.p2p++;
-                        else if (pStatus.includes('MNP')) stats.mnp++;
-                        else if (pStatus.includes('NMNP')) stats.nmnp++;
+            let isEntryThisMonth = false;
+            let isActThisMonth = false;
+
+            if (monthOffset === 'all') {
+                isEntryThisMonth = true;
+                isActThisMonth = true;
+            } else {
+                if (cEntry >= start && cEntry < end) isEntryThisMonth = true;
+                if (cAct >= start && cAct < end) isActThisMonth = true;
+            }
+
+            if (isEntryThisMonth) {
+                stats.total++;
+                if (c.category === 'Family' && c.familyRole === 'Secondary') {
+                    const pStatus = c.linkedPrimaryStatus || '';
+                    if (!pStatus.includes('Existing') && !pStatus.includes('Active')) {
+                        const primaryDoc = allCustomers.find(p => p.category === 'Family' && p.familyRole === 'Primary' && p.mobile === c.linkedPrimaryNumber);
+                        if (!primaryDoc) stats.total++; 
                     }
+                }
+            }
+
+            if (isActThisMonth) {
+                if (c.subType === 'NC') stats.nc++;
+                else if (c.subType === 'P2P') stats.p2p++;
+                else if (c.subType === 'MNP') stats.mnp++;
+                else if (c.subType === 'NMNP') stats.nmnp++;
+                
+                if (c.category === 'Family') stats.family++;
+
+                let isActuallyActivated = (cAct <= now) || (c.status === 'completed');
+                
+                if (isActuallyActivated) {
+                    stats.activated++;
+                }
+
+                stats.runs += getRuns(c.category, c.subType);
+                if (c.status === 'completed') stats.completed++; else stats.pending++;
+
+                if (c.category === 'Family' && c.familyRole === 'Secondary') {
+                    const pStatus = c.linkedPrimaryStatus || '';
+                    if (!pStatus.includes('Existing') && !pStatus.includes('Active')) {
+                        const primaryDoc = allCustomers.find(p => p.category === 'Family' && p.familyRole === 'Primary' && p.mobile === c.linkedPrimaryNumber);
+                        if (!primaryDoc) {
+                            if (isActuallyActivated) stats.activated++;
+                            
+                            let ghostType = 'NC'; 
+                            if (pStatus.includes('NMNP')) ghostType = 'NMNP'; 
+                            else if (pStatus.includes('MNP')) ghostType = 'MNP';
+                            else if (pStatus.includes('P2P')) ghostType = 'P2P';
+                            
+                            stats.runs += getRuns('Family', ghostType); 
+                            stats.family++;
+                            
+                            if (c.status === 'completed') stats.completed++; else stats.pending++;
+
+                            if (ghostType === 'NC') stats.nc++;
+                            else if (ghostType === 'P2P') stats.p2p++;
+                            else if (ghostType === 'MNP') stats.mnp++;
+                            else if (ghostType === 'NMNP') stats.nmnp++;
+                        }
+                    }
+                }
+            }
+
+            // --- BUCKET 3: UPCOMING PENDING LIST (FIXED) ---
+            // Show only if it's strictly in the future, AND belongs to the selected month view
+            if (c.status === 'pending' && cAct > now) {
+                if (monthOffset === 'all' || isActThisMonth) {
+                    c.dynamicActDate = cAct;
+                    pendingListRaw.push(c);
                 }
             }
         });
 
-        let realActivationCount = monthlyActivations.length;
-        monthlyActivations.forEach(c => {
-            let currentRun = getRuns(c.category, c.subType);
-            stats.runs += currentRun;
+        const pendingList = pendingListRaw
+            .filter(c => !(c.category === 'Family' && c.familyRole === 'Primary'))
+            .sort((a, b) => a.dynamicActDate - b.dynamicActDate);
 
-            if (c.category === 'Family' && c.familyRole === 'Secondary') {
-                const pStatus = c.linkedPrimaryStatus || '';
-                if (!pStatus.includes('Existing') && !pStatus.includes('Active')) {
-                    const primaryDoc = monthlyActivations.find(p => p.category === 'Family' && p.familyRole === 'Primary' && p.mobile === c.linkedPrimaryNumber);
-                    if (!primaryDoc) {
-                        realActivationCount++; 
-                        let ghostType = 'NC'; 
-                        if (pStatus.includes('MNP') || pStatus.includes('NMNP')) ghostType = 'MNP';
-                        else if (pStatus.includes('P2P')) ghostType = 'P2P';
-                        stats.runs += getRuns('Family', ghostType); 
-                    }
-                }
-            }
-        });
-
-        stats.activated = realActivationCount;
-        
-        const pendingListRaw = monthlyEntries.filter(c => c.activationDate && c.activationDate > now);
-        const pendingList = pendingListRaw.filter(c => !(c.category === 'Family' && c.familyRole === 'Primary'));
-        
         res.render('analytics', { stats, pendingList, page: 'analytics', monthOffset, headerTitle });
     } catch (err) { res.redirect('/'); }
 });
@@ -519,11 +570,17 @@ app.get('/manage', isAuthenticated, async (req, res) => {
         const monthQuery = req.query.month; 
         let monthOffset = (monthQuery === 'all') ? 'all' : ((monthQuery === undefined) ? 0 : parseInt(monthQuery));
         let query = {}; let headerTitle = "Managing All Records";
+        
         if (monthOffset !== 'all') { 
             const { start, end } = getISTDate(monthOffset);
-            query = { createdAt: { $gte: start, $lt: end } }; 
+            query = { 
+                $or: [
+                    { createdAt: { $gte: start, $lt: end } },
+                    { activationDate: { $gte: start, $lt: end } }
+                ] 
+            }; 
         }
-        const fullCustomers = await fetchGroupedCustomers(query, { createdAt: -1 });
+        const fullCustomers = await fetchGroupedCustomers(query, { activationDate: -1 });
 
         const totalPages = Math.ceil(fullCustomers.length / ITEMS_PER_PAGE);
         const paginatedCustomers = fullCustomers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
@@ -560,11 +617,12 @@ app.get('/search', isAuthenticated, async (req, res) => {
     }
 });
 
-// --- STATE-PRESERVING POST ROUTES ---
+// --- POST ROUTES ---
 app.post('/add', isAuthenticated, async (req, res) => {
     try {
         const { category, customDate, remarks, p_type, p_name, p_mobile, s_type, s_name, s_mobile, n_name, n_mobile, billDate } = req.body;
-        const entryDate = customDate ? new Date(customDate) : new Date();
+        // EXACT PARSE FROM IST TO AVOID SHIFTING
+        const entryDate = customDate ? parseISTDateString(customDate) : new Date();
         const bDate = billDate ? parseInt(billDate) : null;
 
         if (category === 'Family') {
@@ -601,19 +659,18 @@ app.post('/edit/:id', isAuthenticated, async (req, res) => {
     try {
         const { category, activationDate, remarks, p_type, p_name, p_mobile, s_type, s_name, s_mobile, n_name, n_mobile, billDate } = req.body;
         
-        const userSelectedDate = new Date(activationDate);
-        userSelectedDate.setHours(0,0,0,0);
+        // EXACT PARSE FROM IST TO PREVENT 5:30 HRS UTC DAY LOSS
+        const newEntryDate = parseISTDateString(activationDate);
         const bDate = billDate ? parseInt(billDate) : null;
 
         const existingDoc = await Customer.findById(req.params.id);
         if (existingDoc && existingDoc.category === 'Family' && existingDoc.familyRole === 'Secondary') {
             const oldPrimaryMobile = existingDoc.linkedPrimaryNumber;
             if (p_type !== 'Existing') {
-                 const vDateP = new Date(userSelectedDate);
-                 vDateP.setDate(vDateP.getDate() + 3);
+                 const pLogic = calculateLogic(newEntryDate, p_type);
                  await Customer.findOneAndUpdate(
                      { category: 'Family', familyRole: 'Primary', mobile: oldPrimaryMobile },
-                     { name: p_name, mobile: p_mobile, subType: p_type, activationDate: userSelectedDate, verificationDate: vDateP, billDate: bDate }
+                     { name: p_name, mobile: p_mobile, subType: p_type, createdAt: newEntryDate, activationDate: pLogic.realActivationDate, verificationDate: pLogic.realVerificationDate, billDate: bDate }
                  );
             }
         }
@@ -632,11 +689,11 @@ app.post('/edit/:id', isAuthenticated, async (req, res) => {
             finalSubType = category;
         }
 
-        updateData.activationDate = userSelectedDate;
-        const vDate = new Date(userSelectedDate);
-        if (finalSubType !== 'Existing') { vDate.setDate(vDate.getDate() + 3); }
-        vDate.setHours(0,0,0,0);
-        updateData.verificationDate = vDate;
+        // Automatically update the calculated activation bounds based on proper Entry Date
+        const nLogic = calculateLogic(newEntryDate, finalSubType);
+        updateData.createdAt = newEntryDate; 
+        updateData.activationDate = nLogic.realActivationDate; 
+        updateData.verificationDate = nLogic.realVerificationDate; 
 
         await Customer.findByIdAndUpdate(req.params.id, updateData);
         safeRedirect(req, res);
@@ -680,7 +737,6 @@ app.post('/pay-bill/:id', isAuthenticated, async (req, res) => {
     } catch(err) { safeRedirect(req, res); }
 });
 
-// --- PAY ALL BILLS ROUTE WITH ACTIVATION LOGIC ---
 app.post('/pay-all-bills', isAuthenticated, async (req, res) => {
     try {
         const customers = await Customer.find({ billDate: { $ne: null } });
@@ -705,7 +761,9 @@ app.post('/pay-all-bills', isAuthenticated, async (req, res) => {
                 }
             }
 
-            const actDate = new Date(c.activationDate || c.createdAt);
+            const dynamicLogic = calculateLogic(c.createdAt, c.subType || c.category);
+            const actDate = dynamicLogic.realActivationDate;
+            
             const actIst = new Date(actDate.getTime() + (330 * 60000));
             const actYear = actIst.getUTCFullYear();
             const actMonth = actIst.getUTCMonth();
