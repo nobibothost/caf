@@ -28,7 +28,7 @@ window.showToast = function(msg, type = 'success') {
 // --- 3. SMART HIGHLIGHT SYSTEM ---
 window.highlightSearch = function(query) {
     document.querySelectorAll('.customer-name, .mobile-txt, .fs-info p, .fs-info h4').forEach(el => {
-        el.innerHTML = el.innerHTML.replace(/<\/?mark>/gi, ''); // Clean old marks
+        el.innerHTML = el.innerHTML.replace(/<\/?mark>/gi, ''); 
         if(!query) return;
         const textNodes = Array.from(el.childNodes).filter(node => node.nodeType === 3);
         textNodes.forEach(node => {
@@ -83,7 +83,7 @@ function initApp() {
                 clearTimeout(window.typingTimer); const query = this.value.trim();
                 const searchIcon = document.getElementById('searchIcon'); const loadingIcon = document.getElementById('loadingIcon');
                 if(searchIcon) searchIcon.style.display = 'none'; if(loadingIcon) loadingIcon.style.display = 'block';
-                window.highlightSearch(query); // Instant local highlight
+                window.highlightSearch(query); 
                 window.typingTimer = setTimeout(() => performLiveSearch(query), 400);
             });
             searchInput.dataset.listenerAttached = 'true';
@@ -94,6 +94,16 @@ function initApp() {
 document.addEventListener('DOMContentLoaded', () => {
     initApp();
     initNetworkManager();
+    
+    // Inject Chrome-like PTR Spinner DOM
+    if (!document.getElementById('ptr-spinner-container')) {
+        const ptrDiv = document.createElement('div');
+        ptrDiv.id = 'ptr-spinner-container';
+        ptrDiv.className = 'ptr-spinner-container';
+        ptrDiv.innerHTML = '<div class="ptr-icon"><i class="ri-refresh-line"></i></div>';
+        document.body.appendChild(ptrDiv);
+    }
+
     const scrollPath = sessionStorage.getItem('scrollPath');
     const currentPath = window.location.pathname + window.location.search;
     if (scrollPath === currentPath) { const scrollPos = sessionStorage.getItem('scrollPos'); if (scrollPos) setTimeout(() => window.scrollTo(0, parseInt(scrollPos)), 50); }
@@ -273,15 +283,66 @@ document.addEventListener('submit', async function(e) {
     }
 });
 
-// --- PULL TO REFRESH ---
-let touchStartY = 0;
-document.addEventListener('touchstart', e => touchStartY = e.touches[0].clientY, {passive: true});
-document.addEventListener('touchend', e => {
-    const touchEndY = e.changedTouches[0].clientY;
-    if(window.scrollY === 0 && (touchEndY - touchStartY) > 100) {
-        window.showToast('<i class="ri-refresh-line btn-spinner"></i> Syncing Fresh Data...', 'info');
-        delete window.appCache[window.location.pathname + window.location.search];
-        navigateTo(window.location.pathname + window.location.search, false);
+// --- PULL TO REFRESH (NATIVE CHROME-STYLE RUBBER BAND) ---
+let ptrTouchStartY = 0;
+let isPtrRefreshing = false;
+
+document.addEventListener('touchstart', e => {
+    if (window.scrollY === 0 && !isPtrRefreshing) {
+        ptrTouchStartY = e.touches[0].clientY;
+    }
+}, {passive: true});
+
+document.addEventListener('touchmove', e => {
+    if (window.scrollY === 0 && !isPtrRefreshing && ptrTouchStartY > 0) {
+        const touchY = e.touches[0].clientY;
+        const pullDist = Math.max(0, touchY - ptrTouchStartY);
+        const ptr = document.getElementById('ptr-spinner-container');
+        
+        if (pullDist > 0 && ptr) {
+            ptr.classList.add('pulling');
+            
+            // Rubber band effect physics (Math.pow creates tension)
+            const moveY = Math.pow(pullDist, 0.75); 
+            
+            ptr.style.opacity = Math.min(1, pullDist / 80);
+            ptr.style.top = `${-50 + moveY}px`;
+            
+            // Rotate the arrow icon as you pull
+            const icon = ptr.querySelector('.ptr-icon');
+            if (icon) icon.style.transform = `rotate(${pullDist * 2.5}deg)`;
+        }
+    }
+}, {passive: true});
+
+document.addEventListener('touchend', async e => {
+    if (window.scrollY === 0 && !isPtrRefreshing && ptrTouchStartY > 0) {
+        const touchEndY = e.changedTouches[0].clientY;
+        const pullDist = Math.max(0, touchEndY - ptrTouchStartY);
+        const ptr = document.getElementById('ptr-spinner-container');
+
+        if (ptr) {
+            ptr.classList.remove('pulling');
+            const moveY = Math.pow(pullDist, 0.75);
+            
+            if (moveY > 45) { // Trigger refresh if pulled enough
+                isPtrRefreshing = true;
+                ptr.classList.add('refreshing');
+                
+                delete window.appCache[window.location.pathname + window.location.search];
+                await navigateTo(window.location.pathname + window.location.search, false);
+                
+                ptr.classList.remove('refreshing');
+                ptr.style.top = '-50px';
+                ptr.style.opacity = '0';
+                isPtrRefreshing = false;
+            } else {
+                // Snap back without refreshing
+                ptr.style.top = '-50px';
+                ptr.style.opacity = '0';
+            }
+        }
+        ptrTouchStartY = 0;
     }
 }, {passive: true});
 

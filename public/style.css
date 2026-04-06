@@ -170,25 +170,46 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg-body); color
 mark { background-color: rgba(245, 158, 11, 0.3); color: #b45309; padding: 0 2px; border-radius: 4px; font-weight: bold; }
 
 /* --- NETWORK STATUS BANNER --- */
-.network-status-banner {
-    position: fixed;
-    bottom: 70px;
-    left: 0;
-    width: 100%;
-    padding: 8px 15px;
-    text-align: center;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: white;
-    z-index: 999;
-    transform: translateY(100%);
-    opacity: 0;
-    transition: transform 0.3s ease, opacity 0.3s ease;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-}
+.network-status-banner { position: fixed; bottom: 70px; left: 0; width: 100%; padding: 8px 15px; text-align: center; font-size: 0.85rem; font-weight: 600; color: white; z-index: 999; transform: translateY(100%); opacity: 0; transition: transform 0.3s ease, opacity 0.3s ease; display: flex; justify-content: center; align-items: center; gap: 8px; }
 .network-status-banner.show { transform: translateY(0); opacity: 1; }
 .network-status-banner.offline { background-color: #ef4444; }
 .network-status-banner.online { background-color: #10b981; }
+
+/* --- RUBBER-BAND PULL TO REFRESH SPINNER --- */
+.ptr-spinner-container {
+    position: fixed;
+    top: -50px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10000;
+    background: white;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    opacity: 0;
+    pointer-events: none;
+    /* Cubic bezier for natural satisfying bounce when it snaps */
+    transition: top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
+}
+.ptr-spinner-container.pulling {
+    transition: none; /* Disable transition so it smoothly tracks finger */
+}
+.ptr-spinner-container.refreshing {
+    top: 25px !important;
+    opacity: 1 !important;
+    transition: top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.ptr-spinner-container .ptr-icon {
+    color: var(--primary);
+    font-size: 1.5rem;
+    display: flex;
+    transition: transform 0.1s linear; /* Smooth icon rotation */
+}
+.ptr-spinner-container.refreshing .ptr-icon {
+    animation: spin 0.8s linear infinite;
+    transition: none;
+}
