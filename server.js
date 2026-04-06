@@ -74,6 +74,7 @@ function parseISTDateString(dateStr) {
 function getRuns(category, subType) {
     if (category === 'Family') {
         if (subType === 'MNP' || subType === 'NMNP') return 3; 
+        if (subType === 'P2P') return 2; 
         return 1; 
     } else {
         if (subType === 'MNP' || subType === 'NMNP') return 2; 
@@ -351,10 +352,13 @@ app.get('/', isAuthenticated, async (req, res) => {
             const displayMonth = new Date(start);
             displayMonth.setMinutes(displayMonth.getMinutes() + 330);
             
+            // STRICT MONTH BOUNDARY APPLIED HERE
             if (monthOffset === 0) {
-                query.verificationDate = { $lte: new Date(now.getTime() + 24*60*60*1000) };
+                // For this month, start strictly from 1st of this month
+                query.verificationDate = { $gte: start, $lte: new Date(now.getTime() + 24*60*60*1000) };
             } else {
-                query.verificationDate = { $gte: start, $lt: end, $lte: new Date(now.getTime() + 24*60*60*1000) };
+                // For past months, show exact start and end of that month
+                query.verificationDate = { $gte: start, $lt: end };
             }
             headerTitle = "Pending: " + monthNames[displayMonth.getMonth()] + " " + displayMonth.getFullYear();
         }
@@ -450,7 +454,6 @@ app.get('/pdd', isAuthenticated, async (req, res) => {
     } catch (err) { res.redirect('/'); }
 });
 
-// --- 🔥 100% BUG-FREE ANALYTICS: WITH CARRY-FORWARD OVERRIDE COUNTERS 🔥 ---
 app.get('/analytics', isAuthenticated, async (req, res) => {
     try {
         const monthQuery = req.query.month; 
@@ -458,7 +461,6 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         let headerTitle = "All Time Analysis";
 
-        // Generate Boundary Dates using strict getISTDate
         const { start, end, now } = getISTDate(monthOffset === 'all' ? 0 : monthOffset);
 
         if (monthOffset !== 'all') {
@@ -469,7 +471,6 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
 
         const allCustomers = await Customer.find().lean();
 
-        // Added carry variables to track previous month shiftings
         const stats = { 
             total: 0, activated: 0, runs: 0, 
             nc: 0, p2p: 0, mnp: 0, nmnp: 0, family: 0, 
@@ -508,7 +509,6 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
             }
 
             if (isActThisMonth) {
-                // Determine if this activation is bleeding over from a previous month entry
                 let isCarry = false;
                 if (monthOffset !== 'all') {
                     isCarry = (cEntry < start);
