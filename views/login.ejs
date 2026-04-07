@@ -2,108 +2,86 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Login</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
-    <link rel="stylesheet" href="/style.css">
     <style>
-        body { 
-            display: flex; justify-content: center; align-items: center; 
-            height: 100vh; background: #f1f5f9; 
-            background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
-            background-size: 20px 20px;
-        }
-        .login-card { 
-            background: rgba(255, 255, 255, 0.95); 
-            padding: 35px; border-radius: 20px; 
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1); 
-            width: 90%; max-width: 380px; 
-            border: 1px solid white;
-        }
-        .login-header { text-align: center; margin-bottom: 30px; }
-        .login-header i { font-size: 3.5rem; color: #4f46e5; filter: drop-shadow(0 4px 6px rgba(79, 70, 229, 0.3)); }
-        .btn-login { 
-            width: 100%; background: #4f46e5; color: white; padding: 14px; border: none;
-            border-radius: 10px; font-weight: 600; font-size: 1rem; cursor: pointer; margin-top: 20px;
-            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); transition: transform 0.2s;
-        }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: #f8fafc; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-image: radial-gradient(#e2e8f0 1px, transparent 1px); background-size: 20px 20px; }
+        .login-card { background: white; padding: 40px 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 360px; }
+        .logo-icon { width: 55px; height: 55px; background: #4f46e5; color: white; border-radius: 14px; display: flex; justify-content: center; align-items: center; font-size: 1.8rem; margin: 0 auto 20px auto; box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3); }
+        h2 { text-align: center; margin: 0 0 5px 0; color: #0f172a; font-size: 1.5rem; }
+        p.sub { text-align: center; color: #64748b; font-size: 0.9rem; margin-bottom: 25px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 8px; }
+        .input-wrapper { position: relative; display: flex; align-items: center; width: 100%; }
+        .input-wrapper i.left-icon { position: absolute; left: 15px; color: #64748b; font-size: 1.1rem; pointer-events: none; }
+        /* Padded left for icon, padded right for eye toggle */
+        .input-wrapper input { width: 100%; padding: 14px 45px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.95rem; outline: none; transition: all 0.2s; box-sizing: border-box; }
+        .input-wrapper input:focus { border-color: #4f46e5; background: #f8fafc; }
+        .toggle-pwd { position: absolute; right: 15px; cursor: pointer; color: #64748b; font-size: 1.1rem; padding: 5px; }
+        .remember { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #64748b; margin-bottom: 25px; cursor: pointer; }
+        .btn-login { width: 100%; padding: 15px; background: #4f46e5; color: white; border: none; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; }
         .btn-login:active { transform: scale(0.98); }
-        .remember-box { display: flex; align-items: center; gap: 8px; margin-top: 15px; font-size: 0.9rem; color: #64748b; }
-        .error-msg { background: #fee2e2; color: #991b1b; padding: 12px; border-radius: 8px; margin-bottom: 20px; text-align: center; font-size: 0.9rem; border: 1px solid #fecaca; }
+        .error-box { background: #fee2e2; color: #dc2626; padding: 12px; border-radius: 10px; font-size: 0.85rem; text-align: center; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-spinner { animation: basicSpin 1s linear infinite; display: inline-block; }
+        @keyframes basicSpin { 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
-
     <div class="login-card">
-        <div class="login-header">
-            <i class="ri-shield-keyhole-fill"></i>
-            <h2 style="margin-top: 10px;">Admin Login</h2>
-            <p style="color: #64748b; font-size: 0.9rem;">Secure Access Portal</p>
-        </div>
+        <div class="logo-icon"><i class="ri-shield-keyhole-fill"></i></div>
+        <h2>Admin Login</h2>
+        <p class="sub">Secure Access Portal</p>
 
         <% if (error) { %>
-            <div class="error-msg"><i class="ri-error-warning-fill"></i> <%= error %></div>
+            <div class="error-box"><i class="ri-error-warning-line"></i> <%= error %></div>
         <% } %>
 
-        <form action="/login" method="POST" id="loginForm" onsubmit="handleLoginSubmit()">
-            <div class="input-group">
+        <form action="/login" method="POST" id="loginForm">
+            <div class="form-group">
                 <label>Username</label>
                 <div class="input-wrapper">
-                    <i class="ri-user-3-line icon-left"></i>
+                    <i class="ri-user-line left-icon"></i>
                     <input type="text" name="username" required placeholder="Enter Username" autofocus>
                 </div>
             </div>
-
-            <div class="input-group">
+            <div class="form-group">
                 <label>Password</label>
                 <div class="input-wrapper">
-                    <i class="ri-lock-password-line icon-left"></i>
-                    <input type="password" name="Vpassword" id="passwordInput" required placeholder="Enter Password" autocomplete="current-password">
-                    <i class="ri-eye-off-line password-toggle" onclick="togglePassword(event)"></i>
+                    <i class="ri-lock-password-line left-icon"></i>
+                    <input type="password" name="Vpassword" id="pwdInput" required placeholder="Enter Password">
+                    <i class="ri-eye-off-line toggle-pwd" id="togglePwd" onclick="togglePassword()"></i>
                 </div>
             </div>
-
-            <div class="remember-box">
-                <input type="checkbox" name="remember" id="remember">
-                <label for="remember">Remember me</label>
-            </div>
-
-            <button type="submit" class="btn-login" id="loginBtn">
-                <span id="btnText">Login & Send OTP</span>
-            </button>
+            <label class="remember">
+                <input type="checkbox" name="remember"> Remember me
+            </label>
+            <button type="submit" class="btn-login" id="loginBtn">Login & Send OTP</button>
         </form>
     </div>
 
     <script>
-        function togglePassword(e) {
-            // Stop form interaction/submit
-            e.preventDefault();
-            
-            const input = document.getElementById('passwordInput');
-            const icon = document.querySelector('.password-toggle');
-            
-            if (input.type === "password") {
-                input.type = "text";
-                icon.classList.replace('ri-eye-off-line', 'ri-eye-line');
-                icon.style.color = "#4f46e5";
+        function togglePassword() {
+            const input = document.getElementById('pwdInput');
+            const icon = document.getElementById('togglePwd');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('ri-eye-off-line');
+                icon.classList.add('ri-eye-line');
             } else {
-                input.type = "password";
-                icon.classList.replace('ri-eye-line', 'ri-eye-off-line');
-                icon.style.color = "var(--text-muted)";
+                input.type = 'password';
+                icon.classList.remove('ri-eye-line');
+                icon.classList.add('ri-eye-off-line');
             }
-            // Keep keyboard open or focus on input
-            input.focus();
         }
 
-        function handleLoginSubmit() {
+        document.getElementById('loginForm').addEventListener('submit', function() {
             const btn = document.getElementById('loginBtn');
-            const btnText = document.getElementById('btnText');
-            
-            btn.classList.add('btn-loading');
-            btn.disabled = true;
-            btnText.innerHTML = '<span class="spinner"></span> Sending OTP...';
-        }
+            btn.innerHTML = '<i class="ri-loader-4-line btn-spinner"></i> Sending OTP...';
+            btn.style.opacity = '0.7';
+            btn.style.pointerEvents = 'none';
+        });
     </script>
 </body>
 </html>

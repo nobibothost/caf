@@ -12,7 +12,7 @@
             display: flex;
             justify-content: center; 
             align-items: center; 
-            height: 100vh; 
+            height: 100vh;
             background: #f1f5f9;
             background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
             background-size: 20px 20px;
@@ -56,10 +56,11 @@
             box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); 
             transition: transform 0.2s;
         }
-        .btn-verify:active { transform: scale(0.98); }
+        .btn-verify:active { transform: scale(0.98);
+        }
         
         .error-msg { 
-            background: #fee2e2; 
+            background: #fee2e2;
             color: #991b1b; 
             padding: 12px; 
             border-radius: 8px; 
@@ -67,33 +68,57 @@
             font-size: 0.9rem;
             border: 1px solid #fecaca;
         }
-        .resend-box { margin-top: 20px; font-size: 0.9rem; color: #64748b; }
+        .resend-box { margin-top: 20px; font-size: 0.9rem; color: #64748b;
+        }
 
-        /* CRITICAL: Loader & Toast Styles (In-File Backup) */
+        /* CRITICAL: Loader perfectly centered */
         .full-page-loader { 
-            display: none; 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
+            display: none;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(8px); 
-            z-index: 9999; justify-content: center; align-items: center; flex-direction: column; 
+            z-index: 9999;
+            justify-content: center; align-items: center; 
         }
         
+        .loader-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
         .toast { 
-            visibility: hidden; 
+            visibility: hidden;
             min-width: 250px; background-color: #333;
             color: #fff; text-align: center; border-radius: 8px; padding: 12px; 
-            position: fixed; z-index: 3000; left: 50%; transform: translateX(-50%); bottom: 30px; 
+            position: fixed; z-index: 3000; left: 50%; transform: translateX(-50%);
+            bottom: 30px; 
             font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); 
         }
-        .toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
-        .toast.success { background-color: #10b981; }
-        .toast.error { background-color: #ef4444; }
+        .toast.show { visibility: visible;
+            animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        .toast.success { background-color: #10b981;
+        }
+        .toast.error { background-color: #ef4444;
+        }
 
-        .big-spinner { width: 60px; height: 60px; border: 6px solid #e2e8f0;
-        border-top: 6px solid #10b981; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
-        .loading-text { font-size: 1.3rem; font-weight: 700; color: #1e293b; letter-spacing: 0.5px; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
-        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+        .big-spinner { 
+            width: 60px; height: 60px; border: 6px solid #e2e8f0;
+            border-top: 6px solid #10b981; border-radius: 50%; 
+            animation: spin 1s linear infinite; 
+            margin: 0 auto 20px auto; 
+        }
+        .loading-text { 
+            font-size: 1.3rem; font-weight: 700; color: #1e293b; letter-spacing: 0.5px;
+            text-align: center;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg);
+        } }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px;
+        opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px;
+        opacity: 1;} to {bottom: 0; opacity: 0;} }
     </style>
 </head>
 <body>
@@ -108,7 +133,8 @@
     <div class="otp-card">
         <div class="otp-icon"><i class="ri-mail-check-fill"></i></div>
         <h2>Verify Identity</h2>
-        <p style="color: #64748b; margin-bottom: 25px; font-size: 0.9rem;">Enter the code sent to your email.</p>
+        <p style="color: #64748b; 
+        margin-bottom: 25px; font-size: 0.9rem;">Enter the code sent to your email.</p>
 
         <% if (error) { %>
             <div class="error-msg"><i class="ri-error-warning-fill"></i> <%= error %></div>
@@ -117,17 +143,21 @@
         <form action="/verify-otp" method="POST" id="otpForm" onsubmit="handleOtpSubmit()">
             <div class="input-group">
                 <div class="input-wrapper">
+          
                     <i class="ri-key-2-line icon-left"></i>
                     <input type="tel" 
                            inputmode="numeric" 
                            autocomplete="one-time-code"
+           
                            name="otp" 
                            required 
                            placeholder="• • • • • •" 
+                      
                            pattern="[0-9]*" 
                            maxlength="6" 
                            autofocus
-                           style="text-align: center; letter-spacing: 8px; font-size: 1.5rem; font-weight: 700; height: 55px; padding: 0 55px !important;">
+                           style="text-align: center;
+                           letter-spacing: 8px; font-size: 1.5rem; font-weight: 700; height: 55px; padding: 0 55px !important;">
                 </div>
             </div>
 
@@ -136,10 +166,12 @@
             </button>
         </form>
 
+        
         <div class="resend-box">
             Didn't receive code? <br>
             <span id="timerText">Resend in <span id="timer">30</span>s</span>
-            <a onclick="resendOtp()" id="resendLink" class="resend-link" style="display: none; color: #10b981; font-weight: 600; cursor: pointer;">Resend OTP</a>
+            <a onclick="resendOtp()" id="resendLink" class="resend-link" style="display: none;
+            color: #10b981; font-weight: 600; cursor: pointer;">Resend OTP</a>
         </div>
     </div>
 
@@ -153,6 +185,7 @@
         let countdown;
 
         function startTimer() {
+        
             resendLink.style.display = 'none';
             timerText.style.display = 'inline';
             timeLeft = 30;
@@ -160,16 +193,18 @@
             if(countdown) clearInterval(countdown);
             countdown = setInterval(() => {
                 timeLeft--;
+       
                 timerElem.innerText = timeLeft;
                 if (timeLeft <= 0) {
                     clearInterval(countdown);
                     timerText.style.display = 'none';
                     resendLink.style.display = 'inline';
+     
                 }
             }, 1000);
         }
         startTimer();
-
+        
         function handleOtpSubmit() {
             document.getElementById('fullPageLoader').style.display = 'flex';
             const btn = document.getElementById('verifyBtn');
@@ -196,7 +231,7 @@
                     resendLink.innerHTML = "Resend OTP";
                     resendLink.style.opacity = "1";
                     resendLink.style.pointerEvents = "auto";
-                    startTimer(); 
+                    startTimer();
                 } else {
                     showToast(data.message || "Error resending OTP", "error");
                     resendLink.innerHTML = "Try Again";

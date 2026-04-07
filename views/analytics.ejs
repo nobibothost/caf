@@ -11,6 +11,27 @@
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="/style.css">
+    <style>
+        /* Force 3 columns on mobile specifically for the top row */
+        .top-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 10px;
+        }
+        .top-stats-grid .stat-card {
+            padding: 15px 5px !important;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .top-stats-grid .stat-number {
+            font-size: 1.4rem !important;
+            margin-bottom: 2px !important;
+        }
+        .top-stats-grid .stat-label {
+            font-size: 0.65rem !important;
+        }
+    </style>
 </head>
 <body>
 
@@ -40,22 +61,41 @@
                 </div>
             </form>
 
-            <div class="stats-grid">
-                <div class="stat-card stat-primary"><span class="stat-number"><%= stats.total %></span><span class="stat-label">Total Entries</span></div>
+            <div class="top-stats-grid">
+                <div class="stat-card stat-primary">
+                    <span class="stat-number"><%= stats.total %></span>
+                    <span class="stat-label">Total Entries</span>
+                </div>
             
                 <div class="stat-card stat-success">
                     <span class="stat-number"><%= stats.activated %></span>
                     <span class="stat-label">Activated</span>
                     <% if(stats.carry_activated > 0) { %>
-                        <span style="font-size: 0.65rem; color: #d1fae5; display: block; margin-top: 2px;">(Includes <%= stats.carry_activated %> from past)</span>
+                        <span style="font-size: 0.55rem; font-weight: 600; color: #d1fae5; display: block; margin-top: 2px;">(+<%= stats.carry_activated %> past)</span>
                     <% } %>
                 </div>
                 
-                <div class="stat-card stat-runs"><span class="stat-number"><i class="ri-flashlight-fill" style="font-size:1.2rem; margin-right:2px;"></i><%= stats.runs %></span><span class="stat-label">Score (Runs)</span></div>
+                <div class="stat-card stat-runs">
+                    <span class="stat-number"><i class="ri-flashlight-fill" style="font-size:1.1rem; margin-right:2px;"></i><%= stats.runs %></span>
+                    <span class="stat-label">Score (Runs)</span>
+                </div>
             </div>
 
-            <h3 class="section-label" style="margin-bottom: 15px; display: flex; align-items: center; gap: 8px;"><i class="ri-layout-grid-line"></i> Category Breakdown</h3>
-            <div class="breakdown-grid">
+            <div class="stat-revenue" style="margin-top: 15px; margin-bottom: 25px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; display: flex; align-items: center; justify-content: space-between; padding: 20px 25px; border-radius: 16px; box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3);">
+                <div>
+                    <span style="font-size: 1rem; color: #d1fae5; display: block; margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Total Earnings</span>
+                    <span style="font-size: 2.2rem; font-weight: 800; display: block; line-height: 1;">₹<%= stats.revenue %></span>
+                    <% if(stats.carry_revenue > 0) { %>
+                        <span style="font-size: 0.8rem; color: #a7f3d0; display: block; margin-top: 6px; font-weight: 500;">(Includes ₹<%= stats.carry_revenue %> carried from past)</span>
+                    <% } %>
+                </div>
+                <div style="background: rgba(255,255,255,0.2); height: 60px; width: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem;">
+                    <i class="ri-money-rupee-circle-fill"></i>
+                </div>
+            </div>
+
+            <h3 class="section-label" style="margin-bottom: 15px; display: flex; align-items: center; gap: 8px;"><i class="ri-layout-grid-line"></i> Category Details</h3>
+            <div class="breakdown-grid" style="margin-bottom: 25px;">
               
                 <div class="mini-stat bd-nc">
                     <span class="mini-num" style="color: #10b981;"><%= stats.nc %></span>
@@ -86,11 +126,24 @@
                     <% } %>
                 </div>
                 <div class="mini-stat bd-fam" style="grid-column: 1 / -1;">
-                    <span class="mini-num" style="color: #8b5cf6;"><%= stats.family %></span>
+                    <span class="mini-num" style="color: #db2777;"><%= stats.family %></span>
                     <span class="mini-lbl">Family SIMs</span>
                     <% if(stats.carry_family > 0) { %>
-                        <span style="font-size: 0.65rem; color: #8b5cf6; display: block; margin-top: 2px;">(Includes <%= stats.carry_family %> from past)</span>
+                        <span style="font-size: 0.65rem; color: #db2777; display: block; margin-top: 2px;">(Includes <%= stats.carry_family %> from past)</span>
                     <% } %>
+                </div>
+            </div>
+
+            <div style="background: white; padding: 20px; border-radius: 16px; margin-bottom: 25px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                <h3 class="section-label" style="align-self: flex-start; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;"><i class="ri-pie-chart-2-fill"></i> Visual Breakdown</h3>
+                <div style="position: relative; height: 220px; width: 100%; max-width: 320px;">
+                    <canvas id="categoryChart" 
+                        data-nc="<%= stats.nc %>" 
+                        data-p2p="<%= stats.p2p %>" 
+                        data-mnp="<%= stats.mnp %>" 
+                        data-nmnp="<%= stats.nmnp %>" 
+                        data-family="<%= stats.family %>">
+                    </canvas>
                 </div>
             </div>
 
@@ -118,10 +171,10 @@
                         <div class="pending-card">
                             <div class="pc-info">
          
-                                <h4><%= c.name %> <span class="badge badge-<%= c.subType %>" style="font-size: 0.65rem;"><%= c.subType %></span></h4>
+                                <h4><%= c.name %> <span class="badge badge-<%= c.subType %>" style="font-size: 0.65rem;"><%= c.subType %></span> <% if(c.plan) { %><span class="badge" style="background: #f3f4f6; color: #475569; font-size: 0.65rem;">₹<%= c.plan %></span><% } %></h4>
                                 <p><i class="ri-smartphone-line"></i> <%= c.mobile %></p>
                               
-                                <% if(c.category === 'Family') { %><p style="font-size: 0.7rem; color: #8b5cf6;"><i class="ri-group-line"></i> Family Connection</p><% } %>
+                                <% if(c.category === 'Family') { %><p style="font-size: 0.7rem; color: #db2777;"><i class="ri-group-line"></i> Family Connection</p><% } %>
                                 <% if(c.billDate) { %><p style="font-size: 0.7rem; color: #0ea5e9; margin-top: 2px;"><i class="ri-bill-line"></i> Bill Cycle: <%= c.billDate %>th</p><% } %>
                             </div>
                             <div class="pc-date"><span>Activates On</span><strong><%= new Date(c.dynamicActDate || c.activationDate || c.createdAt).toLocaleDateString('en-GB') %></strong></div>
@@ -140,7 +193,10 @@
                 </div>
                 <form action="/add" method="POST" id="addForm">
                     <div class="input-group"><label>Entry Date</label><div class="input-wrapper"><i class="ri-calendar-line icon-left"></i><input type="text" name="customDate" id="customDate" required placeholder="DD/MM/YYYY"></div></div>
-                    <div class="input-group"><label>Category</label><div class="input-wrapper"><i class="ri-list-check icon-left"></i><select name="category" id="category" onchange="handleCategoryChange()" required><option value="" disabled selected>Select Category</option><option value="NC">NC</option><option value="P2P">P2P</option><option value="MNP">MNP - Metro</option><option value="NMNP">NMNP - Non Metro</option><option value="Family">Family</option></select></div></div>
+                    <div class="input-group"><label>Category</label><div class="input-wrapper"><i class="ri-list-check icon-left"></i><select name="category" id="category" onchange="handleCategoryChange(false)" required><option value="" disabled selected>Select Category</option><option value="NC">NC</option><option value="P2P">P2P</option><option value="MNP">MNP - Metro</option><option value="NMNP">NMNP - Non Metro</option><option value="Family">Family</option></select></div></div>
+                    
+                    <div class="input-group"><label>Plan Value</label><div class="input-wrapper"><i class="ri-money-rupee-circle-line icon-left"></i><select name="plan" id="plan"><option value="451" selected>451</option><option value="551">551</option><option value="751">751</option><option value="1201 RedEx">1201 RedEx</option></select></div></div>
+
                     <div id="normal-form" class="form-section"><div class="input-group"><label>Name</label><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="n_name" id="n_name"></div></div><div class="input-group"><label>Mobile</label><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="n_mobile" id="n_mobile" pattern="[0-9]{10}"></div></div></div>
             
                     <div id="family-form" class="form-section">
@@ -163,30 +219,42 @@
             </div>
         </div>
 
-        <div id="customConfirmModal" class="modal-overlay" style="display: none; z-index: 10000;">
-            <div class="modal-card" style="text-align: center; max-width: 340px; padding: 30px 20px;">
-                <div id="confirmIcon" class="confirm-icon"></div>
-                <h3 id="confirmTitle" style="margin-bottom: 10px; font-size: 1.3rem;"></h3>
-                <p id="confirmMessage" style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 25px; line-height: 1.5;"></p>
-                <div class="confirm-actions">
-                    <button type="button" class="btn-confirm-cancel" onclick="closeConfirmModal()">Cancel</button>
-                    <button type="button" id="confirmYesBtn" class="btn-confirm-yes">Yes</button>
-                </div>
-            </div>
-    
-        </div>
-    </div> <div class="bottom-nav">
-        <a href="/" class="nav-item"><i class="ri-home-4-line"></i><span>Home</span></a>
-        <a href="/all" class="nav-item"><i class="ri-list-check"></i><span>All</span></a>
-        <a href="/pdd" class="nav-item"><i class="ri-file-paper-2-line"></i><span>PDD</span></a>
-        <div class="nav-fab" onclick="openModal()"><i class="ri-add-line"></i></div>
-        <a href="/search" class="nav-item"><i class="ri-search-line"></i><span>Search</span></a>
-        <a href="/manage" class="nav-item"><i class="ri-edit-2-line"></i><span>Edit</span></a>
-        <a href="/analytics" class="nav-item active"><i class="ri-pie-chart-2-fill"></i><span>Analysis</span></a>
-    </div>
+        <div id="editModal" class="modal-overlay" style="display: none;">
+            <div class="modal-card">
+                <div class="modal-header"><h3>Edit Record</h3><button onclick="closeEditModal()" class="icon-btn"><i class="ri-close-line"></i></button></div>
+                <form id="editForm" method="POST">
+                    <div class="input-group"><label>Entry Date</label><div class="input-wrapper"><i class="ri-calendar-line icon-left"></i><input type="text" name="activationDate" id="editDate" required placeholder="DD/MM/YYYY"></div></div>
+                    
+                    <div class="input-group"><label>Type</label><div class="input-wrapper"><i class="ri-list-check icon-left"></i><select name="category" id="editCategory" onchange="handleCategoryChange(true)" required><option value="NC">NC</option><option value="P2P">P2P</option><option value="MNP">MNP</option><option value="NMNP">NMNP</option><option value="Family">Family</option></select></div></div>
+                    <div class="input-group"><label>Plan Value</label><div class="input-wrapper"><i class="ri-money-rupee-circle-line icon-left"></i><select name="plan" id="editPlan"><option value="451" selected>451</option><option value="551">551</option><option value="751">751</option><option value="1201 RedEx">1201 RedEx</option></select></div></div>
 
+                    <div id="edit-normal-form" class="form-section"><div class="input-group"><label>Name</label><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="n_name" id="editNName"></div></div><div class="input-group"><label>Mobile</label><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="n_mobile" id="editNMobile" pattern="[0-9]{10}"></div></div></div>
+                    <div id="edit-family-form" class="form-section">
+                        <span class="section-label">Primary Connection</span>
+                        <div class="input-group"><label>Primary Type</label><div class="input-wrapper"><i class="ri-shield-user-line icon-left"></i><select name="p_type" id="editPType"><option value="Existing">Existing (Active)</option><option value="NC">New Entry (NC)</option><option value="P2P">New Entry (P2P)</option><option value="MNP">New MNP</option><option value="NMNP">New NMNP</option></select></div></div>
+                        <div class="input-group"><div class="input-wrapper"><i class="ri-user-star-line icon-left"></i><input type="text" name="p_name" id="editPName" placeholder="Primary Name"></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="p_mobile" id="editPMobile" placeholder="Primary Mobile" pattern="[0-9]{10}"></div></div>
+                        <div class="divider"><span>AND</span></div>
+                        <span class="section-label">Secondary Connection (This SIM)</span>
+                        <div class="input-group"><label>Secondary Type</label><div class="input-wrapper"><i class="ri-sim-card-line icon-left"></i><select name="s_type" id="editSType"><option value="NC" selected>NC</option><option value="P2P">P2P</option><option value="MNP">MNP</option><option value="NMNP">NMNP</option></select></div></div>
+                        <div class="input-group"><div class="input-wrapper"><i class="ri-user-smile-line icon-left"></i><input type="text" name="s_name" id="editSName" placeholder="Secondary Name"></div></div><div class="input-group"><div class="input-wrapper"><i class="ri-smartphone-line icon-left"></i><input type="tel" name="s_mobile" id="editSMobile" placeholder="Secondary Mobile" pattern="[0-9]{10}"></div></div>
+                    </div>
+                    <div class="input-group" style="margin-top: 15px;"><label>Bill Date (Optional)</label><div class="input-wrapper"><i class="ri-calendar-todo-line icon-left"></i><select name="billDate" id="editBillDate"><option value="">No Bill / Prepaid</option><option value="11">11th</option><option value="15">15th</option><option value="24">24th</option><option value="27">27th</option></select></div></div>
+                    <div class="input-group" style="margin-top: 15px;"><label>Remarks</label><div class="input-wrapper"><i class="ri-sticky-note-line icon-left"></i><input type="text" name="remarks" id="editRemarks"></div></div>
+                    <button type="submit" class="btn-submit">Update Record</button>
+                </form>
+                <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+                <form id="deleteForm" method="POST" onsubmit="openConfirmModal(event, this, 'delete')">
+                    <button type="submit" class="btn-delete"><i class="ri-delete-bin-line"></i> Delete Full Entry</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="customConfirmModal" class="modal-overlay" style="display: none; z-index: 10000;"><div class="modal-card" style="text-align: center; max-width: 340px; padding: 30px 20px;"><div id="confirmIcon" class="confirm-icon"></div><h3 id="confirmTitle" style="margin-bottom: 10px; font-size: 1.3rem;"></h3><p id="confirmMessage" style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 25px; line-height: 1.5;"></p><div class="confirm-actions"><button type="button" class="btn-confirm-cancel" onclick="closeConfirmModal()">Cancel</button><button type="button" id="confirmYesBtn" class="btn-confirm-yes">Yes</button></div></div></div>
+    </div> 
+    
+    <div class="bottom-nav"><a href="/" class="nav-item"><i class="ri-home-4-line"></i><span>Home</span></a><a href="/all" class="nav-item"><i class="ri-list-check"></i><span>All</span></a><a href="/pdd" class="nav-item"><i class="ri-file-paper-2-line"></i><span>PDD</span></a><div class="nav-fab" onclick="openModal()"><i class="ri-add-line"></i></div><a href="/search" class="nav-item"><i class="ri-search-line"></i><span>Search</span></a><a href="/manage" class="nav-item"><i class="ri-edit-2-line"></i><span>Edit</span></a><a href="/analytics" class="nav-item active"><i class="ri-pie-chart-2-fill"></i><span>Analysis</span></a></div>
+    
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-   
     <script src="/app.js"></script>
 </body>
 </html>
