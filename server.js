@@ -53,24 +53,30 @@ function getISTDate(offsetMonths = 0) {
     end.setHours(end.getHours() - 5);
     end.setMinutes(end.getMinutes() - 30);
 
-    return { start, end, now: new Date() }; // Strictly returns real UTC Date for comparisons
+    return { start, end, now: new Date() }; 
 }
 
-// --- HELPER: STRICT ENTRY DATE PARSER (IST FREEZE) ---
+// 🚨 CRITICAL FIX: EXACT DATE PARSING WITHOUT SERVER SHIFT
 function parseISTDateString(dateStr) {
-    if (!dateStr) return new Date();
+    if (!dateStr) {
+        const d = new Date();
+        const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+        const nd = new Date(utc + (3600000 * 5.5));
+        return new Date(Date.UTC(nd.getFullYear(), nd.getMonth(), nd.getDate()));
+    }
+    
     let parsedDate;
     if (dateStr.includes('/')) {
         const [d, m, y] = dateStr.split('/');
-        parsedDate = new Date(`${y}-${m}-${d}T00:00:00.000Z`);
+        parsedDate = new Date(Date.UTC(y, m - 1, d));
     } else {
-        parsedDate = new Date(`${dateStr}T00:00:00.000Z`);
+        const [y, m, d] = dateStr.split('-');
+        parsedDate = new Date(Date.UTC(y, m - 1, d));
     }
-    // Set strictly to IST midnight so it doesn't jump days back
-    return new Date(parsedDate.getTime() - (330 * 60000));
+    return parsedDate; 
 }
 
-// --- HELPER: CALCULATE RUNS ---
+// --- HELPER: CALCULATE RUNS & PAYOUTS ---
 function getRuns(category, subType) {
     if (category === 'Family') {
         if (subType === 'MNP' || subType === 'NMNP') return 3; 
@@ -79,6 +85,18 @@ function getRuns(category, subType) {
     } else {
         if (subType === 'MNP' || subType === 'NMNP') return 2; 
         return 1; 
+    }
+}
+
+function getPayout(category, subType, plan) {
+    const isMNP = (subType === 'MNP' || subType === 'NMNP');
+    if (category === 'Family') {
+        return isMNP ? 120 : 60;
+    } else {
+        if (plan === '1201 RedEx' || plan === '1201') return isMNP ? 400 : 200;
+        if (plan === '751') return isMNP ? 200 : 100;
+        if (plan === '551') return isMNP ? 150 : 75;
+        return isMNP ? 70 : 35;
     }
 }
 
@@ -158,6 +176,7 @@ const customerSchema = new mongoose.Schema({
     mobile: String, 
     category: String, 
     subType: String, 
+    plan: { type: String, default: '451' }, 
     region: { type: String, default: 'NA' }, 
     familyRole: { type: String, default: 'Secondary' }, 
     linkedPrimaryName: String, 
@@ -186,22 +205,21 @@ const connectDB = async () => {
 };
 connectDB();
 
-// --- LOGIC CALCULATOR ---
+// 🚨 CRITICAL FIX: EXACT UTC MATH TO PREVENT DAY SHIFTING
 function calculateLogic(baseDate, type) {
     const activationDelay = RULES.ACTIVATION_DELAY[type] !== undefined ? RULES.ACTIVATION_DELAY[type] : 0;
     const realActivationDate = new Date(baseDate);
-    realActivationDate.setDate(realActivationDate.getDate() + activationDelay);
-    realActivationDate.setHours(0,0,0,0);
+    realActivationDate.setUTCDate(realActivationDate.getUTCDate() + activationDelay);
+    realActivationDate.setUTCHours(0,0,0,0);
 
     const realVerificationDate = new Date(realActivationDate);
     if (type !== 'Existing') {
-        realVerificationDate.setDate(realVerificationDate.getDate() + RULES.VERIFICATION_DELAY);
+        realVerificationDate.setUTCDate(realVerificationDate.getUTCDate() + RULES.VERIFICATION_DELAY);
     }
-    realVerificationDate.setHours(0,0,0,0);
+    realVerificationDate.setUTCHours(0,0,0,0);
     return { realActivationDate, realVerificationDate };
 }
 
-// --- HELPER: FETCH AND GROUP CUSTOMERS ---
 async function fetchGroupedCustomers(baseQuery, sortObj) {
     const matchingDocs = await Customer.find(baseQuery).sort(sortObj).lean();
     
@@ -352,12 +370,9 @@ app.get('/', isAuthenticated, async (req, res) => {
             const displayMonth = new Date(start);
             displayMonth.setMinutes(displayMonth.getMinutes() + 330);
             
-            // STRICT MONTH BOUNDARY APPLIED HERE
             if (monthOffset === 0) {
-                // For this month, start strictly from 1st of this month
                 query.verificationDate = { $gte: start, $lte: new Date(now.getTime() + 24*60*60*1000) };
             } else {
-                // For past months, show exact start and end of that month
                 query.verificationDate = { $gte: start, $lt: end };
             }
             headerTitle = "Pending: " + monthNames[displayMonth.getMonth()] + " " + displayMonth.getFullYear();
@@ -472,17 +487,16 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
         const allCustomers = await Customer.find().lean();
 
         const stats = { 
-            total: 0, activated: 0, runs: 0, 
+            total: 0, activated: 0, runs: 0, revenue: 0,
             nc: 0, p2p: 0, mnp: 0, nmnp: 0, family: 0, 
             completed: 0, pending: 0,
-            carry_activated: 0, carry_nc: 0, carry_p2p: 0, carry_mnp: 0, carry_nmnp: 0, carry_family: 0
+            carry_activated: 0, carry_nc: 0, carry_p2p: 0, carry_mnp: 0, carry_nmnp: 0, carry_family: 0, carry_revenue: 0
         };
 
         const pendingListRaw = [];
 
         allCustomers.forEach(c => {
             const cEntry = new Date(c.createdAt);
-            
             const dynamicLogic = calculateLogic(c.createdAt, c.subType || c.category);
             let cAct = dynamicLogic.realActivationDate; 
 
@@ -526,6 +540,10 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
                 if (isActuallyActivated) {
                     stats.activated++;
                     if (isCarry) stats.carry_activated++;
+                    
+                    let earned = getPayout(c.category, c.subType, c.plan);
+                    stats.revenue += earned;
+                    if (isCarry) stats.carry_revenue += earned;
                 }
 
                 stats.runs += getRuns(c.category, c.subType);
@@ -536,15 +554,19 @@ app.get('/analytics', isAuthenticated, async (req, res) => {
                     if (!pStatus.includes('Existing') && !pStatus.includes('Active')) {
                         const primaryDoc = allCustomers.find(p => p.category === 'Family' && p.familyRole === 'Primary' && p.mobile === c.linkedPrimaryNumber);
                         if (!primaryDoc) {
-                            if (isActuallyActivated) {
-                                stats.activated++;
-                                if (isCarry) stats.carry_activated++;
-                            }
-                            
                             let ghostType = 'NC'; 
                             if (pStatus.includes('NMNP')) ghostType = 'NMNP'; 
                             else if (pStatus.includes('MNP')) ghostType = 'MNP';
                             else if (pStatus.includes('P2P')) ghostType = 'P2P';
+
+                            if (isActuallyActivated) {
+                                stats.activated++;
+                                if (isCarry) stats.carry_activated++;
+                                
+                                let ghostEarned = getPayout('Family', ghostType, c.plan);
+                                stats.revenue += ghostEarned;
+                                if (isCarry) stats.carry_revenue += ghostEarned;
+                            }
                             
                             stats.runs += getRuns('Family', ghostType); 
                             stats.family++;
@@ -633,16 +655,16 @@ app.get('/search', isAuthenticated, async (req, res) => {
 // --- POST ROUTES ---
 app.post('/add', isAuthenticated, async (req, res) => {
     try {
-        const { category, customDate, remarks, p_type, p_name, p_mobile, s_type, s_name, s_mobile, n_name, n_mobile, billDate } = req.body;
-        // EXACT PARSE FROM IST TO AVOID SHIFTING
-        const entryDate = customDate ? parseISTDateString(customDate) : new Date();
+        const { category, customDate, remarks, plan, p_type, p_name, p_mobile, s_type, s_name, s_mobile, n_name, n_mobile, billDate } = req.body;
+        // 🚨 Exact parsing bypassing any random offsets
+        const entryDate = parseISTDateString(customDate);
         const bDate = billDate ? parseInt(billDate) : null;
 
         if (category === 'Family') {
             if (p_type !== 'Existing') {
                 const pLogic = calculateLogic(entryDate, p_type);
                 const primaryCustomer = new Customer({
-                    name: p_name, mobile: p_mobile, category: 'Family', subType: p_type, region: 'NA',
+                    name: p_name, mobile: p_mobile, category: 'Family', subType: p_type, plan: plan, region: 'NA',
                     familyRole: 'Primary', linkedPrimaryName: 'Self', linkedPrimaryNumber: p_mobile, linkedPrimaryStatus: 'Primary Account',
                     remarks: remarks || '', createdAt: entryDate, activationDate: pLogic.realActivationDate, verificationDate: pLogic.realVerificationDate, status: 'pending', billDate: bDate
                 });
@@ -650,7 +672,7 @@ app.post('/add', isAuthenticated, async (req, res) => {
             }
             const sLogic = calculateLogic(entryDate, s_type);
             const secondaryCustomer = new Customer({
-                name: s_name, mobile: s_mobile, category: 'Family', subType: s_type, region: 'NA',
+                name: s_name, mobile: s_mobile, category: 'Family', subType: s_type, plan: plan, region: 'NA',
                 familyRole: 'Secondary', linkedPrimaryName: p_name, linkedPrimaryNumber: p_mobile, linkedPrimaryStatus: `Type: ${p_type}`,
                 remarks: remarks || '', createdAt: entryDate, activationDate: sLogic.realActivationDate, verificationDate: sLogic.realVerificationDate, status: 'pending', billDate: bDate
             });
@@ -658,7 +680,7 @@ app.post('/add', isAuthenticated, async (req, res) => {
         } else {
             const nLogic = calculateLogic(entryDate, category);
             const newCustomer = new Customer({
-                name: n_name, mobile: n_mobile, category: category, subType: category, region: 'NA',
+                name: n_name, mobile: n_mobile, category: category, subType: category, plan: plan, region: 'NA',
                 familyRole: '', linkedPrimaryName: '', linkedPrimaryNumber: '', linkedPrimaryStatus: '',
                 remarks: remarks || '', createdAt: entryDate, activationDate: nLogic.realActivationDate, verificationDate: nLogic.realVerificationDate, status: 'pending', billDate: bDate
             });
@@ -670,9 +692,8 @@ app.post('/add', isAuthenticated, async (req, res) => {
 
 app.post('/edit/:id', isAuthenticated, async (req, res) => {
     try {
-        const { category, activationDate, remarks, p_type, p_name, p_mobile, s_type, s_name, s_mobile, n_name, n_mobile, billDate } = req.body;
+        const { category, activationDate, remarks, plan, p_type, p_name, p_mobile, s_type, s_name, s_mobile, n_name, n_mobile, billDate } = req.body;
         
-        // EXACT PARSE FROM IST TO PREVENT 5:30 HRS UTC DAY LOSS
         const newEntryDate = parseISTDateString(activationDate);
         const bDate = billDate ? parseInt(billDate) : null;
 
@@ -683,12 +704,12 @@ app.post('/edit/:id', isAuthenticated, async (req, res) => {
                  const pLogic = calculateLogic(newEntryDate, p_type);
                  await Customer.findOneAndUpdate(
                      { category: 'Family', familyRole: 'Primary', mobile: oldPrimaryMobile },
-                     { name: p_name, mobile: p_mobile, subType: p_type, createdAt: newEntryDate, activationDate: pLogic.realActivationDate, verificationDate: pLogic.realVerificationDate, billDate: bDate }
+                     { name: p_name, mobile: p_mobile, subType: p_type, plan: plan, createdAt: newEntryDate, activationDate: pLogic.realActivationDate, verificationDate: pLogic.realVerificationDate, billDate: bDate }
                  );
             }
         }
 
-        let updateData = { category, remarks, billDate: bDate };
+        let updateData = { category, remarks, plan, billDate: bDate };
         let finalSubType = category;
 
         if (category === 'Family') {
@@ -702,7 +723,6 @@ app.post('/edit/:id', isAuthenticated, async (req, res) => {
             finalSubType = category;
         }
 
-        // Automatically update the calculated activation bounds based on proper Entry Date
         const nLogic = calculateLogic(newEntryDate, finalSubType);
         updateData.createdAt = newEntryDate; 
         updateData.activationDate = nLogic.realActivationDate; 
@@ -753,30 +773,23 @@ app.post('/pay-bill/:id', isAuthenticated, async (req, res) => {
 app.post('/pay-all-bills', isAuthenticated, async (req, res) => {
     try {
         const customers = await Customer.find({ billDate: { $ne: null } });
-        
         const today = new Date();
         const istNow = new Date(today.getTime() + (330 * 60000));
         const currentDay = istNow.getUTCDate();
         const currentMonth = istNow.getUTCMonth();
         const currentYear = istNow.getUTCFullYear();
-
         const bulkOps = [];
 
         customers.forEach(c => {
             let billYear = currentYear;
             let billMonth = currentMonth;
-
             if (currentDay <= c.billDate) {
                 billMonth -= 1;
-                if (billMonth < 0) {
-                    billMonth = 11;
-                    billYear -= 1;
-                }
+                if (billMonth < 0) { billMonth = 11; billYear -= 1; }
             }
 
             const dynamicLogic = calculateLogic(c.createdAt, c.subType || c.category);
             const actDate = dynamicLogic.realActivationDate;
-            
             const actIst = new Date(actDate.getTime() + (330 * 60000));
             const actYear = actIst.getUTCFullYear();
             const actMonth = actIst.getUTCMonth();
@@ -787,35 +800,22 @@ app.post('/pay-all-bills', isAuthenticated, async (req, res) => {
 
             if (calcBillVal >= actVal) {
                 const cycleKey = `${billYear}-${String(billMonth + 1).padStart(2, '0')}`;
-
                 if (!c.paidMonths || !c.paidMonths.includes(cycleKey)) {
                     bulkOps.push({
-                        updateOne: {
-                            filter: { _id: c._id },
-                            update: { $addToSet: { paidMonths: cycleKey } }
-                        }
+                        updateOne: { filter: { _id: c._id }, update: { $addToSet: { paidMonths: cycleKey } } }
                     });
-                    
                     if (c.category === 'Family' && c.familyRole === 'Secondary') {
                         bulkOps.push({
-                            updateOne: {
-                                filter: { category: 'Family', familyRole: 'Primary', mobile: c.linkedPrimaryNumber },
-                                update: { $addToSet: { paidMonths: cycleKey } }
-                            }
+                            updateOne: { filter: { category: 'Family', familyRole: 'Primary', mobile: c.linkedPrimaryNumber }, update: { $addToSet: { paidMonths: cycleKey } } }
                         });
                     }
                 }
             }
         });
 
-        if (bulkOps.length > 0) {
-            await Customer.bulkWrite(bulkOps);
-        }
-        
+        if (bulkOps.length > 0) { await Customer.bulkWrite(bulkOps); }
         safeRedirect(req, res);
-    } catch(err) { 
-        safeRedirect(req, res); 
-    }
+    } catch(err) { safeRedirect(req, res); }
 });
 
 app.get('*', (req, res) => { res.redirect('/'); });
@@ -824,5 +824,32 @@ app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
     const PING_INTERVAL = 5 * 60 * 1000; 
     const TARGET_URL = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
-    setInterval(async () => { try { await axios.get(`${TARGET_URL}/health`); console.log(`✅ Pinged ${TARGET_URL}`); } catch (err) { console.error(`❌ Ping Failed`); } }, PING_INTERVAL);
+    
+    global.lastDailyEmail = null;
+
+    setInterval(async () => { 
+        try { 
+            await axios.get(`${TARGET_URL}/health`);
+            
+            const istNow = new Date(new Date().getTime() + (330 * 60000));
+            const hours = istNow.getUTCHours();
+            const todayStr = istNow.toISOString().split('T')[0];
+
+            if (hours === 10 && global.lastDailyEmail !== todayStr) {
+                global.lastDailyEmail = todayStr;
+                
+                const pendingCount = await Customer.countDocuments({ status: 'pending', activationDate: { $lte: new Date(istNow.getTime() - (330*60000)) } });
+                
+                let msg = `<h3>Good Morning, Admin!</h3>`;
+                msg += `<p>You have <b>${pendingCount}</b> forms pending for activation/verification today.</p>`;
+                msg += `<p>Please log in to your dashboard to complete them and secure your revenue.</p>`;
+                
+                await axios.post(`${EMAIL_SERVICE_URL}/send-email`, { 
+                    recipient: ADMIN_EMAIL_RECEIVER, 
+                    subject: `Daily Alert: ${pendingCount} Pending Tasks`, 
+                    message: msg 
+                });
+            }
+        } catch (err) {} 
+    }, PING_INTERVAL);
 });
