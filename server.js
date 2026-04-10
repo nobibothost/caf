@@ -840,9 +840,51 @@ app.listen(PORT, () => {
                 
                 const pendingCount = await Customer.countDocuments({ status: 'pending', activationDate: { $lte: new Date(istNow.getTime() - (330*60000)) } });
                 
-                let msg = `<h3>Good Morning, Admin!</h3>`;
-                msg += `<p>You have <b>${pendingCount}</b> forms pending for activation/verification today.</p>`;
-                msg += `<p>Please log in to your dashboard to complete them and secure your revenue.</p>`;
+                let msg = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                </head>
+                <body style="margin: 0; padding: 0; background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                    <div style="display:none;font-size:1px;color:#333333;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">
+                        🔔 Daily Alert: Aaj aapke paas ${pendingCount} forms pending hain complete karne ke liye.
+                    </div>
+                    
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f4f7f6; padding: 20px;">
+                        <tr>
+                            <td align="center">
+                                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 480px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.05);">
+                                    <tr>
+                                        <td style="background: linear-gradient(135deg, #10b981, #059669); padding: 30px 20px; text-align: center;">
+                                            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: 1px;">VerifyHub Daily Alert</h1>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 40px 30px; text-align: center;">
+                                            <h2 style="margin: 0 0 20px 0; color: #1e293b; font-size: 22px;">Good Morning, Admin! ☀️</h2>
+                                            
+                                            <div style="background-color: #fffbeb; border: 1px solid #fde68a; padding: 25px; border-radius: 12px; margin-bottom: 25px;">
+                                                <span style="font-size: 42px; font-weight: 800; color: #d97706; display: block; margin-bottom: 5px; line-height: 1;">${pendingCount}</span>
+                                                <span style="font-size: 15px; font-weight: 600; color: #92400e;">Pending Tasks For Today</span>
+                                            </div>
+                                            
+                                            <p style="margin: 0; color: #64748b; font-size: 15px; line-height: 1.6;">
+                                                Aapke dashboard par <b>${pendingCount}</b> forms activation ya verification ke liye pending hain. Kripya login karke inhe complete karein aur apni revenue secure karein.
+                                            </p>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="background-color: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0;">
+                                            &copy; ${new Date().getFullYear()} VerifyHub System<br>Automated Daily Report
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </body>
+                </html>`;
                 
                 await axios.post(`${EMAIL_SERVICE_URL}/send-email`, { 
                     recipient: ADMIN_EMAIL_RECEIVER, 
