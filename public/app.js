@@ -9,6 +9,162 @@ window.fpEdit = null;
 window.formToSubmit = null;
 const fpConfig = { dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", allowInput: true, disableMobile: true };
 
+// --- CALLING LOGIC (SMART CALL TRACKER) ---
+const callReasons = {
+    'pdd': [
+        'Ring but not received', 
+        'Switched off', 
+        'Not reachable', 
+        '3rd party attended', 
+        'Will pay today', 
+        'Pay tomorrow', 
+        'Pay later', 
+        "Don't want to pay", 
+        'Escalate', 
+        'Call Cancelled / Error'
+    ],
+    'verification': [
+        'Ring but not received', 
+        'Switched off', 
+        'Not reachable', 
+        'Call back', 
+        '3rd person received', 
+        'Verification not done', 
+        'Will visit store', 
+        'Call Cancelled / Error'
+    ],
+    'normal': [
+        'Ring but not received', 
+        'Switched off', 
+        'Not reachable', 
+        'Call back', 
+        '3rd person received', 
+        'Call Cancelled / Error'
+    ]
+};
+
+function ensureCallModalExists() {
+    if (document.getElementById('callLogModal')) return;
+    const modalHtml = `
+    <div id="callLogModal" class="modal-overlay" style="display: none; z-index: 12000;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="ri-phone-line" style="color: var(--primary);"></i> Log Call Outcome</h3>
+                <button type="button" onclick="closeCallLogModal()" class="icon-btn"><i class="ri-close-line"></i></button>
+            </div>
+            <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 15px;">You just returned from a call. Please record the outcome to continue.</p>
+            <form id="callLogForm" onsubmit="submitCallLog(event)">
+                <input type="hidden" id="callLogCustomerId">
+                <input type="hidden" id="callLogPageType">
+                <div class="input-group">
+                    <label>Call Reason / Outcome <span style="color:red">*</span></label>
+                    <div class="input-wrapper">
+                        <i class="ri-question-answer-line icon-left"></i>
+                        <select id="callLogReason" required>
+                            <option value="" disabled selected>Select an outcome...</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="input-group" style="margin-top: 15px;">
+                    <label>Optional Notes</label>
+                    <div class="input-wrapper">
+                        <i class="ri-sticky-note-line icon-left"></i>
+                        <input type="text" id="callLogNotes" placeholder="Any additional details...">
+                    </div>
+                </div>
+                <button type="submit" class="btn-submit" style="margin-top:20px;">Save Call Log</button>
+            </form>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+window.closeCallLogModal = function() {
+    const m = document.getElementById('callLogModal');
+    if (m) {
+        m.classList.remove('active');
+        setTimeout(() => m.style.display = 'none', 300);
+    }
+    sessionStorage.removeItem('pendingCallLog');
+    sessionStorage.removeItem('callStartedTime');
+};
+
+window.handleCallClick = function(e, element) {
+    const id = element.getAttribute('data-id');
+    let page = element.getAttribute('data-page');
+    if (!page) page = 'normal';
+    sessionStorage.setItem('pendingCallLog', JSON.stringify({ id, page }));
+    sessionStorage.setItem('callStartedTime', Date.now());
+};
+
+function checkPendingCallLog() {
+    const pending = sessionStorage.getItem('pendingCallLog');
+    const startTime = sessionStorage.getItem('callStartedTime');
+    if (pending && startTime) {
+        if (Date.now() - parseInt(startTime) > 1000) { 
+            showCallLogModal(JSON.parse(pending));
+        }
+    }
+}
+
+document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') {
+        setTimeout(checkPendingCallLog, 500);
+    }
+});
+window.addEventListener('focus', () => setTimeout(checkPendingCallLog, 500));
+
+function showCallLogModal(data) {
+    sessionStorage.removeItem('pendingCallLog');
+    sessionStorage.removeItem('callStartedTime');
+    
+    ensureCallModalExists();
+    document.getElementById('callLogCustomerId').value = data.id;
+    document.getElementById('callLogPageType').value = data.page;
+    
+    const reasonSelect = document.getElementById('callLogReason');
+    const reasons = callReasons[data.page] || callReasons['normal'];
+    reasonSelect.innerHTML = '<option value="" disabled selected>Select an outcome...</option>' + 
+        reasons.map(r => `<option value="${r}">${r}</option>`).join('');
+        
+    document.getElementById('callLogNotes').value = '';
+    
+    const m = document.getElementById('callLogModal');
+    m.style.display = 'flex';
+    setTimeout(() => m.classList.add('active'), 10);
+}
+
+window.submitCallLog = async function(e) {
+    e.preventDefault();
+    const id = document.getElementById('callLogCustomerId').value;
+    const pageType = document.getElementById('callLogPageType').value;
+    const reason = document.getElementById('callLogReason').value;
+    const notes = document.getElementById('callLogNotes').value;
+    
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="ri-loader-4-line spin-loader"></i> Saving...';
+    btn.disabled = true;
+
+    try {
+        await fetch(`/log-call/${id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pageType, reason, notes })
+        });
+        const m = document.getElementById('callLogModal');
+        m.classList.remove('active');
+        setTimeout(() => m.style.display = 'none', 300);
+        
+        navigateTo(window.location.pathname + window.location.search, false);
+    } catch(err) {
+        alert("Failed to save call log.");
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+};
+
 // --- CHART RENDERING LOGIC ---
 function renderChart(chartCanvas) {
     if (window.myPieChart) window.myPieChart.destroy(); 
@@ -247,7 +403,6 @@ window.handleCategoryChange = function(isEdit = false) {
     nForm.classList.remove('active'); 
     fForm.classList.remove('active'); 
     
-    // Dynamically change Plans based on Family/Normal
     if(planSelect) {
         if (cat === 'Family') { 
             planSelect.innerHTML = '<option value="701">701</option><option value="1201">1201</option><option value="1401">1401</option><option value="1601 RedEx">1601 RedEx</option>'; 
@@ -430,8 +585,14 @@ document.addEventListener('click', function(e) {
         }
     }
     if (e.target.classList.contains('modal-overlay')) { 
-        e.target.classList.remove('active'); 
-        setTimeout(() => e.target.style.display = 'none', 300); 
+        if (e.target.id === 'callLogModal') {
+            if (typeof window.closeCallLogModal === 'function') {
+                window.closeCallLogModal();
+            }
+        } else {
+            e.target.classList.remove('active'); 
+            setTimeout(() => e.target.style.display = 'none', 300); 
+        }
     }
 });
 
@@ -447,7 +608,7 @@ document.addEventListener('submit', function(e) {
             submitBtn.style.cursor = 'not-allowed'; 
         }
     }
-    if(form.getAttribute('action') !== '/search' && !form.getAttribute('onsubmit') && form.id !== 'loginForm') {
+    if(form.getAttribute('action') !== '/search' && !form.getAttribute('onsubmit') && form.id !== 'loginForm' && form.id !== 'callLogForm') {
         let returnInput = form.querySelector('input[name="returnUrl"]'); 
         if (!returnInput) { 
             returnInput = document.createElement('input'); 

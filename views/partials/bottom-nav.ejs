@@ -1,0 +1,23 @@
+<div class="bottom-nav">
+    <a href="/" class="nav-item <%= page === 'home' ? 'active' : '' %>">
+        <i class="<%= page === 'home' ? 'ri-home-4-fill' : 'ri-home-4-line' %>"></i><span>Home</span>
+    </a>
+    <a href="/all" class="nav-item <%= page === 'all' ? 'active' : '' %>">
+        <i class="ri-list-check"></i><span>All</span>
+    </a>
+    <a href="/pdd" class="nav-item <%= page === 'pdd' ? 'active' : '' %>">
+        <i class="<%= page === 'pdd' ? 'ri-file-paper-2-fill' : 'ri-file-paper-2-line' %>"></i><span>PDD</span>
+    </a>
+    <div class="nav-fab" onclick="openModal()">
+        <i class="ri-add-line"></i>
+    </div>
+    <a href="/search" class="nav-item <%= page === 'search' ? 'active' : '' %>">
+        <i class="<%= page === 'search' ? 'ri-search-fill' : 'ri-search-line' %>"></i><span>Search</span>
+    </a>
+    <a href="/manage" class="nav-item <%= page === 'manage' ? 'active' : '' %>">
+        <i class="<%= page === 'manage' ? 'ri-edit-2-fill' : 'ri-edit-2-line' %>"></i><span>Edit</span>
+    </a>
+    <a href="/analytics" class="nav-item <%= page === 'analytics' ? 'active' : '' %>">
+        <i class="<%= page === 'analytics' ? 'ri-pie-chart-2-fill' : 'ri-pie-chart-line' %>"></i><span>Analysis</span>
+    </a>
+</div>

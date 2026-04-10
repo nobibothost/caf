@@ -1,0 +1,13 @@
+<nav class="navbar">
+    <div class="logo">
+        <i class="<%= icon %>"></i> <%= title1 %><span class="highlight"><%= title2 %></span>
+    </div>
+    <% if (typeof showSync !== 'undefined' && showSync) { %>
+        <a href="javascript:location.reload()" class="refresh-btn">
+            <i class="ri-refresh-line"></i> Sync
+        </a>
+    <% } %>
+    <a href="#" class="logout-btn" onclick="openConfirmModal(event, null, 'logout')">
+        <i class="ri-logout-box-r-line"></i>
+    </a>
+</nav>

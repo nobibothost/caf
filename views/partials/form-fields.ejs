@@ -1,0 +1,150 @@
+<% 
+    const catId = isEdit ? 'editCategory' : 'category';
+    const dateId = isEdit ? 'editDate' : 'customDate';
+    const dateName = isEdit ? 'activationDate' : 'customDate';
+    const planId = isEdit ? 'editPlan' : 'plan';
+    const nFormId = isEdit ? 'edit-normal-form' : 'normal-form';
+    const fFormId = isEdit ? 'edit-family-form' : 'family-form';
+    const nNameId = isEdit ? 'editNName' : 'n_name';
+    const nMobileId = isEdit ? 'editNMobile' : 'n_mobile';
+    const pTypeId = isEdit ? 'editPType' : 'p_type';
+    const pNameId = isEdit ? 'editPName' : 'p_name';
+    const pMobileId = isEdit ? 'editPMobile' : 'p_mobile';
+    const sTypeId = isEdit ? 'editSType' : 's_type';
+    const sNameId = isEdit ? 'editSName' : 's_name';
+    const sMobileId = isEdit ? 'editSMobile' : 's_mobile';
+    const billDateId = isEdit ? 'editBillDate' : 'billDate';
+    const remarksId = isEdit ? 'editRemarks' : 'remarks';
+%>
+
+<div class="input-group">
+    <label>Entry Date</label>
+    <div class="input-wrapper">
+        <i class="ri-calendar-line icon-left"></i>
+        <input type="text" name="<%= dateName %>" id="<%= dateId %>" required placeholder="DD/MM/YYYY">
+    </div>
+</div>
+
+<div class="input-group">
+    <label>Category</label>
+    <div class="input-wrapper">
+        <i class="ri-list-check icon-left"></i>
+        <select name="category" id="<%= catId %>" onchange="handleCategoryChange(<%= isEdit %>)" required>
+            <option value="" disabled selected>Select Category</option>
+            <option value="NC">NC</option>
+            <option value="P2P">P2P</option>
+            <option value="MNP">MNP</option>
+            <option value="NMNP">NMNP</option>
+            <option value="Family">Family</option>
+        </select>
+    </div>
+</div>
+
+<div class="input-group">
+    <label>Plan Value</label>
+    <div class="input-wrapper">
+        <i class="ri-price-tag-3-line icon-left"></i>
+        <select name="plan" id="<%= planId %>">
+            <option value="451" selected>451</option>
+            <option value="551">551</option>
+            <option value="751">751</option>
+            <option value="1201 RedEx">1201 RedEx</option>
+        </select>
+    </div>
+</div>
+
+<div id="<%= nFormId %>" class="form-section active">
+    <div class="input-group">
+        <label>Name</label>
+        <div class="input-wrapper">
+            <i class="ri-user-smile-line icon-left"></i>
+            <input type="text" name="n_name" id="<%= nNameId %>" placeholder="e.g., Rahul Kumar" required>
+        </div>
+    </div>
+    <div class="input-group">
+        <label>Mobile</label>
+        <div class="input-wrapper">
+            <i class="ri-smartphone-line icon-left"></i>
+            <input type="tel" name="n_mobile" id="<%= nMobileId %>" pattern="[0-9]{10}" placeholder="e.g., 9876543210" required>
+        </div>
+    </div>
+</div>
+
+<div id="<%= fFormId %>" class="form-section">
+    <span class="section-label">Primary Connection Details</span>
+    <div class="input-group">
+        <label>Primary Type</label>
+        <div class="input-wrapper">
+            <i class="ri-shield-user-line icon-left"></i>
+            <select name="p_type" id="<%= pTypeId %>">
+                <option value="Existing">Existing (Active)</option>
+                <option value="NC">New Entry (NC)</option>
+                <option value="P2P">New Entry (P2P)</option>
+                <option value="MNP">New MNP</option>
+                <option value="NMNP">New NMNP</option>
+            </select>
+        </div>
+    </div>
+    <div class="input-group">
+        <div class="input-wrapper">
+            <i class="ri-user-star-line icon-left"></i>
+            <input type="text" name="p_name" id="<%= pNameId %>" placeholder="e.g., Amit Kumar (Primary)">
+        </div>
+    </div>
+    <div class="input-group">
+        <div class="input-wrapper">
+            <i class="ri-smartphone-line icon-left"></i>
+            <input type="tel" name="p_mobile" id="<%= pMobileId %>" placeholder="e.g., 9876543210" pattern="[0-9]{10}">
+        </div>
+    </div>
+    <div class="divider"><span>AND</span></div>
+    <span class="section-label">Secondary Connection (This SIM)</span>
+    <div class="input-group">
+        <label>Secondary Type</label>
+        <div class="input-wrapper">
+            <i class="ri-sim-card-line icon-left"></i>
+            <select name="s_type" id="<%= sTypeId %>">
+                <option value="Existing">Existing (Active)</option>
+                <option value="NC" selected>NC</option>
+                <option value="P2P">P2P</option>
+                <option value="MNP">MNP</option>
+                <option value="NMNP">NMNP</option>
+            </select>
+        </div>
+    </div>
+    <div class="input-group">
+        <div class="input-wrapper">
+            <i class="ri-user-smile-line icon-left"></i>
+            <input type="text" name="s_name" id="<%= sNameId %>" placeholder="e.g., Rahul Kumar (Secondary)">
+        </div>
+    </div>
+    <div class="input-group">
+        <div class="input-wrapper">
+            <i class="ri-smartphone-line icon-left"></i>
+            <input type="tel" name="s_mobile" id="<%= sMobileId %>" placeholder="e.g., 9876543210" pattern="[0-9]{10}">
+        </div>
+    </div>
+</div>
+
+<div class="input-group" style="margin-top: 15px;">
+    <label>Bill Date (Optional)</label>
+    <div class="input-wrapper">
+        <i class="ri-calendar-todo-line icon-left"></i>
+        <select name="billDate" id="<%= billDateId %>">
+            <option value="" selected>Optional</option>
+            <option value="1">1st</option>
+            <option value="11">11th</option>
+            <option value="15">15th</option>
+            <option value="24">24th</option>
+            <option value="27">27th</option>
+        </select>
+    </div>
+</div>
+
+<div class="input-group" style="margin-top: 15px;">
+    <label>Remarks (Optional)</label>
+    <div class="input-wrapper">
+        <i class="ri-sticky-note-line icon-left"></i>
+        <input type="text" name="remarks" id="<%= remarksId %>" placeholder="Optional notes...">
+    </div>
+</div>

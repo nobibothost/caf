@@ -76,6 +76,23 @@ a { text-decoration: none; color: inherit; }
 .customer-name { font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin-bottom: 4px; }
 .mobile-txt { font-size: 0.9rem; color: var(--text-muted); font-family: monospace; letter-spacing: 0.5px; }
 
+/* Smart Calling Log Feature */
+.last-call-tracker {
+    font-size: 0.75rem;
+    color: #475569;
+    background: #f8fafc;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    border-left: 3px solid var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    line-height: 1.4;
+}
+.last-call-tracker i { color: var(--primary); font-size: 1rem; }
+.last-call-tracker strong { color: var(--text-main); }
+
 /* Buttons */
 .card-actions { display: flex; gap: 10px; margin-top: 15px; }
 .btn-call, .btn-whatsapp, .btn-edit, .btn-done, .btn-note, .btn-delete { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; border: none; cursor: pointer; transition: 0.2s; }
@@ -143,8 +160,8 @@ a { text-decoration: none; color: inherit; }
 .skeleton::after { content: ""; position: absolute; top: 0; left: -100%; width: 50%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); animation: loading 1.2s infinite; }
 @keyframes loading { 100% { left: 100%; } }
 .scroll-loader { text-align: center; padding: 20px 0; color: var(--text-muted); display: none; font-size: 0.9rem; }
-.spin-loader { animation: spin 1s linear infinite; }
-@keyframes spin { 100% { transform: translateY(-50%) rotate(360deg); } }
+.spin-loader { display: inline-block; animation: spin 1s linear infinite; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
 
 /* Custom Confirm Modal specific */
 .btn-confirm-cancel { padding: 10px 15px; border: 1px solid #cbd5e1; background: transparent; color: #475569; border-radius: 8px; font-weight: 600; cursor: pointer; flex: 1; }
