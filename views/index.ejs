@@ -11,70 +11,101 @@
         <div class="container">
             <div class="section-title"><h2><i class="ri-calendar-check-fill"></i> <%= headerTitle %></h2><p class="subtitle">Showing pending tasks.</p></div>
 
-            <form action="/" method="GET" class="filter-form"><div class="filter-wrapper"><i class="ri-filter-3-line"></i><select name="month" class="filter-select" onchange="handleFilterChange(event, this)"><option value="0" <%= monthOffset == 0 ? 'selected' : '' %>>This Month</option><option value="1" <%= monthOffset == 1 ? 'selected' : '' %>>Last Month</option><option value="2" <%= monthOffset == 2 ? 'selected' : '' %>>2 Months Ago</option><option value="all" <%= monthOffset === 'all' ? 'selected' : '' %>>Show All Pending</option></select></div></form>
+            <form action="/" method="GET" class="filter-form"><div class="filter-wrapper"><i class="ri-filter-3-line"></i><select name="month" class="filter-select" onchange="handleFilterChange(event, this)"><option value="0" <%= monthOffset == 0 ?
+'selected' : '' %>>This Month</option><option value="1" <%= monthOffset == 1 ?
+'selected' : '' %>>Last Month</option><option value="2" <%= monthOffset == 2 ?
+'selected' : '' %>>2 Months Ago</option><option value="all" <%= monthOffset === 'all' ?
+'selected' : '' %>>Show All Pending</option></select></div></form>
 
             <div class="search-box"><i class="ri-search-line"></i><input type="text" id="searchInput" onkeyup="filterList()" placeholder="Quick filter on this page..."></div>
 
             <div class="grid-layout" id="customerList" data-current-page="<%= typeof currentPage !== 'undefined' ? currentPage : 1 %>" data-total-pages="<%= typeof totalPages !== 'undefined' ? totalPages : 1 %>">
                 <% if (customers.length === 0) { %>
+                 
                     <div style="text-align: center; padding: 50px 20px; background: white; border-radius: 20px; border: 1px dashed #cbd5e1; margin-top: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.02); grid-column: 1 / -1;">
                         <div style="width: 80px; height: 80px; background: #d1fae5; color: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 3.5rem; margin: 0 auto 20px auto; box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.2);"><i class="ri-shield-check-fill"></i></div>
-                        <h3 style="margin: 0 0 10px 0; color: #0f172a; font-size: 1.4rem;">All Caught Up!</h3><p style="margin: 0; color: #64748b; font-size: 0.95rem;">No pending verifications for this period.</p>
+                
+                        <h3 style="margin: 0 0 10px 0; color: #0f172a;
+font-size: 1.4rem;">All Caught Up!</h3><p style="margin: 0; color: #64748b; font-size: 0.95rem;">No pending verifications for this period.</p>
                     </div>
                 <% } else { %>
                     <% customers.forEach(customer => { %>
+                      
                         <div class="card search-item">
                             <div class="card-top">
                                 <div style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">
+                           
                                     <% if (customer.category === 'Family') { %> <span class="badge badge-Family">Family</span> <% } else { %> <span class="badge badge-<%= customer.category %>"><%= customer.category %></span> <% } %>
                                     <% if(customer.plan) { %><span class="badge" style="background: #f3f4f6; color: #475569; font-size: 0.65rem;">₹<%= customer.plan %></span><% } %>
+                 
                                     <% if (customer.billDate) { %><span class="badge" style="background: rgba(14, 165, 233, 0.1); color: #0ea5e9;"><i class="ri-bill-line"></i> Bill: <%= customer.billDate %>th</span><% } %>
                                 </div>
+                              
                                 <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
-                                    <span style="font-size: 0.75rem; font-weight: 600; color: #64748b; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">Act: <%= new Date(new Date(customer.activationDate || customer.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></span>
-                                    <span style="font-size: 0.75rem; font-weight: 600; color: #ef4444; padding: 2px 0;">Due: <%= new Date(new Date(customer.verificationDate || customer.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></span>
+                                    <span style="font-size: 0.75rem;
+font-weight: 600; color: #64748b; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">Act: <%= new Date(new Date(customer.activationDate || customer.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></span>
+                                    <span style="font-size: 0.75rem;
+font-weight: 600; color: #ef4444; padding: 2px 0;">Due: <%= new Date(new Date(customer.verificationDate || customer.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></span>
                                 </div>
                             </div>
 
+                         
                             <% if (customer.category === 'Family') { %>
                                 <div class="family-wrapper">
                                     <div class="family-section primary-sec">
-                                        <span class="fs-label primary-label">Primary Connection <% if (customer.primaryDoc) { %><span class="badge badge-<%= customer.primaryDoc.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= customer.primaryDoc.subType %></span><% } else { %><span class="badge" style="background:#e2e8f0; color:#475569; font-size: 0.6rem; padding: 2px 5px;">Existing</span><% } %></span>
+                    
+                                        <span class="fs-label primary-label">Primary Connection <% if (customer.primaryDoc) { %><span class="badge badge-<%= customer.primaryDoc.subType %>" style="font-size: 0.6rem;
+padding: 2px 5px;"><%= customer.primaryDoc.subType %></span><% } else { %><span class="badge" style="background:#e2e8f0; color:#475569; font-size: 0.6rem;
+padding: 2px 5px;">Existing</span><% } %></span>
                                         <div class="fs-info"><h4><%= customer.linkedPrimaryName || 'Unknown' %></h4><p><%= customer.linkedPrimaryNumber %></p></div>
-                                        <div class="fs-actions"><button type="button" class="mini-btn mini-wa" onclick="openWaModal('<%= customer.linkedPrimaryNumber %>', '<%= customer.linkedPrimaryName %>', 'verification')"><i class="ri-whatsapp-line"></i></button><a href="tel:<%= customer.linkedPrimaryNumber %>" class="mini-btn mini-call" data-id="<%= customer._id %>" data-page="verification" onclick="handleCallClick(event, this)"><i class="ri-phone-fill"></i></a></div>
+                                        <div class="fs-actions"><button type="button" class="mini-btn mini-wa" onclick="openWaModal('<%= customer.linkedPrimaryNumber %>', '<%= 
+customer.linkedPrimaryName %>', 'verification')"><i class="ri-whatsapp-line"></i></button><a href="tel:8657973703,<%= customer.linkedPrimaryNumber %>" class="mini-btn mini-call" data-id="<%= customer._id %>" data-page="verification" onclick="handleCallClick(event, this)"><i class="ri-phone-fill"></i></a></div>
                                     </div>
                                     <div class="family-section secondary-sec">
-                                        <span class="fs-label secondary-label">Secondary (This SIM) <span class="badge badge-<%= customer.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= customer.subType %></span></span>
+           
+                                        <span class="fs-label secondary-label">Secondary (This SIM) <span class="badge badge-<%= customer.subType %>" style="font-size: 0.6rem;
+padding: 2px 5px;"><%= customer.subType %></span></span>
                                         <div class="fs-info"><h4 class="customer-name"><%= customer.name %></h4><p class="mobile-txt"><%= customer.mobile %></p></div>
-                                        <div class="fs-actions"><button type="button" class="mini-btn mini-wa" onclick="openWaModal('<%= customer.mobile %>', '<%= customer.name %>', 'verification')"><i class="ri-whatsapp-line"></i></button><a href="tel:<%= customer.mobile %>" class="mini-btn mini-call" data-id="<%= customer._id %>" data-page="verification" onclick="handleCallClick(event, this)"><i class="ri-phone-fill"></i></a></div>
+                                        <div class="fs-actions"><button type="button" class="mini-btn mini-wa" onclick="openWaModal('<%= customer.mobile %>', '<%= 
+customer.name %>', 'verification')"><i class="ri-whatsapp-line"></i></button><a href="tel:8657973703,<%= customer.mobile %>" class="mini-btn mini-call" data-id="<%= customer._id %>" data-page="verification" onclick="handleCallClick(event, this)"><i class="ri-phone-fill"></i></a></div>
                                     </div>
                                 </div>
+                 
                             <% } else { %>
                                 <div class="card-body"><h3 class="customer-name"><%= customer.name %></h3><p class="meta-info mobile-txt"><i class="ri-smartphone-line"></i> <%= customer.mobile %></p><p class="date-tag" style="margin-top:4px;"><i class="ri-calendar-line"></i> Entry: <%= new Date(new Date(customer.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></p></div>
                             <% } %>
 
+  
                             <% if (customer.callLogs && customer.callLogs.length > 0) { %>
-                                <% const lc = customer.callLogs[customer.callLogs.length - 1]; %>
+                                <% const lc = customer.callLogs[customer.callLogs.length - 1];
+%>
                                 <div class="last-call-tracker" style="margin-top: 12px; margin-bottom: 8px;">
                                     <i class="ri-phone-find-line"></i> 
+                         
                                     <span>Last Call: <%= new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(lc.callDate)) %> - <strong><%= lc.reason %></strong></span>
                                 </div>
                             <% } %>
 
+   
                             <% if (customer.category !== 'Family') { %>
                                 <div class="card-actions" style="margin-bottom: 8px;">
-                                    <a href="tel:<%= customer.mobile %>" class="btn-call" style="flex: 1;" data-id="<%= customer._id %>" data-page="verification" onclick="handleCallClick(event, this)"><i class="ri-phone-fill"></i> Call</a>
-                                    <button type="button" class="btn-whatsapp" style="flex: 1;" onclick="openWaModal('<%= customer.mobile %>', '<%= customer.name %>', 'verification')"><i class="ri-whatsapp-line"></i> WhatsApp</button>
+                                  
+                                    <a href="tel:8657973703,<%= customer.mobile %>" class="btn-call" style="flex: 1;" data-id="<%= customer._id %>" data-page="verification" onclick="handleCallClick(event, this)"><i class="ri-phone-fill"></i> Call</a>
+                                    <button type="button" class="btn-whatsapp" style="flex: 1;"
+onclick="openWaModal('<%= customer.mobile %>', '<%= customer.name %>', 'verification')"><i class="ri-whatsapp-line"></i> WhatsApp</button>
                                 </div>
                             <% } %>
 
-                            <div class="card-actions" style="margin-top: 0;">
+                            <div class="card-actions" 
+style="margin-top: 0;">
                                 <% if (customer.remarks && customer.remarks.trim() !== "") { %> <button class="btn-note" data-name="<%= customer.name %>" data-remarks="<%= customer.remarks %>" onclick="openRemarksModal(this)"><i class="ri-sticky-note-fill"></i></button> <% } %>
-                                <form action="/complete/<%= customer._id %>" method="POST" style="flex: 1;" onsubmit="openConfirmModal(event, this, 'done')"><button type="submit" class="btn-done" style="margin-top: 0;"><i class="ri-check-line"></i> Done</button></form>
+                                <form action="/complete/<%= customer._id %>" method="POST" style="flex: 1;"
+onsubmit="openConfirmModal(event, this, 'done')"><button type="submit" class="btn-done" style="margin-top: 0;"><i class="ri-check-line"></i> Done</button></form>
                             </div>
                         </div>
                     <% }) %>
-                <% } %>
+                <% } 
+%>
             </div>
             <div id="autoLoadSpinner" class="scroll-loader"><i class="ri-loader-4-line spin-loader"></i><br>Loading more...</div>
         </div>

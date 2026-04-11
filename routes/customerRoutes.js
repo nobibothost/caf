@@ -154,8 +154,9 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
 
         allCustomers.forEach(c => {
             const cEntry = new Date(c.createdAt);
-            const dynamicLogic = calculateLogic(c.createdAt, c.subType || c.category);
-            let cAct = dynamicLogic.realActivationDate; 
+            
+            // FIX: Use the actual saved activation date from DB, which correctly inherits the maximum delay (Primary vs Secondary).
+            let cAct = new Date(c.activationDate || c.createdAt); 
 
             let isEntryThisMonth = false;
             let isActThisMonth = false;
@@ -316,8 +317,19 @@ router.post('/add', isAuthenticated, async (req, res) => {
         const bDate = billDate ? parseInt(billDate) : null;
 
         if (category === 'Family') {
+            const sLogic = calculateLogic(entryDate, s_type);
+            const pLogic = calculateLogic(entryDate, p_type);
+            
+            let finalActDate = sLogic.realActivationDate;
+            let finalVerDate = sLogic.realVerificationDate;
+
+            // Inherit the maximum delay across the family connections
+            if (pLogic.realVerificationDate > finalVerDate) {
+                finalActDate = pLogic.realActivationDate;
+                finalVerDate = pLogic.realVerificationDate;
+            }
+
             if (p_type !== 'Existing') {
-                const pLogic = calculateLogic(entryDate, p_type);
                 const primaryCustomer = new Customer({
                     name: p_name, mobile: p_mobile, category: 'Family', subType: p_type, plan: plan, region: 'NA',
                     familyRole: 'Primary', linkedPrimaryName: 'Self', linkedPrimaryNumber: p_mobile, linkedPrimaryStatus: 'Primary Account',
@@ -325,11 +337,11 @@ router.post('/add', isAuthenticated, async (req, res) => {
                 });
                 await primaryCustomer.save();
             }
-            const sLogic = calculateLogic(entryDate, s_type);
+
             const secondaryCustomer = new Customer({
                 name: s_name, mobile: s_mobile, category: 'Family', subType: s_type, plan: plan, region: 'NA',
                 familyRole: 'Secondary', linkedPrimaryName: p_name, linkedPrimaryNumber: p_mobile, linkedPrimaryStatus: `Type: ${p_type}`,
-                remarks: remarks || '', createdAt: entryDate, activationDate: sLogic.realActivationDate, verificationDate: sLogic.realVerificationDate, status: 'pending', billDate: bDate
+                remarks: remarks || '', createdAt: entryDate, activationDate: finalActDate, verificationDate: finalVerDate, status: 'pending', billDate: bDate
             });
             await secondaryCustomer.save();
         } else {
@@ -353,15 +365,16 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
         const bDate = billDate ? parseInt(billDate) : null;
 
         const existingDoc = await Customer.findById(req.params.id);
+
         if (existingDoc && existingDoc.category === 'Family' && existingDoc.familyRole === 'Secondary') {
             const oldPrimaryMobile = existingDoc.linkedPrimaryNumber;
-            if (p_type !== 'Existing') {
-                 const pLogic = calculateLogic(newEntryDate, p_type);
-                 await Customer.findOneAndUpdate(
-                     { category: 'Family', familyRole: 'Primary', mobile: oldPrimaryMobile },
-                     { name: p_name, mobile: p_mobile, subType: p_type, plan: plan, createdAt: newEntryDate, activationDate: pLogic.realActivationDate, verificationDate: pLogic.realVerificationDate, billDate: bDate }
-                 );
-            }
+            const pLogic = calculateLogic(newEntryDate, p_type);
+            
+            // Keep primary document in sync if it exists
+            await Customer.findOneAndUpdate(
+                 { category: 'Family', familyRole: 'Primary', mobile: oldPrimaryMobile },
+                 { name: p_name, mobile: p_mobile, subType: p_type, plan: plan, createdAt: newEntryDate, activationDate: pLogic.realActivationDate, verificationDate: pLogic.realVerificationDate, billDate: bDate }
+            );
         }
 
         let updateData = { category, remarks, plan, billDate: bDate };
@@ -378,10 +391,22 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
             finalSubType = category;
         }
 
-        const nLogic = calculateLogic(newEntryDate, finalSubType);
+        const sLogic = calculateLogic(newEntryDate, finalSubType);
+        let finalActDate = sLogic.realActivationDate;
+        let finalVerDate = sLogic.realVerificationDate;
+
+        if (category === 'Family') {
+             const pLogic = calculateLogic(newEntryDate, p_type);
+             // Override with maximum delay exactly like the add route
+             if (pLogic.realVerificationDate > finalVerDate) {
+                 finalActDate = pLogic.realActivationDate;
+                 finalVerDate = pLogic.realVerificationDate;
+             }
+        }
+
         updateData.createdAt = newEntryDate; 
-        updateData.activationDate = nLogic.realActivationDate; 
-        updateData.verificationDate = nLogic.realVerificationDate; 
+        updateData.activationDate = finalActDate; 
+        updateData.verificationDate = finalVerDate; 
 
         await Customer.findByIdAndUpdate(req.params.id, updateData);
         safeRedirect(req, res);
@@ -401,7 +426,16 @@ router.post('/delete/:id', isAuthenticated, async (req, res) => {
 
 router.post('/complete/:id', isAuthenticated, async (req, res) => { 
     try { 
-        await Customer.findByIdAndUpdate(req.params.id, { status: 'completed' }); 
+        const doc = await Customer.findById(req.params.id);
+        if (doc) {
+            await Customer.findByIdAndUpdate(req.params.id, { status: 'completed' });
+            if (doc.category === 'Family' && doc.familyRole === 'Secondary') {
+                await Customer.findOneAndUpdate(
+                    { category: 'Family', familyRole: 'Primary', mobile: doc.linkedPrimaryNumber },
+                    { status: 'completed' }
+                );
+            }
+        }
         safeRedirect(req, res);
     } catch (err) { safeRedirect(req, res); } 
 });
@@ -473,7 +507,6 @@ router.post('/pay-all-bills', isAuthenticated, async (req, res) => {
     } catch(err) { safeRedirect(req, res); }
 });
 
-// --- NEW ROUTE FOR SMART CALL TRACKER ---
 router.post('/log-call/:id', isAuthenticated, async (req, res) => {
     try {
         const { pageType, reason, notes } = req.body;

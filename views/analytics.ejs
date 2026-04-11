@@ -137,14 +137,21 @@
                     <div style="text-align: center; padding: 20px; color: #94a3b8; background: white; border-radius: 12px; border: 1px dashed #e2e8f0;"><i class="ri-check-double-line" style="font-size: 1.5rem;"></i><p>No pending activations for this period.</p></div>
                 <% } else { %>
                     <% pendingList.forEach(c => { %>
-                        <div class="pending-card">
-                            <div class="pc-info">
-                                <h4><%= c.name %> <span class="badge badge-<%= c.subType %>" style="font-size: 0.65rem;"><%= c.subType %></span> <% if(c.plan) { %><span class="badge" style="background: #f3f4f6; color: #475569; font-size: 0.65rem;">₹<%= c.plan %></span><% } %></h4>
-                                <p><i class="ri-smartphone-line"></i> <%= c.mobile %></p>
-                                <% if(c.category === 'Family') { %><p style="font-size: 0.7rem; color: #db2777;"><i class="ri-group-line"></i> Family Connection</p><% } %>
-                                <% if(c.billDate) { %><p style="font-size: 0.7rem; color: #0ea5e9; margin-top: 2px;"><i class="ri-bill-line"></i> Bill Cycle: <%= c.billDate %>th</p><% } %>
+                        <div class="pending-card" style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
+                            <div class="pc-info" style="flex: 1;">
+                                <div style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center; margin-bottom: 8px;">
+                                    <% if (c.category === 'Family') { %> <span class="badge badge-Family">Family</span> <% } else { %> <span class="badge badge-<%= c.category %>"><%= c.category %></span> <% } %>
+                                    <% if (c.category === 'Family' && c.subType) { %><span class="badge badge-<%= c.subType %>" style="font-size: 0.65rem;"><%= c.subType %></span><% } %>
+                                    <% if(c.plan) { %><span class="badge" style="background: #f3f4f6; color: #475569; font-size: 0.65rem;">₹<%= c.plan %></span><% } %>
+                                    <% if(c.billDate) { %><span class="badge" style="background: rgba(14, 165, 233, 0.1); color: #0ea5e9; font-size: 0.65rem;"><i class="ri-bill-line"></i> Bill: <%= c.billDate %>th</span><% } %>
+                                </div>
+                                <h4 style="margin: 0 0 4px 0; font-size: 1.05rem; color: #0f172a;"><%= c.name %></h4>
+                                <p style="margin: 0; font-size: 0.9rem; color: #64748b; font-family: monospace;"><i class="ri-smartphone-line"></i> <%= c.mobile %></p>
                             </div>
-                            <div class="pc-date"><span>Activates On</span><strong><%= new Date(c.dynamicActDate || c.activationDate || c.createdAt).toLocaleDateString('en-GB') %></strong></div>
+                            <div class="pc-date" style="text-align: center; background: #fffbeb; border: 1px solid #fde68a; padding: 8px 12px; border-radius: 8px; min-width: 85px;">
+                                <span style="display: block; font-size: 0.65rem; color: #b45309; text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">Activates</span>
+                                <strong style="font-size: 0.95rem; color: #92400e;"><%= new Date(c.dynamicActDate || c.activationDate || c.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) %></strong>
+                            </div>
                         </div>
                     <% }) %>
                 <% } %>
