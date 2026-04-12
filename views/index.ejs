@@ -11,101 +11,163 @@
         <div class="container">
             <div class="section-title"><h2><i class="ri-calendar-check-fill"></i> <%= headerTitle %></h2><p class="subtitle">Showing pending tasks.</p></div>
 
-            <form action="/" method="GET" class="filter-form"><div class="filter-wrapper"><i class="ri-filter-3-line"></i><select name="month" class="filter-select" onchange="handleFilterChange(event, this)"><option value="0" <%= monthOffset == 0 ?
-'selected' : '' %>>This Month</option><option value="1" <%= monthOffset == 1 ?
-'selected' : '' %>>Last Month</option><option value="2" <%= monthOffset == 2 ?
-'selected' : '' %>>2 Months Ago</option><option value="all" <%= monthOffset === 'all' ?
-'selected' : '' %>>Show All Pending</option></select></div></form>
+            <form action="/" method="GET" class="filter-form"><div class="filter-wrapper"><i class="ri-filter-3-line"></i><select name="month" class="filter-select" onchange="handleFilterChange(event, this)"><option value="0" <%= monthOffset == 0 ? 'selected' : '' %>>This Month</option><option value="1" <%= monthOffset == 1 ? 'selected' : '' %>>Last Month</option><option value="2" <%= monthOffset == 2 ? 'selected' : '' %>>2 Months Ago</option><option value="all" <%= monthOffset === 'all' ? 'selected' : '' %>>Show All Pending</option></select></div></form>
 
             <div class="search-box"><i class="ri-search-line"></i><input type="text" id="searchInput" onkeyup="filterList()" placeholder="Quick filter on this page..."></div>
 
             <div class="grid-layout" id="customerList" data-current-page="<%= typeof currentPage !== 'undefined' ? currentPage : 1 %>" data-total-pages="<%= typeof totalPages !== 'undefined' ? totalPages : 1 %>">
                 <% if (customers.length === 0) { %>
-                 
                     <div style="text-align: center; padding: 50px 20px; background: white; border-radius: 20px; border: 1px dashed #cbd5e1; margin-top: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.02); grid-column: 1 / -1;">
                         <div style="width: 80px; height: 80px; background: #d1fae5; color: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 3.5rem; margin: 0 auto 20px auto; box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.2);"><i class="ri-shield-check-fill"></i></div>
-                
-                        <h3 style="margin: 0 0 10px 0; color: #0f172a;
-font-size: 1.4rem;">All Caught Up!</h3><p style="margin: 0; color: #64748b; font-size: 0.95rem;">No pending verifications for this period.</p>
+                        <h3 style="margin: 0 0 10px 0; color: #0f172a; font-size: 1.4rem;">All Caught Up!</h3><p style="margin: 0; color: #64748b; font-size: 0.95rem;">No pending verifications for this period.</p>
                     </div>
                 <% } else { %>
                     <% customers.forEach(customer => { %>
-                      
-                        <div class="card search-item">
-                            <div class="card-top">
-                                <div style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">
-                           
-                                    <% if (customer.category === 'Family') { %> <span class="badge badge-Family">Family</span> <% } else { %> <span class="badge badge-<%= customer.category %>"><%= customer.category %></span> <% } %>
-                                    <% if(customer.plan) { %><span class="badge" style="background: #f3f4f6; color: #475569; font-size: 0.65rem;">₹<%= customer.plan %></span><% } %>
-                 
-                                    <% if (customer.billDate) { %><span class="badge" style="background: rgba(14, 165, 233, 0.1); color: #0ea5e9;"><i class="ri-bill-line"></i> Bill: <%= customer.billDate %>th</span><% } %>
+                        <% if (customer.isFamilyGroup) { %>
+                            <div class="card search-item" style="border: 2px solid #fbcfe8; background: white;">
+                                <div class="card-top">
+                                    <div style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">
+                                        <span class="badge badge-Family">Family Group (<%= customer.secondaries.length %>)</span>
+                                        <% if(customer.plan) { %><span class="badge" style="background: #f3f4f6; color: #475569; font-size: 0.65rem;">₹<%= customer.plan %></span><% } %>
+                                        <% if (customer.billDate) { %><span class="badge" style="background: rgba(14, 165, 233, 0.1); color: #0ea5e9;"><i class="ri-bill-line"></i> Bill: <%= customer.billDate %>th</span><% } %>
+                                    </div>
+                                    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                                        <span style="font-size: 0.75rem; font-weight: 600; color: #64748b; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">Act: <%= new Date(new Date(customer.activationDate).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></span>
+                                    </div>
                                 </div>
-                              
-                                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
-                                    <span style="font-size: 0.75rem;
-font-weight: 600; color: #64748b; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">Act: <%= new Date(new Date(customer.activationDate || customer.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></span>
-                                    <span style="font-size: 0.75rem;
-font-weight: 600; color: #ef4444; padding: 2px 0;">Due: <%= new Date(new Date(customer.verificationDate || customer.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></span>
-                                </div>
-                            </div>
-
-                         
-                            <% if (customer.category === 'Family') { %>
-                                <div class="family-wrapper">
-                                    <div class="family-section primary-sec">
                     
-                                        <span class="fs-label primary-label">Primary Connection <% if (customer.primaryDoc) { %><span class="badge badge-<%= customer.primaryDoc.subType %>" style="font-size: 0.6rem;
-padding: 2px 5px;"><%= customer.primaryDoc.subType %></span><% } else { %><span class="badge" style="background:#e2e8f0; color:#475569; font-size: 0.6rem;
-padding: 2px 5px;">Existing</span><% } %></span>
-                                        <div class="fs-info"><h4><%= customer.linkedPrimaryName || 'Unknown' %></h4><p><%= customer.linkedPrimaryNumber %></p></div>
-                                        <div class="fs-actions"><button type="button" class="mini-btn mini-wa" onclick="openWaModal('<%= customer.linkedPrimaryNumber %>', '<%= 
-customer.linkedPrimaryName %>', 'verification')"><i class="ri-whatsapp-line"></i></button><a href="tel:8657973703,<%= customer.linkedPrimaryNumber %>" class="mini-btn mini-call" data-id="<%= customer._id %>" data-page="verification" onclick="handleCallClick(event, this)"><i class="ri-phone-fill"></i></a></div>
+                                <div class="family-wrapper" style="margin-bottom: 0; padding: 10px;">
+                                    <div class="family-section primary-sec" style="margin-bottom: 0; padding-bottom: 0; border-bottom: none;">
+                                        <span class="fs-label primary-label">Primary Connection 
+                                            <span class="badge" style="font-size: 0.6rem; padding: 2px 5px; background: #e2e8f0; color: #475569;"><%= customer.primary ? customer.primary.subType : 'Existing' %></span>
+                                        </span>
+                                        <div class="fs-info" style="display: flex; justify-content: space-between; align-items: center;">
+                                            <div>
+                                                <h4 style="margin: 0; font-size: 1rem;"><%= customer.primary ? customer.primary.name : (customer.secondaries[0] ? customer.secondaries[0].linkedPrimaryName : 'Unknown') %></h4>
+                                                <p style="margin: 0; font-family: monospace; font-size: 0.85rem; color: #64748b;"><%= customer.linkedPrimaryNumber %></p>
+                                            </div>
+                                            <div style="display: flex; gap: 8px;">
+                                                <button type="button" onclick="openWaModal('<%= customer.linkedPrimaryNumber %>', '<%= customer.primary ? customer.primary.name : (customer.secondaries[0] ? customer.secondaries[0].linkedPrimaryName : 'Unknown') %>', 'verification')" style="border:none; width: 32px; height: 32px; background: #d1fae5; color: #059669; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;"><i class="ri-whatsapp-line"></i></button>
+                                                <a href="tel:8657973703,<%= customer.linkedPrimaryNumber %>" style="width: 32px; height: 32px; background: #e2e8f0; color: #475569; border-radius: 50%; display: flex; align-items: center; justify-content: center;" onclick="handleCallClick(event, this)" data-id="<%= customer.primary ? customer.primary._id : customer.secondaries[0]._id %>" data-page="verification"><i class="ri-phone-fill"></i></a>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="family-section secondary-sec">
-           
-                                        <span class="fs-label secondary-label">Secondary (This SIM) <span class="badge badge-<%= customer.subType %>" style="font-size: 0.6rem;
-padding: 2px 5px;"><%= customer.subType %></span></span>
-                                        <div class="fs-info"><h4 class="customer-name"><%= customer.name %></h4><p class="mobile-txt"><%= customer.mobile %></p></div>
-                                        <div class="fs-actions"><button type="button" class="mini-btn mini-wa" onclick="openWaModal('<%= customer.mobile %>', '<%= 
-customer.name %>', 'verification')"><i class="ri-whatsapp-line"></i></button><a href="tel:8657973703,<%= customer.mobile %>" class="mini-btn mini-call" data-id="<%= customer._id %>" data-page="verification" onclick="handleCallClick(event, this)"><i class="ri-phone-fill"></i></a></div>
+                    
+                                    <% 
+                                    let latestCall = null;
+                                    let latestCallTarget = '';
+                                    const allMembers = [];
+                                    if(customer.primary) allMembers.push(customer.primary);
+                                    if(customer.secondaries && customer.secondaries.length > 0) allMembers.push(...customer.secondaries);
+                                    
+                                    allMembers.forEach(mem => {
+                                        if(mem.callLogs && mem.callLogs.length > 0) {
+                                            const lc = mem.callLogs[mem.callLogs.length - 1];
+                                            if(!latestCall || new Date(lc.callDate) > new Date(latestCall.callDate)) {
+                                                latestCall = lc;
+                                                latestCallTarget = mem.name || mem.mobile;
+                                            }
+                                        }
+                                    });
+                                    %>
+                                    <% if (latestCall) { %>
+                                        <div class="last-call-tracker" style="margin-top: 12px; margin-bottom: 0;">
+                                            <i class="ri-phone-find-line"></i> 
+                                            <span>Last Call (<%= latestCallTarget %>): <%= new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(latestCall.callDate)) %> - <strong><%= latestCall.reason %></strong></span>
+                                        </div>
+                                    <% } %>
+
+                                    <button type="button" id="family-btn-<%= customer.linkedPrimaryNumber %>" onclick="toggleFamily('<%= customer.linkedPrimaryNumber %>')" style="width: 100%; padding: 8px; background: #fdf2f8; border: 1px dashed #fbcfe8; color: #db2777; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; margin-top: 15px; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                                        <i class="ri-arrow-down-s-line" style="font-size: 1.1rem;"></i> Show <%= customer.secondaries.length %> Connections
+                                    </button>
+                                    
+                                    <div id="family-list-<%= customer.linkedPrimaryNumber %>" style="display: none; margin-top: 15px;">
+                                        <% customer.secondaries.forEach((sec, idx) => { %>
+                                            <div style="padding-top: 10px; margin-top: 10px; border-top: 1px dashed #e2e8f0;">
+                                                <div style="display:flex; justify-content: space-between; align-items: center;">
+                                                    <span class="fs-label secondary-label">Secondary #<%= idx + 1 %> <span class="badge badge-<%= sec.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= sec.subType %></span></span>
+                                                    <span style="font-size: 0.65rem; font-weight: 600; color: #ef4444; padding: 2px 0;">Due: <%= new Date(new Date(sec.verificationDate || sec.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></span>
+                                                </div>
+                                                <div class="fs-info" style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
+                                                    <div>
+                                                        <h4 class="customer-name" style="margin: 0; font-size: 0.95rem;"><%= sec.name %></h4>
+                                                        <p class="mobile-txt" style="margin: 0; font-size: 0.85rem;"><%= sec.mobile %></p>
+                                                    </div>
+                                                    <div style="display: flex; gap: 8px;">
+                                                        <button type="button" onclick="openWaModal('<%= sec.mobile %>', '<%= sec.name %>', 'verification')" style="border:none; width: 32px; height: 32px; background: #d1fae5; color: #059669; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;"><i class="ri-whatsapp-line"></i></button>
+                                                        <a href="tel:8657973703,<%= sec.mobile %>" style="width: 32px; height: 32px; background: #e2e8f0; color: #475569; border-radius: 50%; display: flex; align-items: center; justify-content: center;" onclick="handleCallClick(event, this)" data-id="<%= sec._id %>" data-page="verification"><i class="ri-phone-fill"></i></a>
+                                                    </div>
+                                                </div>
+                                                
+                                                <% if (sec.callLogs && sec.callLogs.length > 0) { %>
+                                                    <% const lc = sec.callLogs[sec.callLogs.length - 1]; %>
+                                                    <div class="last-call-tracker" style="margin-top: 8px; margin-bottom: 8px; padding: 6px 10px; font-size: 0.7rem;">
+                                                        <i class="ri-phone-find-line"></i> 
+                                                        <span>Last Call: <strong><%= lc.reason %></strong></span>
+                                                    </div>
+                                                <% } %>
+                                                
+                                                <% if(sec.status !== 'completed') { %>
+                                                    <form action="/complete/<%= sec._id %>" method="POST" style="margin-top: 8px;" onsubmit="openConfirmModal(event, this, 'done')"><button type="submit" class="btn-done" style="padding: 6px; font-size: 0.8rem;"><i class="ri-check-line"></i> Secondary Done</button></form>
+                                                <% } else { %>
+                                                    <div style="margin-top: 8px; padding: 6px; text-align: center; background: #ecfdf5; color: #059669; border-radius: 8px; font-size: 0.8rem; font-weight: 600;"><i class="ri-checkbox-circle-fill"></i> Secondary Completed</div>
+                                                <% } %>
+                                            </div>
+                                        <% }) %>
                                     </div>
                                 </div>
-                 
-                            <% } else { %>
-                                <div class="card-body"><h3 class="customer-name"><%= customer.name %></h3><p class="meta-info mobile-txt"><i class="ri-smartphone-line"></i> <%= customer.mobile %></p><p class="date-tag" style="margin-top:4px;"><i class="ri-calendar-line"></i> Entry: <%= new Date(new Date(customer.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></p></div>
-                            <% } %>
+                    
+                                <div class="card-actions" style="margin-top: 12px; display: flex; gap: 8px; align-items: center;">
+                                    <% if (customer.remarks && customer.remarks.trim() !== "") { %> 
+                                        <button type="button" class="btn-note" data-name="<%= customer.primary ? customer.primary.name : 'Family Group' %>" data-remarks="<%= customer.remarks %>" onclick="openRemarksModal(this)"><i class="ri-sticky-note-fill"></i></button> 
+                                    <% } %>
 
-  
-                            <% if (customer.callLogs && customer.callLogs.length > 0) { %>
-                                <% const lc = customer.callLogs[customer.callLogs.length - 1];
-%>
-                                <div class="last-call-tracker" style="margin-top: 12px; margin-bottom: 8px;">
-                                    <i class="ri-phone-find-line"></i> 
-                         
-                                    <span>Last Call: <%= new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(lc.callDate)) %> - <strong><%= lc.reason %></strong></span>
+                                    <% if (customer.primary && customer.primary.status !== 'completed' && customer.primary.subType !== 'Existing') { %>
+                                        <form action="/complete/<%= customer.primary._id %>" method="POST" style="flex: 1; margin: 0;" onsubmit="openConfirmModal(event, this, 'done')">
+                                            <button type="submit" class="btn-done" style="margin: 0; width: 100%; height: 100%; background: #d1fae5; color: #059669; border: 1px solid #10b981;"><i class="ri-check-line"></i> Primary Done</button>
+                                        </form>
+                                    <% } else if (customer.primary && customer.primary.status === 'completed') { %>
+                                        <div style="flex: 1; text-align: center; background: #ecfdf5; color: #059669; border-radius: 8px; padding: 10px 0; font-size: 0.85rem; font-weight: 600; border: 1px solid #a7f3d0;"><i class="ri-checkbox-circle-fill"></i> Primary Done</div>
+                                    <% } %>
                                 </div>
-                            <% } %>
-
-   
-                            <% if (customer.category !== 'Family') { %>
-                                <div class="card-actions" style="margin-bottom: 8px;">
-                                  
-                                    <a href="tel:8657973703,<%= customer.mobile %>" class="btn-call" style="flex: 1;" data-id="<%= customer._id %>" data-page="verification" onclick="handleCallClick(event, this)"><i class="ri-phone-fill"></i> Call</a>
-                                    <button type="button" class="btn-whatsapp" style="flex: 1;"
-onclick="openWaModal('<%= customer.mobile %>', '<%= customer.name %>', 'verification')"><i class="ri-whatsapp-line"></i> WhatsApp</button>
-                                </div>
-                            <% } %>
-
-                            <div class="card-actions" 
-style="margin-top: 0;">
-                                <% if (customer.remarks && customer.remarks.trim() !== "") { %> <button class="btn-note" data-name="<%= customer.name %>" data-remarks="<%= customer.remarks %>" onclick="openRemarksModal(this)"><i class="ri-sticky-note-fill"></i></button> <% } %>
-                                <form action="/complete/<%= customer._id %>" method="POST" style="flex: 1;"
-onsubmit="openConfirmModal(event, this, 'done')"><button type="submit" class="btn-done" style="margin-top: 0;"><i class="ri-check-line"></i> Done</button></form>
                             </div>
-                        </div>
+                        <% } else { %>
+                            <div class="card search-item">
+                                <div class="card-top">
+                                    <div style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">
+                                        <span class="badge badge-<%= customer.category %>"><%= customer.category %></span>
+                                        <% if(customer.plan) { %><span class="badge" style="background: #f3f4f6; color: #475569; font-size: 0.65rem;">₹<%= customer.plan %></span><% } %>
+                                        <% if (customer.billDate) { %><span class="badge" style="background: rgba(14, 165, 233, 0.1); color: #0ea5e9;"><i class="ri-bill-line"></i> Bill: <%= customer.billDate %>th</span><% } %>
+                                    </div>
+                                    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                                        <span style="font-size: 0.75rem; font-weight: 600; color: #64748b; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">Act: <%= new Date(new Date(customer.activationDate || customer.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></span>
+                                        <span style="font-size: 0.75rem; font-weight: 600; color: #ef4444; padding: 2px 0;">Due: <%= new Date(new Date(customer.verificationDate || customer.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></span>
+                                    </div>
+                                </div>
+
+                                <div class="card-body"><h3 class="customer-name"><%= customer.name %></h3><p class="meta-info mobile-txt"><i class="ri-smartphone-line"></i> <%= customer.mobile %></p><p class="date-tag" style="margin-top:4px;"><i class="ri-calendar-line"></i> Entry: <%= new Date(new Date(customer.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></p></div>
+
+                                <% if (customer.callLogs && customer.callLogs.length > 0) { %>
+                                    <% const lc = customer.callLogs[customer.callLogs.length - 1]; %>
+                                    <div class="last-call-tracker" style="margin-top: 12px; margin-bottom: 8px;">
+                                        <i class="ri-phone-find-line"></i> 
+                                        <span>Last Call: <%= new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(lc.callDate)) %> - <strong><%= lc.reason %></strong></span>
+                                    </div>
+                                <% } %>
+
+                                <div class="card-actions" style="margin-bottom: 8px;">
+                                    <a href="tel:8657973703,<%= customer.mobile %>" class="btn-call" style="flex: 1;" data-id="<%= customer._id %>" data-page="verification" onclick="handleCallClick(event, this)"><i class="ri-phone-fill"></i> Call</a>
+                                    <button type="button" class="btn-whatsapp" style="flex: 1;" onclick="openWaModal('<%= customer.mobile %>', '<%= customer.name %>', 'verification')"><i class="ri-whatsapp-line"></i> WhatsApp</button>
+                                </div>
+
+                                <div class="card-actions" style="margin-top: 0;">
+                                    <% if (customer.remarks && customer.remarks.trim() !== "") { %> <button class="btn-note" data-name="<%= customer.name %>" data-remarks="<%= customer.remarks %>" onclick="openRemarksModal(this)"><i class="ri-sticky-note-fill"></i></button> <% } %>
+                                    <form action="/complete/<%= customer._id %>" method="POST" style="flex: 1;" onsubmit="openConfirmModal(event, this, 'done')"><button type="submit" class="btn-done" style="margin-top: 0;"><i class="ri-check-line"></i> Done</button></form>
+                                </div>
+                            </div>
+                        <% } %>
                     <% }) %>
-                <% } 
-%>
+                <% } %>
             </div>
             <div id="autoLoadSpinner" class="scroll-loader"><i class="ri-loader-4-line spin-loader"></i><br>Loading more...</div>
         </div>

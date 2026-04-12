@@ -71,6 +71,8 @@
 </div>
 
 <div id="<%= fFormId %>" class="form-section">
+    <input type="hidden" name="old_p_mobile" id="<%= isEdit ? 'editOldPMobile' : 'oldPMobile' %>">
+    
     <span class="section-label">Primary Connection Details</span>
     <div class="input-group">
         <label>Primary Type</label>
@@ -97,8 +99,11 @@
             <input type="tel" name="p_mobile" id="<%= pMobileId %>" placeholder="e.g., 9876543210" pattern="[0-9]{10}">
         </div>
     </div>
+    
     <div class="divider"><span>AND</span></div>
     <span class="section-label">Secondary Connection (This SIM)</span>
+    
+    <input type="hidden" name="s_id" id="<%= isEdit ? 'editSId' : 's_id' %>">
     <div class="input-group">
         <label>Secondary Type</label>
         <div class="input-wrapper">
@@ -124,6 +129,13 @@
             <input type="tel" name="s_mobile" id="<%= sMobileId %>" placeholder="e.g., 9876543210" pattern="[0-9]{10}">
         </div>
     </div>
+    
+    <div id="secondaries-container-<%= isEdit ? 'edit' : 'add' %>">
+        </div>
+    
+    <button type="button" class="btn-submit" style="background: #e0e7ff; color: #4f46e5; margin-top: 15px; padding: 12px; border: 1px dashed #4f46e5;" onclick="addSecondaryRow(<%= isEdit %>)">
+        <i class="ri-add-circle-line"></i> Add Another Secondary
+    </button>
 </div>
 
 <div class="input-group" style="margin-top: 15px;">

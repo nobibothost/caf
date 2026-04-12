@@ -77,7 +77,8 @@ router.get('/all', isAuthenticated, async (req, res) => {
 router.get('/pdd', isAuthenticated, async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
-        const customers = await fetchGroupedCustomers({ billDate: { $ne: null } }, { billDate: 1 });
+        // FIX: Direct query using standard lean documents instead of complex grouping for PDD
+        const customers = await Customer.find({ billDate: { $ne: null } }).lean();
         
         const today = new Date();
         const istNow = new Date(today.getTime() + (330 * 60000));
@@ -118,6 +119,9 @@ router.get('/pdd', isAuthenticated, async (req, res) => {
                 }
             }
         });
+        
+        // Sort bills so nearest coming bills show first
+        pendingBills.sort((a, b) => a.billDate - b.billDate);
 
         const totalPages = Math.ceil(pendingBills.length / ITEMS_PER_PAGE);
         const paginatedBills = pendingBills.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
@@ -154,8 +158,6 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
 
         allCustomers.forEach(c => {
             const cEntry = new Date(c.createdAt);
-            
-            // FIX: Use the actual saved activation date from DB, which correctly inherits the maximum delay (Primary vs Secondary).
             let cAct = new Date(c.activationDate || c.createdAt); 
 
             let isEntryThisMonth = false;
@@ -323,7 +325,6 @@ router.post('/add', isAuthenticated, async (req, res) => {
             let finalActDate = sLogic.realActivationDate;
             let finalVerDate = sLogic.realVerificationDate;
 
-            // Inherit the maximum delay across the family connections
             if (pLogic.realVerificationDate > finalVerDate) {
                 finalActDate = pLogic.realActivationDate;
                 finalVerDate = pLogic.realVerificationDate;
@@ -361,16 +362,16 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
     try {
         const { category, activationDate, remarks, plan, p_type, p_name, p_mobile, s_type, s_name, s_mobile, n_name, n_mobile, billDate } = req.body;
         
-        const newEntryDate = parseISTDateString(activationDate);
+        const existingDoc = await Customer.findById(req.params.id);
+        if (!existingDoc) return safeRedirect(req, res);
+
+        const newEntryDate = parseISTDateString(activationDate, existingDoc.createdAt);
         const bDate = billDate ? parseInt(billDate) : null;
 
-        const existingDoc = await Customer.findById(req.params.id);
-
-        if (existingDoc && existingDoc.category === 'Family' && existingDoc.familyRole === 'Secondary') {
+        if (existingDoc.category === 'Family' && existingDoc.familyRole === 'Secondary') {
             const oldPrimaryMobile = existingDoc.linkedPrimaryNumber;
             const pLogic = calculateLogic(newEntryDate, p_type);
             
-            // Keep primary document in sync if it exists
             await Customer.findOneAndUpdate(
                  { category: 'Family', familyRole: 'Primary', mobile: oldPrimaryMobile },
                  { name: p_name, mobile: p_mobile, subType: p_type, plan: plan, createdAt: newEntryDate, activationDate: pLogic.realActivationDate, verificationDate: pLogic.realVerificationDate, billDate: bDate }
@@ -397,7 +398,6 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
 
         if (category === 'Family') {
              const pLogic = calculateLogic(newEntryDate, p_type);
-             // Override with maximum delay exactly like the add route
              if (pLogic.realVerificationDate > finalVerDate) {
                  finalActDate = pLogic.realActivationDate;
                  finalVerDate = pLogic.realVerificationDate;
@@ -429,12 +429,6 @@ router.post('/complete/:id', isAuthenticated, async (req, res) => {
         const doc = await Customer.findById(req.params.id);
         if (doc) {
             await Customer.findByIdAndUpdate(req.params.id, { status: 'completed' });
-            if (doc.category === 'Family' && doc.familyRole === 'Secondary') {
-                await Customer.findOneAndUpdate(
-                    { category: 'Family', familyRole: 'Primary', mobile: doc.linkedPrimaryNumber },
-                    { status: 'completed' }
-                );
-            }
         }
         safeRedirect(req, res);
     } catch (err) { safeRedirect(req, res); } 

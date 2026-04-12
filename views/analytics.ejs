@@ -147,10 +147,15 @@
                                 </div>
                                 <h4 style="margin: 0 0 4px 0; font-size: 1.05rem; color: #0f172a;"><%= c.name %></h4>
                                 <p style="margin: 0; font-size: 0.9rem; color: #64748b; font-family: monospace;"><i class="ri-smartphone-line"></i> <%= c.mobile %></p>
+                                
+                                <div style="display: flex; gap: 8px; margin-top: 10px;">
+                                    <button type="button" onclick="openWaModal('<%= c.mobile %>', '<%= c.name %>', 'verification')" style="border:none; width: 32px; height: 32px; background: #d1fae5; color: #059669; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;"><i class="ri-whatsapp-line"></i></button>
+                                    <a href="tel:8657973703,<%= c.mobile %>" style="width: 32px; height: 32px; background: #e2e8f0; color: #475569; border-radius: 50%; display: flex; align-items: center; justify-content: center;" onclick="handleCallClick(event, this)" data-id="<%= c._id %>" data-page="normal"><i class="ri-phone-fill"></i></a>
+                                </div>
                             </div>
                             <div class="pc-date" style="text-align: center; background: #fffbeb; border: 1px solid #fde68a; padding: 8px 12px; border-radius: 8px; min-width: 85px;">
                                 <span style="display: block; font-size: 0.65rem; color: #b45309; text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">Activates</span>
-                                <strong style="font-size: 0.95rem; color: #92400e;"><%= new Date(c.dynamicActDate || c.activationDate || c.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) %></strong>
+                                <strong style="font-size: 0.95rem; color: #92400e;"><%= new Date(new Date(c.dynamicActDate || c.activationDate || c.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></strong>
                             </div>
                         </div>
                     <% }) %>

@@ -254,6 +254,61 @@ document.addEventListener('DOMContentLoaded', () => {
     sessionStorage.removeItem('scrollPath');
 });
 
+// --- DYNAMIC FAMILY ROWS LOGIC ---
+window.addSecondaryRow = function(isEdit = false, data = {}) {
+    const container = document.getElementById('secondaries-container-' + (isEdit ? 'edit' : 'add'));
+    if(!container) return;
+    const rowId = Date.now() + Math.random().toString(36).substr(2, 5);
+    
+    // Naya design bilkul existing standard input fields jaisa:
+    const html = `
+    <div class="secondary-row" id="sec-row-${rowId}" style="position: relative; margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border);">
+        ${data._id ? `<input type="hidden" name="s_id" value="${data._id}">` : `<input type="hidden" name="s_id" value="">`}
+        
+        <span class="section-label" style="display:inline-block; margin-top:0;">Additional Secondary</span>
+        <button type="button" onclick="this.closest('.secondary-row').remove()" style="position: absolute; right: 0; top: 12px; background: #fee2e2; color: #ef4444; border: none; border-radius: 6px; padding: 4px 8px; cursor: pointer;"><i class="ri-delete-bin-line"></i></button>
+
+        <div class="input-group">
+            <div class="input-wrapper">
+                <i class="ri-sim-card-line icon-left"></i>
+                <select name="s_type" required>
+                    <option value="Existing" ${data.subType==='Existing'?'selected':''}>Existing (Active)</option>
+                    <option value="NC" ${data.subType==='NC'?'selected':''}>NC</option>
+                    <option value="P2P" ${data.subType==='P2P'?'selected':''}>P2P</option>
+                    <option value="MNP" ${data.subType==='MNP'?'selected':''}>MNP</option>
+                    <option value="NMNP" ${data.subType==='NMNP'?'selected':''}>NMNP</option>
+                </select>
+            </div>
+        </div>
+        <div class="input-group">
+            <div class="input-wrapper">
+                <i class="ri-user-smile-line icon-left"></i>
+                <input type="text" name="s_name" value="${data.name || ''}" placeholder="e.g., Rahul Kumar (Secondary)" required>
+            </div>
+        </div>
+        <div class="input-group">
+            <div class="input-wrapper">
+                <i class="ri-smartphone-line icon-left"></i>
+                <input type="tel" name="s_mobile" value="${data.mobile || ''}" placeholder="e.g., 9876543210" pattern="[0-9]{10}" required>
+            </div>
+        </div>
+    </div>`;
+    
+    container.insertAdjacentHTML('beforeend', html);
+};
+
+window.toggleFamily = function(id) {
+    const el = document.getElementById('family-list-' + id);
+    const btn = document.getElementById('family-btn-' + id);
+    if(el.style.display === 'none') {
+        el.style.display = 'block';
+        btn.innerHTML = '<i class="ri-arrow-up-s-line" style="font-size: 1.1rem;"></i> Hide Connections';
+    } else {
+        el.style.display = 'none';
+        btn.innerHTML = `<i class="ri-arrow-down-s-line" style="font-size: 1.1rem;"></i> Show ${el.children.length} Connections`;
+    }
+};
+
 // --- INSTANT SKELETON, SMART CACHE & SPA ROUTING ---
 async function navigateTo(url, push = true) {
     document.querySelectorAll('.bottom-nav .nav-item').forEach(link => { 
@@ -383,8 +438,20 @@ window.openModal = function() {
     m.style.display = 'flex'; 
     setTimeout(() => m.classList.add('active'), 10); 
     if(window.fpAdd) window.fpAdd.setDate(new Date()); 
+    
+    const container = document.getElementById('secondaries-container-add');
+    if(container) container.innerHTML = '';
+    
+    const sTypeAdd = document.getElementById('s_type');
+    const sNameAdd = document.getElementById('s_name');
+    const sMobileAdd = document.getElementById('s_mobile');
+    if(sTypeAdd) sTypeAdd.value = 'NC';
+    if(sNameAdd) sNameAdd.value = '';
+    if(sMobileAdd) sMobileAdd.value = '';
+
     window.handleCategoryChange(false); 
 }
+
 window.closeModal = function() { 
     const m = document.getElementById("addModal"); 
     if(!m) return; 
@@ -429,8 +496,9 @@ window.openEditModal = function(btn) {
     const delForm = document.getElementById('deleteForm'); 
     if(!form || !delForm) return;
     
-    form.action = "/edit/" + btn.getAttribute('data-id'); 
-    delForm.action = "/delete/" + btn.getAttribute('data-id'); 
+    const id = btn.getAttribute('data-id');
+    form.action = "/edit/" + id; 
+    delForm.action = "/delete/" + id; 
     
     const cat = btn.getAttribute('data-category'); 
     document.getElementById('editCategory').value = cat;
@@ -444,19 +512,33 @@ window.openEditModal = function(btn) {
     document.getElementById('editBillDate').value = btn.getAttribute('data-billdate') || '';
     
     if (cat === 'Family') { 
-        const pStatus = btn.getAttribute('data-p-status'); 
-        let pType = 'Existing'; 
-        if (pStatus.includes('NMNP')) pType = 'NMNP'; 
-        else if (pStatus.includes('MNP')) pType = 'MNP'; 
-        else if (pStatus.includes('NC')) pType = 'NC'; 
-        else if (pStatus.includes('P2P')) pType = 'P2P'; 
-        
-        document.getElementById('editPType').value = pType; 
+        document.getElementById('editOldPMobile').value = btn.getAttribute('data-p-mobile');
+        document.getElementById('editPType').value = btn.getAttribute('data-p-status'); 
         document.getElementById('editPName').value = btn.getAttribute('data-p-name'); 
         document.getElementById('editPMobile').value = btn.getAttribute('data-p-mobile'); 
-        document.getElementById('editSType').value = btn.getAttribute('data-subtype'); 
-        document.getElementById('editSName').value = btn.getAttribute('data-name'); 
-        document.getElementById('editSMobile').value = btn.getAttribute('data-mobile');
+        
+        const secContainer = document.getElementById('secondaries-container-edit');
+        if(secContainer) secContainer.innerHTML = '';
+        
+        const secDataStr = btn.getAttribute('data-secondaries');
+        if(secDataStr) {
+            const secondaries = JSON.parse(decodeURIComponent(secDataStr));
+            if(secondaries.length > 0) {
+                document.getElementById('editSType').value = secondaries[0].subType || 'NC';
+                document.getElementById('editSName').value = secondaries[0].name || '';
+                document.getElementById('editSMobile').value = secondaries[0].mobile || '';
+                document.getElementById('editSId').value = secondaries[0]._id || '';
+                
+                for(let i = 1; i < secondaries.length; i++) {
+                    window.addSecondaryRow(true, secondaries[i]);
+                }
+            }
+        } else {
+            document.getElementById('editSType').value = 'NC';
+            document.getElementById('editSName').value = '';
+            document.getElementById('editSMobile').value = '';
+            document.getElementById('editSId').value = '';
+        }
     } else { 
         document.getElementById('editNName').value = btn.getAttribute('data-name'); 
         document.getElementById('editNMobile').value = btn.getAttribute('data-mobile'); 

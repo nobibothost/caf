@@ -31,23 +31,38 @@ function getISTDate(offsetMonths = 0) {
     return { start, end, now: new Date() }; 
 }
 
-function parseISTDateString(dateStr) {
+function parseISTDateString(dateStr, preserveTimeFrom = null) {
+    let targetIstHours, targetIstMins, targetIstSecs, targetIstMs;
+    
+    if (preserveTimeFrom) {
+        const pD = new Date(preserveTimeFrom);
+        const pIst = new Date(pD.getTime() + (330 * 60000));
+        targetIstHours = pIst.getUTCHours();
+        targetIstMins = pIst.getUTCMinutes();
+        targetIstSecs = pIst.getUTCSeconds();
+        targetIstMs = pIst.getUTCMilliseconds();
+    } else {
+        const nIst = new Date(new Date().getTime() + (330 * 60000));
+        targetIstHours = nIst.getUTCHours();
+        targetIstMins = nIst.getUTCMinutes();
+        targetIstSecs = nIst.getUTCSeconds();
+        targetIstMs = nIst.getUTCMilliseconds();
+    }
+
+    let yStr, mStr, dayStr;
     if (!dateStr) {
-        const d = new Date();
-        const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
-        const nd = new Date(utc + (3600000 * 5.5));
-        return new Date(Date.UTC(nd.getFullYear(), nd.getMonth(), nd.getDate()));
+        const cIst = new Date(new Date().getTime() + (330 * 60000));
+        yStr = cIst.getUTCFullYear();
+        mStr = cIst.getUTCMonth() + 1;
+        dayStr = cIst.getUTCDate();
+    } else if (dateStr.includes('/')) {
+        [dayStr, mStr, yStr] = dateStr.split('/');
+    } else {
+        [yStr, mStr, dayStr] = dateStr.split('-');
     }
     
-    let parsedDate;
-    if (dateStr.includes('/')) {
-        const [d, m, y] = dateStr.split('/');
-        parsedDate = new Date(Date.UTC(y, m - 1, d));
-    } else {
-        const [y, m, d] = dateStr.split('-');
-        parsedDate = new Date(Date.UTC(y, m - 1, d));
-    }
-    return parsedDate; 
+    const istTimestamp = Date.UTC(yStr, mStr - 1, dayStr, targetIstHours, targetIstMins, targetIstSecs, targetIstMs);
+    return new Date(istTimestamp - (330 * 60000));
 }
 
 function getRuns(category, subType) {
@@ -120,62 +135,86 @@ function calculateLogic(baseDate, type) {
 }
 
 async function fetchGroupedCustomers(baseQuery, sortObj) {
-    const matchingDocs = await Customer.find(baseQuery).sort(sortObj).lean();
+    const matchingDocs = await Customer.find(baseQuery).lean();
     
-    let displayMap = new Map();
+    let displayList = [];
+    let familyPrimaryNumbers = new Set();
     let normalCustomers = [];
-    
-    for (let doc of matchingDocs) {
+
+    matchingDocs.forEach(doc => {
         if (doc.category === 'Family') {
-            if (doc.familyRole === 'Secondary') {
-                if (!displayMap.has(doc._id.toString())) {
-                    const primaryDoc = await Customer.findOne({
-                        category: 'Family',
-                        familyRole: 'Primary',
-                        mobile: doc.linkedPrimaryNumber
-                    }).lean();
-                    doc.primaryDoc = primaryDoc;
-                    displayMap.set(doc._id.toString(), doc);
-                }
-            } else if (doc.familyRole === 'Primary') {
-                const secondaryDoc = await Customer.findOne({
-                    category: 'Family',
-                    familyRole: 'Secondary',
-                    linkedPrimaryNumber: doc.mobile
-                }).lean();
-                
-                if (secondaryDoc) {
-                    if (!displayMap.has(secondaryDoc._id.toString())) {
-                        secondaryDoc.primaryDoc = doc;
-                        displayMap.set(secondaryDoc._id.toString(), secondaryDoc);
-                    }
-                } else {
-                    normalCustomers.push(doc);
-                }
-            }
+            familyPrimaryNumbers.add(doc.familyRole === 'Primary' ? doc.mobile : doc.linkedPrimaryNumber);
         } else {
             normalCustomers.push(doc);
         }
+    });
+
+    let familyDocs = [];
+    if (familyPrimaryNumbers.size > 0) {
+        familyDocs = await Customer.find({
+            category: 'Family',
+            $or: [
+                { mobile: { $in: Array.from(familyPrimaryNumbers) }, familyRole: 'Primary' },
+                { linkedPrimaryNumber: { $in: Array.from(familyPrimaryNumbers) } }
+            ]
+        }).lean();
     }
-    
-    let result = [...Array.from(displayMap.values()), ...normalCustomers];
-    
+
+    let familiesMap = new Map();
+    familyDocs.forEach(doc => {
+        const pNum = doc.familyRole === 'Primary' ? doc.mobile : doc.linkedPrimaryNumber;
+        if (!familiesMap.has(pNum)) {
+            familiesMap.set(pNum, { 
+                isFamilyGroup: true, 
+                primary: null, 
+                secondaries: [], 
+                _id: `fam_${pNum}`, 
+                linkedPrimaryNumber: pNum
+            });
+        }
+        if (doc.familyRole === 'Primary') {
+            familiesMap.get(pNum).primary = doc;
+        } else {
+            familiesMap.get(pNum).secondaries.push(doc);
+        }
+    });
+
+    familiesMap.forEach(fam => {
+        fam.secondaries.sort((a, b) => a.createdAt - b.createdAt);
+        const repDoc = fam.primary || fam.secondaries[0];
+        if(repDoc) {
+            fam.createdAt = repDoc.createdAt;
+            fam.activationDate = repDoc.activationDate;
+            fam.verificationDate = repDoc.verificationDate;
+            fam.billDate = repDoc.billDate;
+            fam.plan = repDoc.plan;
+            fam.remarks = repDoc.remarks;
+        }
+        displayList.push(fam);
+    });
+
+    let result = [...displayList, ...normalCustomers];
+
     if (sortObj && sortObj.verificationDate) {
         result.sort((a, b) => {
             const dateA = a.verificationDate || a.createdAt;
             const dateB = b.verificationDate || b.createdAt;
+            if (dateA.getTime() === dateB.getTime()) {
+                return sortObj.verificationDate === 1 ? a.createdAt - b.createdAt : b.createdAt - a.createdAt;
+            }
             return sortObj.verificationDate === 1 ? dateA - dateB : dateB - dateA;
         });
     } else if (sortObj && sortObj.createdAt) {
          result.sort((a, b) => {
-            const dateA = a.createdAt;
-            const dateB = b.createdAt;
-            return sortObj.createdAt === 1 ? dateA - dateB : dateB - dateA;
+            return sortObj.createdAt === 1 ? a.createdAt - b.createdAt : b.createdAt - a.createdAt;
         });
     } else if (sortObj && sortObj.activationDate) {
          result.sort((a, b) => {
             const dateA = a.activationDate || a.createdAt;
             const dateB = b.activationDate || b.createdAt;
+            if (dateA.getTime() === dateB.getTime()) {
+                return sortObj.activationDate === 1 ? a.createdAt - b.createdAt : b.createdAt - a.createdAt;
+            }
             return sortObj.activationDate === 1 ? dateA - dateB : dateB - dateA;
         });
     }
