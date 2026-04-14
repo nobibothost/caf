@@ -41,7 +41,10 @@ router.get('/', isAuthenticated, async (req, res) => {
         const paginatedCustomers = fullCustomers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
         res.render('index', { customers: paginatedCustomers, error: null, page: 'home', monthOffset, headerTitle, currentPage: page, totalPages });
-    } catch (err) { res.render('index', { customers: [], error: "Connection Error", page: 'home', monthOffset: 0, headerTitle: "Error", currentPage: 1, totalPages: 1 }); }
+    } catch (err) { 
+        console.error('Home Route Error:', err);
+        res.render('index', { customers: [], error: "Connection Error", page: 'home', monthOffset: 0, headerTitle: "Error", currentPage: 1, totalPages: 1 }); 
+    }
 });
 
 router.get('/all', isAuthenticated, async (req, res) => {
@@ -71,13 +74,16 @@ router.get('/all', isAuthenticated, async (req, res) => {
         const paginatedCustomers = fullCustomers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
         res.render('all', { customers: paginatedCustomers, page: 'all', monthOffset, headerTitle, currentPage: page, totalPages });
-    } catch (err) { res.redirect('/'); }
+    } catch (err) { 
+        console.error('All History Route Error:', err);
+        res.redirect('/'); 
+    }
 });
 
 router.get('/pdd', isAuthenticated, async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
-        // FIX: Direct query using standard lean documents instead of complex grouping for PDD
+        // Direct query using standard lean documents
         const customers = await Customer.find({ billDate: { $ne: null } }).lean();
         
         const today = new Date();
@@ -120,14 +126,17 @@ router.get('/pdd', isAuthenticated, async (req, res) => {
             }
         });
         
-        // Sort bills so nearest coming bills show first
+        // Sort bills
         pendingBills.sort((a, b) => a.billDate - b.billDate);
 
         const totalPages = Math.ceil(pendingBills.length / ITEMS_PER_PAGE);
         const paginatedBills = pendingBills.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
         res.render('pdd', { pendingBills: paginatedBills, page: 'pdd', headerTitle: "PDD Tracking", currentPage: page, totalPages });
-    } catch (err) { res.redirect('/'); }
+    } catch (err) { 
+        console.error('PDD Route Error:', err);
+        res.redirect('/'); 
+    }
 });
 
 router.get('/analytics', isAuthenticated, async (req, res) => {
@@ -256,7 +265,10 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
             .sort((a, b) => a.dynamicActDate - b.dynamicActDate);
 
         res.render('analytics', { stats, pendingList, page: 'analytics', monthOffset, headerTitle });
-    } catch (err) { res.redirect('/'); }
+    } catch (err) { 
+        console.error('Analytics Route Error:', err);
+        res.redirect('/'); 
+    }
 });
 
 router.get('/manage', isAuthenticated, async (req, res) => {
@@ -281,7 +293,10 @@ router.get('/manage', isAuthenticated, async (req, res) => {
         const paginatedCustomers = fullCustomers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
         res.render('manage', { customers: paginatedCustomers, page: 'manage', monthOffset, headerTitle, currentPage: page, totalPages });
-    } catch (err) { res.redirect('/'); }
+    } catch (err) { 
+        console.error('Manage Route Error:', err);
+        res.redirect('/'); 
+    }
 });
 
 router.get('/search', isAuthenticated, async (req, res) => {
@@ -308,6 +323,7 @@ router.get('/search', isAuthenticated, async (req, res) => {
 
         res.render('search', { customers: paginatedCustomers, query: q, page: 'search', headerTitle: "Global Search", currentPage: page, totalPages, totalItems: fullCustomers.length });
     } catch (err) {
+        console.error('Search Route Error:', err);
         res.redirect('/');
     }
 });
@@ -355,17 +371,24 @@ router.post('/add', isAuthenticated, async (req, res) => {
             await newCustomer.save();
         }
         safeRedirect(req, res);
-    } catch (err) { safeRedirect(req, res); }
+    } catch (err) { 
+        console.error('Add Route Error:', err);
+        safeRedirect(req, res); 
+    }
 });
 
 router.post('/edit/:id', isAuthenticated, async (req, res) => {
     try {
-        const { category, activationDate, remarks, plan, p_type, p_name, p_mobile, s_type, s_name, s_mobile, n_name, n_mobile, billDate } = req.body;
+        // Extract both customDate and activationDate to prevent undefined errors
+        const { category, activationDate, customDate, remarks, plan, p_type, p_name, p_mobile, s_type, s_name, s_mobile, n_name, n_mobile, billDate } = req.body;
         
         const existingDoc = await Customer.findById(req.params.id);
         if (!existingDoc) return safeRedirect(req, res);
 
-        const newEntryDate = parseISTDateString(activationDate, existingDoc.createdAt);
+        // Allow fallback to customDate if activationDate is not provided by form
+        const formDate = activationDate || customDate;
+        const newEntryDate = parseISTDateString(formDate, existingDoc.createdAt);
+        
         const bDate = billDate ? parseInt(billDate) : null;
 
         if (existingDoc.category === 'Family' && existingDoc.familyRole === 'Secondary') {
@@ -410,7 +433,10 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
 
         await Customer.findByIdAndUpdate(req.params.id, updateData);
         safeRedirect(req, res);
-    } catch (err) { safeRedirect(req, res); }
+    } catch (err) { 
+        console.error('Edit Route Error:', err);
+        safeRedirect(req, res); 
+    }
 });
 
 router.post('/delete/:id', isAuthenticated, async (req, res) => { 
@@ -421,7 +447,10 @@ router.post('/delete/:id', isAuthenticated, async (req, res) => {
         }
         await Customer.findByIdAndDelete(req.params.id); 
         safeRedirect(req, res);
-    } catch (err) { safeRedirect(req, res); } 
+    } catch (err) { 
+        console.error('Delete Route Error:', err);
+        safeRedirect(req, res); 
+    } 
 });
 
 router.post('/complete/:id', isAuthenticated, async (req, res) => { 
@@ -431,7 +460,10 @@ router.post('/complete/:id', isAuthenticated, async (req, res) => {
             await Customer.findByIdAndUpdate(req.params.id, { status: 'completed' });
         }
         safeRedirect(req, res);
-    } catch (err) { safeRedirect(req, res); } 
+    } catch (err) { 
+        console.error('Complete Route Error:', err);
+        safeRedirect(req, res); 
+    } 
 });
 
 router.post('/pay-bill/:id', isAuthenticated, async (req, res) => {
@@ -450,7 +482,10 @@ router.post('/pay-bill/:id', isAuthenticated, async (req, res) => {
             });
         }
         safeRedirect(req, res);
-    } catch(err) { safeRedirect(req, res); }
+    } catch(err) { 
+        console.error('Pay Bill Error:', err);
+        safeRedirect(req, res); 
+    }
 });
 
 router.post('/pay-all-bills', isAuthenticated, async (req, res) => {
@@ -498,7 +533,10 @@ router.post('/pay-all-bills', isAuthenticated, async (req, res) => {
 
         if (bulkOps.length > 0) { await Customer.bulkWrite(bulkOps); }
         safeRedirect(req, res);
-    } catch(err) { safeRedirect(req, res); }
+    } catch(err) { 
+        console.error('Pay All Bills Error:', err);
+        safeRedirect(req, res); 
+    }
 });
 
 router.post('/log-call/:id', isAuthenticated, async (req, res) => {
@@ -511,6 +549,7 @@ router.post('/log-call/:id', isAuthenticated, async (req, res) => {
         });
         res.json({ success: true });
     } catch (err) {
+        console.error('Log Call Error:', err);
         res.status(500).json({ success: false });
     }
 });
