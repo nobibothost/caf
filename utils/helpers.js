@@ -142,6 +142,10 @@ async function fetchGroupedCustomers(baseQuery, sortObj) {
     let normalCustomers = [];
 
     matchingDocs.forEach(doc => {
+        // 🔴 CORE BLOCKER: 'Existing' means NOTHING! Never generate a main tracking card for it.
+        const st = doc.subType ? doc.subType.trim().toLowerCase() : '';
+        if (st === 'existing') return;
+
         if (doc.category === 'Family') {
             familyPrimaryNumbers.add(doc.familyRole === 'Primary' ? doc.mobile : doc.linkedPrimaryNumber);
         } else {
@@ -160,37 +164,48 @@ async function fetchGroupedCustomers(baseQuery, sortObj) {
         }).lean();
     }
 
-    let familiesMap = new Map();
+    let fullFamiliesMap = new Map();
     familyDocs.forEach(doc => {
         const pNum = doc.familyRole === 'Primary' ? doc.mobile : doc.linkedPrimaryNumber;
-        if (!familiesMap.has(pNum)) {
-            familiesMap.set(pNum, { 
-                isFamilyGroup: true, 
-                primary: null, 
-                secondaries: [], 
-                _id: `fam_${pNum}`, 
-                linkedPrimaryNumber: pNum
-            });
+        if (!fullFamiliesMap.has(pNum)) {
+            fullFamiliesMap.set(pNum, { primary: null, secondaries: [] });
         }
         if (doc.familyRole === 'Primary') {
-            familiesMap.get(pNum).primary = doc;
+            fullFamiliesMap.get(pNum).primary = doc;
         } else {
-            familiesMap.get(pNum).secondaries.push(doc);
+            fullFamiliesMap.get(pNum).secondaries.push(doc);
         }
     });
 
-    familiesMap.forEach(fam => {
-        fam.secondaries.sort((a, b) => a.createdAt - b.createdAt);
-        const repDoc = fam.primary || fam.secondaries[0];
-        if(repDoc) {
-            fam.createdAt = repDoc.createdAt;
-            fam.activationDate = repDoc.activationDate;
-            fam.verificationDate = repDoc.verificationDate;
-            fam.billDate = repDoc.billDate;
-            fam.plan = repDoc.plan;
-            fam.remarks = repDoc.remarks;
+    fullFamiliesMap.forEach(fam => {
+        fam.secondaries.sort((a, b) => b.createdAt - a.createdAt);
+    });
+
+    matchingDocs.forEach(doc => {
+        // 🔴 CORE BLOCKER AGAIN
+        const st = doc.subType ? doc.subType.trim().toLowerCase() : '';
+        if (st === 'existing') return;
+
+        if (doc.category === 'Family') {
+            const pNum = doc.familyRole === 'Primary' ? doc.mobile : doc.linkedPrimaryNumber;
+            const fullFam = fullFamiliesMap.get(pNum);
+
+            let famCard = {
+                isFamilyGroup: true,
+                triggerDoc: doc, 
+                primary: fullFam.primary,
+                secondaries: fullFam.secondaries,
+                _id: doc._id, 
+                linkedPrimaryNumber: pNum,
+                createdAt: doc.createdAt,
+                activationDate: doc.activationDate,
+                verificationDate: doc.verificationDate,
+                billDate: doc.billDate,
+                plan: doc.plan,
+                remarks: doc.remarks
+            };
+            displayList.push(famCard);
         }
-        displayList.push(fam);
     });
 
     let result = [...displayList, ...normalCustomers];
