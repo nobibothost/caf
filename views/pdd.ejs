@@ -28,7 +28,7 @@
                 <% pendingBills.forEach(customer => { %>
                     <div class="card search-item" style="position: relative; overflow: hidden; border: 1px solid #fee2e2; box-shadow: 0 4px 6px rgba(239, 68, 68, 0.05);">
                         <div style="position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: #ef4444;"></div>
-                        
+                         
                         <div class="card-top" style="margin-top: 5px;">
                             <div style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">
                                 <% if (customer.category === 'Family') { %> <span class="badge badge-Family">Family</span> <% } else { %> <span class="badge badge-<%= customer.category %>"><%= customer.category %></span> <% } %>
@@ -38,14 +38,29 @@
                         </div>
 
                         <% if (customer.category === 'Family') { %>
-                            <div class="family-wrapper" style="border-color: #fca5a5; background: #fff5f5;">
-                                <div class="family-section secondary-sec" style="border: none;">
-                                    <span class="fs-label secondary-label" style="color: #dc2626;">Family <%= customer.familyRole || 'Member' %> <span class="badge badge-<%= customer.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= customer.subType %></span></span>
-                                    <div class="fs-info"><h4 class="customer-name"><%= customer.name %></h4><p class="mobile-txt"><%= customer.mobile %></p></div>
+                            <div class="family-section primary-sec" style="margin-bottom: 0; padding-bottom: 0; border-bottom: none; display: flex; flex-direction: column; gap: 10px; padding: 10px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span class="fs-label" style="color: #dc2626; margin: 0; font-weight: 700;">
+                                        <% if (customer.familyRole === 'Secondary') { %>
+                                            <i class="ri-user-add-line"></i> Add-on Connection <span class="badge badge-<%= customer.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= customer.subType %></span>
+                                        <% } else { %>
+                                            <i class="ri-star-fill"></i> Primary Connection <span class="badge badge-<%= customer.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= customer.subType %></span>
+                                        <% } %>
+                                    </span>
+                                </div>
+
+                                <div class="fs-info" style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <h4 style="margin: 0; font-size: 1.05rem; color: #0f172a;"><%= customer.name %></h4>
+                                        <p style="margin: 0; font-family: monospace; font-size: 0.85rem; color: #64748b;"><%= customer.mobile %></p>
+                                    </div>
                                 </div>
                             </div>
                         <% } else { %>
-                            <div class="card-body"><h3 class="customer-name"><%= customer.name %></h3><p class="meta-info mobile-txt" style="margin-bottom: 10px;"><i class="ri-smartphone-line"></i> <%= customer.mobile %></p></div>
+                            <div class="card-body">
+                                <h3 class="customer-name"><%= customer.name %></h3>
+                                <p class="meta-info mobile-txt" style="margin-bottom: 10px;"><i class="ri-smartphone-line"></i> <%= customer.mobile %></p>
+                            </div>
                         <% } %>
 
                         <% if (customer.callLogs && customer.callLogs.length > 0) { %>
@@ -53,7 +68,7 @@
                             <div class="last-call-tracker" style="margin-top: 12px; margin-bottom: 8px;">
                                 <i class="ri-phone-find-line"></i> 
                                 <span>Last Call: <%= new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(lc.callDate)) %> - <strong><%= lc.reason %></strong></span>
-                            </div>
+                             </div>
                         <% } %>
 
                         <div class="card-actions" style="margin-bottom: 15px;">
@@ -61,18 +76,20 @@
                             <a href="tel:8657973703,<%= customer.mobile %>" class="btn-call" style="flex: 1;" data-id="<%= customer._id %>" data-page="pdd" onclick="handleCallClick(event, this)"><i class="ri-phone-fill"></i> Call</a>
                         </div>
 
-                        <div class="card-actions" style="margin-top: 0;">
-                            <% if (customer.remarks && customer.remarks.trim() !== "") { %> <button class="btn-note" data-name="<%= customer.name %>" data-remarks="<%= customer.remarks %>" onclick="openRemarksModal(this)"><i class="ri-sticky-note-fill"></i></button> <% } %>
-                            <form action="/pay-bill/<%= customer._id %>" method="POST" style="flex: 1;" onsubmit="openConfirmModal(event, this, 'pay')">
-                                <input type="hidden" name="cycleKey" value="<%= customer.cycleKey %>">
-                                <button type="submit" class="btn-done" style="margin-top: 0;"><i class="ri-money-rupee-circle-line"></i> Mark as Paid</button>
+                        <div class="card-actions" style="margin-top: 0; display: flex; gap: 8px;">
+                            <% if (customer.remarks && customer.remarks.trim() !== "") { %> 
+                                <button type="button" class="btn-note" style="padding: 10px; flex: 0.3;" data-name="<%= customer.name %>" data-remarks="<%= customer.remarks %>" onclick="openRemarksModal(this)"><i class="ri-sticky-note-fill"></i></button> 
+                            <% } %>
+                            <form action="/pay-bill/<%= customer._id %>" method="POST" style="flex: 1; margin: 0;" onsubmit="openConfirmModal(event, this, 'pay')">
+                                 <input type="hidden" name="cycleKey" value="<%= customer.cycleKey %>">
+                                 <button type="submit" class="btn-done" style="margin: 0; width: 100%; padding: 10px; background: #fee2e2; border: 1px dashed #ef4444; color: #dc2626; border-radius: 8px; font-weight: 600;"><i class="ri-money-rupee-circle-line"></i> Mark as Paid</button>
                             </form>
                         </div>
                     </div>
                 <% }) %>
             </div>
             <div id="autoLoadSpinner" class="scroll-loader"><i class="ri-loader-4-line spin-loader"></i><br>Loading more...</div>
-        </div>
+         </div>
 
         <%- include('partials/modals') %>
     </div> 
