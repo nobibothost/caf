@@ -1,13 +1,22 @@
-<nav class="navbar">
+<nav class="navbar" style="display: flex; align-items: center;">
     <div class="logo">
         <i class="<%= icon %>"></i> <%= title1 %><span class="highlight"><%= title2 %></span>
     </div>
-    <% if (typeof showSync !== 'undefined' && showSync) { %>
-        <a href="javascript:location.reload()" class="refresh-btn">
-            <i class="ri-refresh-line"></i> Sync
+    
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 15px;">
+        <% if (typeof showSync !== 'undefined' && showSync) { %>
+            <a href="javascript:location.reload()" class="refresh-btn" style="margin: 0;">
+                <i class="ri-refresh-line"></i> Sync
+            </a>
+        <% } %>
+
+        <div class="notification-bell" onclick="toggleAgendaModal()" style="position: relative; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; background: #f1f5f9; border-radius: 50%; transition: all 0.2s;">
+            <i class="ri-notification-3-line" style="font-size: 1.3rem; color: #475569;"></i>
+            <span id="bell-badge" style="display: none; position: absolute; top: -2px; right: -2px; background: #ef4444; color: white; font-size: 0.65rem; font-weight: bold; width: 18px; height: 18px; border-radius: 50%; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 4px rgba(239,68,68,0.3);">0</span>
+        </div>
+
+        <a href="#" class="logout-btn" onclick="openConfirmModal(event, null, 'logout')" style="margin: 0;">
+            <i class="ri-logout-box-r-line"></i>
         </a>
-    <% } %>
-    <a href="#" class="logout-btn" onclick="openConfirmModal(event, null, 'logout')">
-        <i class="ri-logout-box-r-line"></i>
-    </a>
+    </div>
 </nav>
