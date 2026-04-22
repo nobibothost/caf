@@ -16,22 +16,36 @@ router.get('/', isAuthenticated, async (req, res) => {
         let monthOffset = (monthQuery === 'all') ? 'all' : ((monthQuery === undefined) ? 0 : parseInt(monthQuery));
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         
-        let query = { status: 'pending' };
+        // 🕒 Exact End of Today Calculation in IST
+        const d = new Date();
+        const istNow = new Date(d.getTime() + (330 * 60000));
+        const istEndOfDay = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate(), 23, 59, 59, 999));
+        const utcEndOfDay = new Date(istEndOfDay.getTime() - (330 * 60000));
+
+        // 🛡️ Strict Filter: Never show 'Existing' on Verification Page
+        let query = { 
+            status: 'pending',
+            subType: { $nin: ['Existing', 'existing', 'EXISTING', ' Existing', 'Existing '] },
+            category: { $nin: ['Existing', 'existing', 'EXISTING'] }
+        };
+        
         let headerTitle = "All Pending";
 
         if (monthOffset === 'all') {
-            const { now } = getISTDate(0);
-            query.verificationDate = { $lte: new Date(now.getTime() + 24*60*60*1000) };
+            // Only show tasks due today or earlier. Future dates hidden!
+            query.verificationDate = { $lte: utcEndOfDay };
         } else {
-            const { start, end, now } = getISTDate(monthOffset);
+            const { start, end } = getISTDate(monthOffset);
             const displayMonth = new Date(start);
             displayMonth.setMinutes(displayMonth.getMinutes() + 330);
             
-            if (monthOffset === 0) {
-                query.verificationDate = { $gte: start, $lte: new Date(now.getTime() + 24*60*60*1000) };
+            // Only show tasks strictly due up to the end of today
+            if (utcEndOfDay < end) {
+                query.verificationDate = { $gte: start, $lte: utcEndOfDay };
             } else {
                 query.verificationDate = { $gte: start, $lt: end };
             }
+            
             headerTitle = "Pending: " + monthNames[displayMonth.getMonth()] + " " + displayMonth.getFullYear();
         }
         
@@ -68,7 +82,7 @@ router.get('/all', isAuthenticated, async (req, res) => {
             displayMonth.setMinutes(displayMonth.getMinutes() + 330);
             headerTitle = "History: " + monthNames[displayMonth.getMonth()] + " " + displayMonth.getFullYear(); 
         }
-        const fullCustomers = await fetchGroupedCustomers(query, { activationDate: -1 });
+        const fullCustomers = await fetchGroupedCustomers(query, { createdAt: -1 });
 
         const totalPages = Math.ceil(fullCustomers.length / ITEMS_PER_PAGE);
         const paginatedCustomers = fullCustomers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
@@ -285,7 +299,7 @@ router.get('/manage', isAuthenticated, async (req, res) => {
                 ] 
             }; 
         }
-        const fullCustomers = await fetchGroupedCustomers(query, { activationDate: -1 });
+        const fullCustomers = await fetchGroupedCustomers(query, { createdAt: -1 });
 
         const totalPages = Math.ceil(fullCustomers.length / ITEMS_PER_PAGE);
         const paginatedCustomers = fullCustomers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
@@ -328,7 +342,11 @@ router.get('/search', isAuthenticated, async (req, res) => {
 
 router.post('/add', isAuthenticated, async (req, res) => {
     try {
-        const getFirst = (val) => Array.isArray(val) ? val[0] : (val || '');
+        // Safe String Extraction
+        const getFirst = (val) => {
+            let v = Array.isArray(val) ? val[0] : (val || '');
+            return typeof v === 'string' ? v.trim() : v;
+        };
         
         const category = getFirst(req.body.category);
         const rawDate = getFirst(req.body.customDate) || getFirst(req.body.activationDate) || getFirst(req.body.editDate);
@@ -346,7 +364,7 @@ router.post('/add', isAuthenticated, async (req, res) => {
 
             const pLogic = calculateLogic(entryDate, p_type);
 
-            // Primary Creation
+            // Do not save Primary if it's 'Existing'
             if (p_type !== 'Existing') {
                 const primaryCustomer = new Customer({
                     name: p_name, mobile: p_mobile, category: 'Family', subType: p_type, plan: plan, region: 'NA',
@@ -356,7 +374,6 @@ router.post('/add', isAuthenticated, async (req, res) => {
                 await primaryCustomer.save();
             }
 
-            // Secondary Creation (Safely handling Arrays from UI)
             const s_types = Array.isArray(req.body.s_type) ? req.body.s_type : [req.body.s_type];
             const s_names = Array.isArray(req.body.s_name) ? req.body.s_name : [req.body.s_name];
             const s_mobiles = Array.isArray(req.body.s_mobile) ? req.body.s_mobile : [req.body.s_mobile];
@@ -364,9 +381,9 @@ router.post('/add', isAuthenticated, async (req, res) => {
             for (let i = 0; i < s_names.length; i++) {
                 if (!s_names[i] || s_names[i].trim() === '') continue; 
                 
-                const sType = s_types[i] || 'NC';
-                const sName = s_names[i];
-                const sMobile = s_mobiles[i];
+                const sType = (s_types[i] || 'NC').trim();
+                const sName = s_names[i].trim();
+                const sMobile = s_mobiles[i].trim();
 
                 const sLogic = calculateLogic(entryDate, sType);
                 let finalActDate = sLogic.realActivationDate;
@@ -377,10 +394,13 @@ router.post('/add', isAuthenticated, async (req, res) => {
                     finalVerDate = pLogic.realVerificationDate;
                 }
 
+                // If secondary is Existing, mark it completed immediately
+                let secStatus = sType === 'Existing' ? 'completed' : 'pending';
+
                 const secondaryCustomer = new Customer({
                     name: sName, mobile: sMobile, category: 'Family', subType: sType, plan: plan, region: 'NA',
                     familyRole: 'Secondary', linkedPrimaryName: p_name, linkedPrimaryNumber: p_mobile, linkedPrimaryStatus: `Type: ${p_type}`,
-                    remarks: remarks || '', createdAt: entryDate, activationDate: finalActDate, verificationDate: finalVerDate, status: 'pending', billDate: bDate
+                    remarks: remarks || '', createdAt: entryDate, activationDate: finalActDate, verificationDate: finalVerDate, status: secStatus, billDate: bDate
                 });
                 await secondaryCustomer.save();
             }
@@ -389,10 +409,13 @@ router.post('/add', isAuthenticated, async (req, res) => {
             const n_mobile = getFirst(req.body.n_mobile);
             
             const nLogic = calculateLogic(entryDate, category);
+            // If Normal category is Existing, it shouldn't show in pending verifications
+            let nStatus = category === 'Existing' ? 'completed' : 'pending';
+            
             const newCustomer = new Customer({
                 name: n_name, mobile: n_mobile, category: category, subType: category, plan: plan, region: 'NA',
                 familyRole: '', linkedPrimaryName: '', linkedPrimaryNumber: '', linkedPrimaryStatus: '',
-                remarks: remarks || '', createdAt: entryDate, activationDate: nLogic.realActivationDate, verificationDate: nLogic.realVerificationDate, status: 'pending', billDate: bDate
+                remarks: remarks || '', createdAt: entryDate, activationDate: nLogic.realActivationDate, verificationDate: nLogic.realVerificationDate, status: nStatus, billDate: bDate
             });
             await newCustomer.save();
         }
@@ -405,8 +428,10 @@ router.post('/add', isAuthenticated, async (req, res) => {
 
 router.post('/edit/:id', isAuthenticated, async (req, res) => {
     try {
-        // Prevent crashes by ensuring we get single strings even if form passes arrays
-        const getFirst = (val) => Array.isArray(val) ? val[0] : (val || '');
+        const getFirst = (val) => {
+            let v = Array.isArray(val) ? val[0] : (val || '');
+            return typeof v === 'string' ? v.trim() : v;
+        };
         
         const category = getFirst(req.body.category);
         const rawDate = getFirst(req.body.activationDate) || getFirst(req.body.customDate) || getFirst(req.body.editDate);
@@ -422,90 +447,74 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
         const n_mobile = getFirst(req.body.n_mobile);
         const billDateStr = getFirst(req.body.billDate);
 
-        const existingDoc = await Customer.findById(req.params.id);
+        // SAFELY HANDLE FAMILY PSEUDO ID
+        const isFamGroup = req.params.id.startsWith('fam_');
+        let existingDoc = null;
+        
+        if (isFamGroup) {
+            const pNum = req.params.id.replace('fam_', '');
+            existingDoc = await Customer.findOne({ 
+                category: 'Family', 
+                $or: [{ mobile: pNum, familyRole: 'Primary' }, { linkedPrimaryNumber: pNum }] 
+            });
+        } else {
+            existingDoc = await Customer.findById(req.params.id);
+        }
+
         if (!existingDoc) return safeRedirect(req, res);
 
         const newEntryDate = parseISTDateString(rawDate, existingDoc.createdAt);
         const bDate = billDateStr ? parseInt(billDateStr) : null;
 
-        if (existingDoc.category === 'Family' && existingDoc.familyRole === 'Secondary') {
-            const oldPrimaryMobile = existingDoc.linkedPrimaryNumber;
+        if (category === 'Family') {
+            const oldPrimaryMobile = existingDoc.familyRole === 'Primary' ? existingDoc.mobile : existingDoc.linkedPrimaryNumber;
             const pLogic = calculateLogic(newEntryDate, p_type);
             
-            await Customer.findOneAndUpdate(
-                 { category: 'Family', familyRole: 'Primary', mobile: oldPrimaryMobile },
-                 { name: p_name, mobile: p_mobile, subType: p_type, plan: plan, createdAt: newEntryDate, activationDate: pLogic.realActivationDate, verificationDate: pLogic.realVerificationDate, billDate: bDate }
-            );
+            // Primary logic: Update, Create, or set to Completed if 'Existing'
+            if (p_type !== 'Existing') {
+                const primaryUpdate = {
+                    name: p_name, mobile: p_mobile, subType: p_type, plan: plan, 
+                    createdAt: newEntryDate, activationDate: pLogic.realActivationDate, 
+                    verificationDate: pLogic.realVerificationDate, billDate: bDate, remarks: remarks || '', status: 'pending'
+                };
+                const existingPrimary = await Customer.findOne({ category: 'Family', familyRole: 'Primary', mobile: oldPrimaryMobile });
+                if (existingPrimary) {
+                    await Customer.findByIdAndUpdate(existingPrimary._id, primaryUpdate);
+                } else {
+                    await new Customer({ ...primaryUpdate, category: 'Family', familyRole: 'Primary', linkedPrimaryName: 'Self', linkedPrimaryNumber: p_mobile, linkedPrimaryStatus: 'Primary Account' }).save();
+                }
+            } else {
+                // If user changes Primary to 'Existing', make sure to mark it completed so it disappears from verification
+                await Customer.findOneAndUpdate(
+                    { category: 'Family', familyRole: 'Primary', mobile: oldPrimaryMobile },
+                    { status: 'completed', subType: 'Existing', name: p_name, mobile: p_mobile }
+                );
+            }
 
-            // Bulk update any OTHER secondaries linked to this primary to reflect new Primary Details
+            // Sync Secondaries
             await Customer.updateMany(
-                { category: 'Family', familyRole: 'Secondary', linkedPrimaryNumber: oldPrimaryMobile, _id: { $ne: req.params.id } },
-                { linkedPrimaryName: p_name, linkedPrimaryNumber: p_mobile, linkedPrimaryStatus: `Type: ${p_type}`, plan: plan }
+                { category: 'Family', familyRole: 'Secondary', linkedPrimaryNumber: oldPrimaryMobile },
+                { linkedPrimaryName: p_name, linkedPrimaryNumber: p_mobile, linkedPrimaryStatus: `Type: ${p_type}`, plan: plan, remarks: remarks || '' }
             );
-        }
 
-        let updateData = { category, remarks, plan, billDate: bDate };
-        let finalSubType = category;
+            // Handle Secondaries (Dynamic Array processing)
+            const getArray = (val) => {
+                if (val === undefined || val === null) return [];
+                return Array.isArray(val) ? val : [val];
+            };
 
-        if (category === 'Family') {
-            updateData.name = s_name; 
-            updateData.mobile = s_mobile; 
-            updateData.subType = s_type; 
-            updateData.region = 'NA';
-            updateData.familyRole = 'Secondary'; 
-            updateData.linkedPrimaryName = p_name; 
-            updateData.linkedPrimaryNumber = p_mobile; 
-            updateData.linkedPrimaryStatus = `Type: ${p_type}`;
-            finalSubType = s_type;
-        } else {
-            updateData.name = n_name; 
-            updateData.mobile = n_mobile; 
-            updateData.subType = category; 
-            updateData.region = 'NA';
-            updateData.familyRole = '';
-            updateData.linkedPrimaryName = ''; 
-            updateData.linkedPrimaryNumber = ''; 
-            updateData.linkedPrimaryStatus = '';
-            finalSubType = category;
-        }
+            const s_ids = getArray(req.body.s_id);
+            const s_types = getArray(req.body.s_type);
+            const s_names = getArray(req.body.s_name);
+            const s_mobiles = getArray(req.body.s_mobile);
 
-        if(!finalSubType) finalSubType = existingDoc.subType || 'NC';
-
-        const sLogic = calculateLogic(newEntryDate, finalSubType);
-        let finalActDate = sLogic.realActivationDate;
-        let finalVerDate = sLogic.realVerificationDate;
-
-        if (category === 'Family') {
-             const pLogic = calculateLogic(newEntryDate, p_type || 'NC');
-             if (pLogic.realVerificationDate > finalVerDate) {
-                 finalActDate = pLogic.realActivationDate;
-                 finalVerDate = pLogic.realVerificationDate;
-             }
-        }
-
-        updateData.createdAt = newEntryDate; 
-        updateData.activationDate = finalActDate; 
-        updateData.verificationDate = finalVerDate; 
-
-        // 1. Update the Main clicked Document
-        await Customer.findByIdAndUpdate(req.params.id, updateData);
-
-        // 2. Safely Process Additional Secondaries (If any were submitted in Edit form)
-        if (category === 'Family' && req.body.s_id) {
-            const s_ids = Array.isArray(req.body.s_id) ? req.body.s_id : [req.body.s_id];
-            const s_types = Array.isArray(req.body.s_type) ? req.body.s_type : [req.body.s_type];
-            const s_names = Array.isArray(req.body.s_name) ? req.body.s_name : [req.body.s_name];
-            const s_mobiles = Array.isArray(req.body.s_mobile) ? req.body.s_mobile : [req.body.s_mobile];
-            
-            const pLogic = calculateLogic(newEntryDate, p_type || 'NC');
-
-            for (let i = 1; i < s_ids.length; i++) { // Skip 0 since it is handled by the main update above
+            for (let i = 0; i < s_names.length; i++) {
                 let cId = s_ids[i];
-                let cName = s_names[i];
-                let cMobile = s_mobiles[i];
-                let cType = s_types[i] || 'NC';
+                let cName = typeof s_names[i] === 'string' ? s_names[i].trim() : '';
+                let cMobile = typeof s_mobiles[i] === 'string' ? s_mobiles[i].trim() : '';
+                let cType = typeof s_types[i] === 'string' ? s_types[i].trim() : 'NC';
                 
-                if (!cName || cName.trim() === '') continue;
+                if (!cName || cName === '') continue;
 
                 let secLogic = calculateLogic(newEntryDate, cType);
                 let secAct = secLogic.realActivationDate;
@@ -516,13 +525,41 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
                     secVer = pLogic.realVerificationDate; 
                 }
 
-                if (cId && cId.length > 5) {
-                    await Customer.findByIdAndUpdate(cId, { name: cName, mobile: cMobile, subType: cType, plan: plan, activationDate: secAct, verificationDate: secVer, linkedPrimaryName: p_name, linkedPrimaryNumber: p_mobile, linkedPrimaryStatus: `Type: ${p_type}`, billDate: bDate });
+                let secStatus = cType === 'Existing' ? 'completed' : 'pending';
+
+                if (cId && cId.length > 5 && cId !== 'undefined') {
+                    await Customer.findByIdAndUpdate(cId, { 
+                        name: cName, mobile: cMobile, subType: cType, plan: plan, 
+                        activationDate: secAct, verificationDate: secVer, 
+                        linkedPrimaryName: p_name, linkedPrimaryNumber: p_mobile, 
+                        linkedPrimaryStatus: `Type: ${p_type}`, billDate: bDate,
+                        remarks: remarks || '', createdAt: newEntryDate, status: secStatus
+                    });
                 } else {
                     await new Customer({
-                        name: cName, mobile: cMobile, category: 'Family', subType: cType, plan: plan, region: 'NA', familyRole: 'Secondary', linkedPrimaryName: p_name, linkedPrimaryNumber: p_mobile, linkedPrimaryStatus: `Type: ${p_type}`, remarks: remarks || '', createdAt: newEntryDate, activationDate: secAct, verificationDate: secVer, status: 'pending', billDate: bDate
+                        name: cName, mobile: cMobile, category: 'Family', subType: cType, plan: plan, region: 'NA', 
+                        familyRole: 'Secondary', linkedPrimaryName: p_name, linkedPrimaryNumber: p_mobile, 
+                        linkedPrimaryStatus: `Type: ${p_type}`, remarks: remarks || '', 
+                        createdAt: newEntryDate, activationDate: secAct, verificationDate: secVer, status: secStatus, billDate: bDate
                     }).save();
                 }
+            }
+        } else {
+            // Normal Customer Edit
+            let updateData = { 
+                category, remarks, plan, billDate: bDate,
+                name: n_name, mobile: n_mobile, subType: category,
+                region: 'NA', familyRole: '', linkedPrimaryName: '', linkedPrimaryNumber: '', linkedPrimaryStatus: '',
+                status: category === 'Existing' ? 'completed' : 'pending' // Force existing to bypass pending queue
+            };
+            
+            const nLogic = calculateLogic(newEntryDate, category);
+            updateData.createdAt = newEntryDate; 
+            updateData.activationDate = nLogic.realActivationDate; 
+            updateData.verificationDate = nLogic.realVerificationDate; 
+
+            if (!isFamGroup) {
+                await Customer.findByIdAndUpdate(req.params.id, updateData);
             }
         }
 
@@ -535,11 +572,18 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
 
 router.post('/delete/:id', isAuthenticated, async (req, res) => { 
     try { 
-        const doc = await Customer.findById(req.params.id);
-        if(doc && doc.category === 'Family' && doc.familyRole === 'Secondary') {
-            await Customer.findOneAndDelete({ category: 'Family', familyRole: 'Primary', mobile: doc.linkedPrimaryNumber });
+        const isFamGroup = req.params.id.startsWith('fam_');
+        
+        if (isFamGroup) {
+            const pNum = req.params.id.replace('fam_', '');
+            await Customer.deleteMany({ category: 'Family', $or: [{mobile: pNum, familyRole: 'Primary'}, {linkedPrimaryNumber: pNum}] });
+        } else {
+            const doc = await Customer.findById(req.params.id);
+            if(doc && doc.category === 'Family' && doc.familyRole === 'Secondary') {
+                await Customer.findOneAndDelete({ category: 'Family', familyRole: 'Primary', mobile: doc.linkedPrimaryNumber });
+            }
+            await Customer.findByIdAndDelete(req.params.id); 
         }
-        await Customer.findByIdAndDelete(req.params.id); 
         safeRedirect(req, res);
     } catch (err) { 
         console.error('Delete Route Error:', err);
@@ -645,6 +689,66 @@ router.post('/log-call/:id', isAuthenticated, async (req, res) => {
     } catch (err) {
         console.error('Log Call Error:', err);
         res.status(500).json({ success: false });
+    }
+});
+
+// Smart Notification API (Today's Agenda)
+router.get('/api/agenda', isAuthenticated, async (req, res) => {
+    try {
+        const today = new Date();
+        const istNow = new Date(today.getTime() + (330 * 60000));
+        const currentDay = istNow.getUTCDate();
+        const currentMonth = istNow.getUTCMonth();
+        const currentYear = istNow.getUTCFullYear();
+
+        // Exact End of Today in UTC
+        const istEndOfDay = new Date(Date.UTC(currentYear, currentMonth, currentDay, 23, 59, 59, 999));
+        const utcEndOfDay = new Date(istEndOfDay.getTime() - (330 * 60000));
+
+        // 1. Pending Verifications (Strict exclusion of Existing and Future Dates)
+        const query = { 
+            status: 'pending',
+            subType: { $nin: ['Existing', 'existing', 'EXISTING', ' Existing', 'Existing '] },
+            category: { $nin: ['Existing', 'existing', 'EXISTING'] },
+            verificationDate: { $lte: utcEndOfDay }
+        };
+        const pendingVerifications = await Customer.countDocuments(query);
+
+        // 2. Pending Bills
+        const customersForBills = await Customer.find({ billDate: { $ne: null } }).lean();
+        let pendingBills = 0;
+
+        customersForBills.forEach(c => {
+            let billYear = currentYear;
+            let billMonth = currentMonth;
+
+            if (currentDay <= c.billDate) {
+                billMonth -= 1;
+                if (billMonth < 0) { billMonth = 11; billYear -= 1; }
+            }
+
+            const dynamicLogic = calculateLogic(c.createdAt, c.subType || c.category);
+            const actDate = dynamicLogic.realActivationDate;
+            const actIst = new Date(actDate.getTime() + (330 * 60000));
+            const actYear = actIst.getUTCFullYear();
+            const actMonth = actIst.getUTCMonth();
+            const actDay = actIst.getUTCDate();
+
+            const calcBillVal = billYear * 10000 + billMonth * 100 + c.billDate;
+            const actVal = actYear * 10000 + actMonth * 100 + actDay;
+
+            if (calcBillVal >= actVal) {
+                const cycleKey = `${billYear}-${String(billMonth + 1).padStart(2, '0')}`;
+                if (!c.paidMonths || !c.paidMonths.includes(cycleKey)) {
+                    pendingBills++;
+                }
+            }
+        });
+
+        res.json({ pendingVerifications, pendingBills, total: pendingVerifications + pendingBills });
+    } catch (err) {
+        console.error('Agenda API Error:', err);
+        res.status(500).json({ pendingVerifications: 0, pendingBills: 0, total: 0 });
     }
 });
 
