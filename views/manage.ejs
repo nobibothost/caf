@@ -23,6 +23,32 @@
                     </div>
                 <% } else { %>
                     <% customers.forEach(customer => { 
+                        
+                        // 🔥 SMART PRIMARY FALLBACK LOGIC
+                        let priGender = '';
+                        let priStatus = 'Existing';
+                        let priName = customer.linkedPrimaryName || '';
+                        let priMobile = customer.linkedPrimaryNumber || '';
+                        
+                        if (customer.primary) {
+                            priGender = customer.primary.gender || '';
+                            priStatus = customer.primary.subType || 'Existing';
+                            priName = customer.primary.name || priName;
+                            priMobile = customer.primary.mobile || priMobile;
+                        } else if (customer.triggerDoc && customer.triggerDoc.familyRole === 'Primary') {
+                            priGender = customer.triggerDoc.gender || '';
+                            priStatus = customer.triggerDoc.subType || 'Existing';
+                            priName = customer.triggerDoc.name || priName;
+                            priMobile = customer.triggerDoc.mobile || priMobile;
+                        } else if (customer.category === 'Family' && customer.familyRole === 'Primary') {
+                            priGender = customer.gender || '';
+                            priStatus = customer.subType || 'Existing';
+                            priName = customer.name || priName;
+                            priMobile = customer.mobile || priMobile;
+                        } else if (customer.linkedPrimaryStatus) {
+                            priStatus = customer.linkedPrimaryStatus;
+                        }
+
                         let tintClass = "bg-tint-default";
                         let mainType = customer.category;
                         if (customer.isFamilyGroup || customer.category === 'Family') {
@@ -54,7 +80,6 @@
 
                             <% if (customer.isFamilyGroup || customer.category === 'Family') { %>
                                 <div class="family-wrapper" style="margin-bottom: 0; padding: 10px;">
-                                    
                                     <% 
                                         let pBadge = 'Existing';
                                         if (customer.triggerDoc && customer.triggerDoc.subType && customer.triggerDoc.subType !== 'Existing') pBadge = customer.triggerDoc.subType;
@@ -62,7 +87,6 @@
                                         else if (customer.linkedPrimaryStatus && customer.linkedPrimaryStatus !== 'Existing' && customer.linkedPrimaryStatus !== '') pBadge = customer.linkedPrimaryStatus;
                                         else if (customer.subType && customer.subType !== 'Existing') pBadge = customer.subType;
                                     %>
-
                                     <div class="family-section primary-sec bg-tint-<%= pBadge === 'Existing' ? 'default' : pBadge %>" style="margin-bottom: 0; padding: 12px; border-radius: 12px; border-bottom: none; display: flex; flex-direction: column; gap: 10px;">
                                         <div style="display: flex; justify-content: space-between; align-items: center;">
                                             <span class="fs-label primary-label" style="color: var(--primary); margin: 0;">
@@ -98,9 +122,10 @@
                                             data-plan="<%= customer.plan || '' %>" 
                                             data-date="<%= new Date(new Date(customer.createdAt).getTime() + 330*60000).toISOString().split('T')[0] %>" 
                                             data-remarks="<%= customer.remarks || '' %>" 
-                                            data-p-name="<%= customer.primary ? customer.primary.name : (customer.linkedPrimaryName || '') %>" 
-                                            data-p-mobile="<%= customer.linkedPrimaryNumber %>" 
-                                            data-p-status="<%= customer.primary ? customer.primary.subType : 'Existing' %>" 
+                                            data-p-name="<%= priName %>" 
+                                            data-p-mobile="<%= priMobile %>" 
+                                            data-p-status="<%= priStatus %>" 
+                                            data-p-gender="<%= priGender %>"
                                             data-billdate="<%= customer.billDate || '' %>" 
                                             data-secondaries="<%= encodeURIComponent(JSON.stringify(customer.secondaries)) %>"
                                             onclick="openEditModal(this)">
@@ -182,9 +207,11 @@
                                         data-name="<%= customer.name %>" 
                                         data-mobile="<%= customer.mobile %>" 
                                         data-subtype="<%= customer.subType %>" 
-                                        data-p-name="<%= customer.linkedPrimaryName || '' %>" 
-                                        data-p-mobile="<%= customer.linkedPrimaryNumber || '' %>" 
-                                        data-p-status="<%= customer.primaryDoc ? customer.primaryDoc.subType : (customer.linkedPrimaryStatus || '') %>" 
+                                        data-gender="<%= customer.gender || '' %>"
+                                        data-p-name="<%= priName %>" 
+                                        data-p-mobile="<%= priMobile %>" 
+                                        data-p-status="<%= priStatus %>" 
+                                        data-p-gender="<%= priGender %>"
                                         data-billdate="<%= customer.billDate || '' %>" 
                                         onclick="openEditModal(this)">
                                         <i class="ri-pencil-line" style="font-size: 1.1rem;"></i> Edit / Manage Full Info

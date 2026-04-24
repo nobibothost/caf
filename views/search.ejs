@@ -10,7 +10,7 @@
     <div id="app-main">
         <div class="container">
             <div class="section-title" style="margin-bottom: 15px;"><h2><i class="ri-search-2-line"></i> Find Any Record</h2><p class="subtitle">Smart search by Name or Mobile across all months.</p></div>
-         
+
             <div class="search-box" style="margin-bottom: 25px;">
                 <form action="/search" method="GET" style="position: relative; width: 100%;" onsubmit="event.preventDefault();">
                     <i id="searchIcon" class="ri-search-line" style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 1.2rem; z-index: 2;"></i>
@@ -35,6 +35,32 @@
                         </div>
                     <% } else { %>
                         <% customers.forEach(customer => { 
+                            
+                            // 🔥 SMART PRIMARY FALLBACK LOGIC
+                            let priGender = '';
+                            let priStatus = 'Existing';
+                            let priName = customer.linkedPrimaryName || '';
+                            let priMobile = customer.linkedPrimaryNumber || '';
+                            
+                            if (customer.primary) {
+                                priGender = customer.primary.gender || '';
+                                priStatus = customer.primary.subType || 'Existing';
+                                priName = customer.primary.name || priName;
+                                priMobile = customer.primary.mobile || priMobile;
+                            } else if (customer.triggerDoc && customer.triggerDoc.familyRole === 'Primary') {
+                                priGender = customer.triggerDoc.gender || '';
+                                priStatus = customer.triggerDoc.subType || 'Existing';
+                                priName = customer.triggerDoc.name || priName;
+                                priMobile = customer.triggerDoc.mobile || priMobile;
+                            } else if (customer.category === 'Family' && customer.familyRole === 'Primary') {
+                                priGender = customer.gender || '';
+                                priStatus = customer.subType || 'Existing';
+                                priName = customer.name || priName;
+                                priMobile = customer.mobile || priMobile;
+                            } else if (customer.linkedPrimaryStatus) {
+                                priStatus = customer.linkedPrimaryStatus;
+                            }
+
                             let tintClass = "bg-tint-default";
                             let mainType = customer.category;
                             if (customer.isFamilyGroup || customer.category === 'Family') {
@@ -62,10 +88,9 @@
                                         <span style="font-size: 0.75rem; font-weight: 600; color: var(--primary); background: #e0e7ff; padding: 2px 6px; border-radius: 4px;">Act: <%= new Date(new Date(customer.activationDate || customer.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></span>
                                     </div>
                                 </div>
-             
+
                                 <% if (customer.isFamilyGroup || customer.category === 'Family') { %>
                                     <div class="family-wrapper" style="margin-bottom: 0; padding: 10px;">
-                                        
                                         <div class="family-section primary-sec" style="margin-bottom: 0; padding-bottom: 0; border-bottom: none; display: flex; flex-direction: column; gap: 10px;">
                                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                                 <span class="fs-label primary-label" style="color: var(--primary); margin: 0;">
@@ -83,14 +108,14 @@
                                                     <p style="margin: 0; font-family: monospace; font-size: 0.85rem; color: #64748b;"><%= customer.triggerDoc ? customer.triggerDoc.mobile : customer.linkedPrimaryNumber %></p>
                                                 </div>
                                                 <div style="display: flex; gap: 8px;">
-                                                    <button type="button" onclick="openWaModal('<%= customer.triggerDoc ? customer.triggerDoc.mobile : customer.linkedPrimaryNumber %>', '<%= customer.triggerDoc ? customer.triggerDoc.name : (customer.linkedPrimaryName || 'Existing Connection') %>', 'normal')" style="border:none; width: 32px; height: 32px; background: #d1fae5; color: #059669; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;"><i class="ri-whatsapp-line"></i></button>
+                                                    <button type="button" onclick="openWaModal('<%= customer.triggerDoc ? customer.triggerDoc.mobile : customer.linkedPrimaryNumber %>', '<%= customer.triggerDoc ? customer.triggerDoc.name : (customer.linkedPrimaryName || 'Existing Connection') %>', 'normal', '<%= customer.triggerDoc ? customer.triggerDoc.gender : (customer.gender || '') %>')" style="border:none; width: 32px; height: 32px; background: #d1fae5; color: #059669; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;"><i class="ri-whatsapp-line"></i></button>
                                                     <a href="tel:8657973703,<%= customer.triggerDoc ? customer.triggerDoc.mobile : customer.linkedPrimaryNumber %>" style="width: 32px; height: 32px; background: rgba(255,255,255,0.8); color: #475569; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(0,0,0,0.1);" onclick="handleCallClick(event, this)" data-id="<%= customer.triggerDoc ? customer.triggerDoc._id : customer._id %>" data-page="normal"><i class="ri-phone-fill"></i></a>
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div style="display: flex; gap: 8px; margin-top: 15px;">
-                                            <button type="button" onclick="openFamilyModal('<%= customer._id.toString() %>')" style="flex: 1; padding: 10px 5px; background: rgba(253, 242, 248, 0.8); border: 1px dashed #fbcfe8; color: #db2777; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; transition: all 0.2s ease;">
+                                            <button type="button" onclick="window.openFamilyModal('<%= customer._id.toString() %>')" style="flex: 1; padding: 10px 5px; background: rgba(253, 242, 248, 0.8); border: 1px dashed #fbcfe8; color: #db2777; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; transition: all 0.2s ease;">
                                                 <i class="ri-team-fill" style="font-size: 1.1rem;"></i> View Tree
                                             </button>
 
@@ -101,9 +126,10 @@
                                                 data-plan="<%= customer.plan || '' %>" 
                                                 data-date="<%= new Date(new Date(customer.createdAt).getTime() + 330*60000).toISOString().split('T')[0] %>" 
                                                 data-remarks="<%= customer.remarks || '' %>" 
-                                                data-p-name="<%= customer.primary ? customer.primary.name : (customer.linkedPrimaryName || '') %>" 
-                                                data-p-mobile="<%= customer.linkedPrimaryNumber %>" 
-                                                data-p-status="<%= customer.primary ? customer.primary.subType : 'Existing' %>" 
+                                                data-p-name="<%= priName %>" 
+                                                data-p-mobile="<%= priMobile %>" 
+                                                data-p-status="<%= priStatus %>" 
+                                                data-p-gender="<%= priGender %>"
                                                 data-billdate="<%= customer.billDate || '' %>" 
                                                 data-secondaries="<%= encodeURIComponent(JSON.stringify(customer.secondaries)) %>"
                                                 onclick="openEditModal(this)">
@@ -130,7 +156,7 @@
                                                         <p style="margin: 0; font-family: monospace; font-size: 0.9rem; color: #64748b;"><%= customer.linkedPrimaryNumber %></p>
                                                     </div>
                                                     <div style="display: flex; gap: 8px;">
-                                                        <button type="button" onclick="openWaModal('<%= customer.linkedPrimaryNumber %>', '<%= customer.primary ? customer.primary.name : (customer.linkedPrimaryName || 'Existing Connection') %>', 'normal')" style="border:none; width: 38px; height: 38px; background: #d1fae5; color: #059669; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.2rem;"><i class="ri-whatsapp-line"></i></button>
+                                                        <button type="button" onclick="openWaModal('<%= customer.linkedPrimaryNumber %>', '<%= customer.primary ? customer.primary.name : (customer.linkedPrimaryName || 'Existing Connection') %>', 'normal', '<%= customer.primary ? customer.primary.gender : '' %>')" style="border:none; width: 38px; height: 38px; background: #d1fae5; color: #059669; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.2rem;"><i class="ri-whatsapp-line"></i></button>
                                                         <a href="tel:8657973703,<%= customer.linkedPrimaryNumber %>" style="width: 38px; height: 38px; background: #e2e8f0; color: #475569; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;" onclick="handleCallClick(event, this)" data-id="<%= customer.primary ? customer.primary._id : 'N/A' %>" data-page="normal"><i class="ri-phone-fill"></i></a>
                                                     </div>
                                                 </div>
@@ -152,7 +178,7 @@
                                                                 <p style="margin: 0; font-family: monospace; font-size: 0.85rem; color: #64748b;"><%= sec.mobile %></p>
                                                             </div>
                                                             <div style="display: flex; gap: 8px;">
-                                                                <button type="button" onclick="openWaModal('<%= sec.mobile %>', '<%= sec.name %>', 'normal')" style="border:none; width: 32px; height: 32px; background: #d1fae5; color: #059669; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;"><i class="ri-whatsapp-line"></i></button>
+                                                                <button type="button" onclick="openWaModal('<%= sec.mobile %>', '<%= sec.name %>', 'normal', '<%= sec.gender || '' %>')" style="border:none; width: 32px; height: 32px; background: #d1fae5; color: #059669; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;"><i class="ri-whatsapp-line"></i></button>
                                                                 <a href="tel:8657973703,<%= sec.mobile %>" style="width: 32px; height: 32px; background: #e2e8f0; color: #475569; border-radius: 50%; display: flex; align-items: center; justify-content: center;" onclick="handleCallClick(event, this)" data-id="<%= sec._id %>" data-page="normal"><i class="ri-phone-fill"></i></a>
                                                             </div>
                                                         </div>
@@ -172,11 +198,11 @@
                                         <p class="meta-info mobile-txt"><i class="ri-smartphone-line"></i> <%= customer.mobile %></p>
                                     </div>
                                     <div class="card-actions" style="margin-bottom: 8px;">
-                                        <button type="button" class="btn-whatsapp" style="flex: 1;" onclick="openWaModal('<%= customer.mobile %>', '<%= customer.name %>', 'normal')"><i class="ri-whatsapp-line"></i> WhatsApp</button>
+                                        <button type="button" class="btn-whatsapp" style="flex: 1;" onclick="openWaModal('<%= customer.mobile %>', '<%= customer.name %>', 'normal', '<%= customer.gender || '' %>')"><i class="ri-whatsapp-line"></i> WhatsApp</button>
                                         <a href="tel:8657973703,<%= customer.mobile %>" class="btn-call" style="flex: 1;" data-id="<%= customer._id %>" data-page="normal" onclick="handleCallClick(event, this)"><i class="ri-phone-fill"></i> Call</a>
                                     </div>
                                     <div class="card-actions" style="margin-top: 8px;">
-                                        <button type="button" class="btn-edit" style="width: 100%; padding: 10px; background: rgba(240, 253, 244, 0.8); border: 1px dashed #bbf7d0; color: #16a34a; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; transition: all 0.2s ease;" 
+                                        <button type="button" class="btn-edit" style="width: 100%; padding: 10px; background: rgba(240, 253, 244, 0.8); border: 1px dashed #bbf7d0; color: #16a34a; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; transition: all 0.2s ease;"
                                             data-id="<%= customer._id %>" 
                                             data-category="<%= customer.category %>" 
                                             data-plan="<%= customer.plan || '' %>" 
@@ -185,9 +211,11 @@
                                             data-name="<%= customer.name %>" 
                                             data-mobile="<%= customer.mobile %>" 
                                             data-subtype="<%= customer.subType %>" 
-                                            data-p-name="<%= customer.linkedPrimaryName || '' %>" 
-                                            data-p-mobile="<%= customer.linkedPrimaryNumber || '' %>" 
-                                            data-p-status="<%= customer.primaryDoc ? customer.primaryDoc.subType : (customer.linkedPrimaryStatus || '') %>" 
+                                            data-gender="<%= customer.gender || '' %>"
+                                            data-p-name="<%= priName %>" 
+                                            data-p-mobile="<%= priMobile %>" 
+                                            data-p-status="<%= priStatus %>" 
+                                            data-p-gender="<%= priGender %>"
                                             data-billdate="<%= customer.billDate || '' %>" 
                                             onclick="openEditModal(this)">
                                             <i class="ri-pencil-line" style="font-size: 1.1rem;"></i> Manage Record
@@ -197,7 +225,7 @@
                                 
                                 <% if (customer.remarks && customer.remarks.trim() !== "") { %>
                                     <div class="card-actions" style="margin-top: 12px;">
-                                        <button type="button" class="btn-note" data-name="<%= customer.triggerDoc ? customer.triggerDoc.name : (customer.name || (customer.primary ? customer.primary.name : 'Family Group')) %>" data-remarks="<%= customer.remarks %>" onclick="openRemarksModal(this)" style="width: 100%;"><i class="ri-sticky-note-fill"></i> View Remarks</button> 
+                                        <button class="btn-note" data-name="<%= customer.triggerDoc ? customer.triggerDoc.name : (customer.name || (customer.primary ? customer.primary.name : 'Family Group')) %>" data-remarks="<%= customer.remarks %>" onclick="openRemarksModal(this)" style="width: 100%;"><i class="ri-sticky-note-fill"></i> View Remarks</button> 
                                     </div>
                                 <% } %>
                             </div>
@@ -212,7 +240,7 @@
             <div class="modal-card">
                 <div class="modal-header">
                     <h3><i class="ri-team-fill" style="color: var(--primary);"></i> Full Family Tree</h3>
-                    <button type="button" onclick="closeFamilyModal()" class="icon-btn"><i class="ri-close-line"></i></button>
+                    <button type="button" onclick="window.closeFamilyModal()" class="icon-btn"><i class="ri-close-line"></i></button>
                 </div>
                 <div id="familyTreeBody" style="padding:5px;"></div>
             </div>

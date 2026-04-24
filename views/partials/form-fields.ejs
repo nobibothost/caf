@@ -7,12 +7,15 @@
     const fFormId = isEdit ? 'edit-family-form' : 'family-form';
     const nNameId = isEdit ? 'editNName' : 'n_name';
     const nMobileId = isEdit ? 'editNMobile' : 'n_mobile';
+    const nGenderId = isEdit ? 'editNGender' : 'gender';
     const pTypeId = isEdit ? 'editPType' : 'p_type';
     const pNameId = isEdit ? 'editPName' : 'p_name';
     const pMobileId = isEdit ? 'editPMobile' : 'p_mobile';
+    const pGenderId = isEdit ? 'editPGender' : 'p_gender';
     const sTypeId = isEdit ? 'editSType' : 's_type';
     const sNameId = isEdit ? 'editSName' : 's_name';
     const sMobileId = isEdit ? 'editSMobile' : 's_mobile';
+    const sGenderId = isEdit ? 'editSGender' : 's_gender';
     const billDateId = isEdit ? 'editBillDate' : 'billDate';
     const remarksId = isEdit ? 'editRemarks' : 'remarks';
 %>
@@ -63,6 +66,18 @@
         </div>
     </div>
     <div class="input-group">
+        <label>Gender (AI Auto)</label>
+        <div class="input-wrapper">
+            <i class="ri-men-line icon-left"></i>
+            <select name="gender" id="<%= nGenderId %>">
+                <option value="KEEP" selected>Auto / Keep Existing</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="CLEAR">Remove (Default Sir)</option>
+            </select>
+        </div>
+    </div>
+    <div class="input-group">
         <label>Mobile</label>
         <div class="input-wrapper">
             <i class="ri-smartphone-line icon-left"></i>
@@ -93,6 +108,17 @@
         <div class="input-wrapper">
             <i class="ri-user-star-line icon-left"></i>
             <input type="text" name="p_name" id="<%= pNameId %>" placeholder="e.g., Amit Kumar (Primary)">
+        </div>
+    </div>
+    <div class="input-group">
+        <div class="input-wrapper">
+            <i class="ri-men-line icon-left"></i>
+            <select name="p_gender" id="<%= pGenderId %>">
+                <option value="KEEP" selected>Auto / Keep Existing</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="CLEAR">Remove</option>
+            </select>
         </div>
     </div>
     <div class="input-group">
@@ -128,13 +154,23 @@
     </div>
     <div class="input-group">
         <div class="input-wrapper">
+            <i class="ri-men-line icon-left"></i>
+            <select name="s_gender" id="<%= sGenderId %>">
+                <option value="KEEP" selected>Auto / Keep Existing</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="CLEAR">Remove</option>
+            </select>
+        </div>
+    </div>
+    <div class="input-group">
+        <div class="input-wrapper">
             <i class="ri-smartphone-line icon-left"></i>
             <input type="tel" name="s_mobile" id="<%= sMobileId %>" placeholder="e.g., 9876543210" pattern="[0-9]{10}">
         </div>
     </div>
     
-    <div id="secondaries-container-<%= isEdit ? 'edit' : 'add' %>">
-    </div>
+    <div id="secondaries-container-<%= isEdit ? 'edit' : 'add' %>"></div>
     
     <button type="button" class="btn-submit" style="background: #e0e7ff; color: #4f46e5; margin-top: 15px; padding: 12px; border: 1px dashed #4f46e5;" onclick="addSecondaryRow(<%= isEdit %>)">
         <i class="ri-add-circle-line"></i> Add Another Secondary
@@ -158,8 +194,11 @@
 
 <div class="input-group" style="margin-top: 15px;">
     <label>Remarks (Optional)</label>
-    <div class="input-wrapper">
+    <div class="input-wrapper" style="position: relative;">
         <i class="ri-sticky-note-line icon-left"></i>
-        <input type="text" name="remarks" id="<%= remarksId %>" placeholder="Optional notes...">
+        <input type="text" name="remarks" id="<%= remarksId %>" placeholder="Optional notes..." style="padding-right: 45px;">
+        <button type="button" class="ai-inline-btn" title="Get 2 AI Suggestions" onclick="window.showAiSuggestions(document.getElementById('<%= remarksId %>'), this, event)">
+            <i class="ri-sparkling-fill"></i>
+        </button>
     </div>
 </div>

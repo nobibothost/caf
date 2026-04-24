@@ -181,13 +181,36 @@
                                 <p style="margin: 0; font-size: 0.9rem; color: #64748b; font-family: monospace;"><i class="ri-smartphone-line"></i> <%= c.mobile %></p>
                                 
                                 <div style="display: flex; gap: 8px; margin-top: 10px;">
-                                    <button type="button" onclick="openWaModal('<%= c.mobile %>', '<%= c.name %>', 'verification')" class="icon-btn-round-wa"><i class="ri-whatsapp-line"></i></button>
+                                    <button type="button" onclick="openWaModal('<%= c.mobile %>', '<%= c.name %>', 'verification', '<%= c.gender || '' %>')" class="icon-btn-round-wa"><i class="ri-whatsapp-line"></i></button>
                                     <a href="tel:8657973703,<%= c.mobile %>" class="icon-btn-round-call" onclick="handleCallClick(event, this)" data-id="<%= c._id %>" data-page="normal"><i class="ri-phone-fill"></i></a>
                                 </div>
                             </div>
+                            
+                            <% 
+                                let realIstNow = new Date(new Date().getTime() + 330*60000);
+                                let cActFull = new Date(new Date(c.dynamicActDate || c.activationDate || c.createdAt).getTime() + 330*60000);
+                                let todayDateOnly = new Date(Date.UTC(realIstNow.getUTCFullYear(), realIstNow.getUTCMonth(), realIstNow.getUTCDate()));
+                                let actDateOnly = new Date(Date.UTC(cActFull.getUTCFullYear(), cActFull.getUTCMonth(), cActFull.getUTCDate()));
+                                
+                                let diffDays = Math.round((actDateOnly - todayDateOnly) / (1000 * 60 * 60 * 24));
+                                let daysText = "Waiting";
+                                
+                                if (diffDays === 0) {
+                                    daysText = "Today";
+                                } else if (diffDays === 1) {
+                                    daysText = "Tomorrow";
+                                } else if (diffDays > 1) {
+                                    daysText = diffDays + " Days";
+                                } else {
+                                    daysText = "Overdue";
+                                }
+                                
+                                let dateStr = cActFull.toISOString().split('T')[0].split('-').reverse().join('/');
+                            %>
+                            
                             <div class="pc-date" style="text-align: center; background: rgba(254, 243, 199, 0.8); border: 1px solid #fde68a; padding: 8px 12px; border-radius: 8px; min-width: 85px;">
-                                <span style="display: block; font-size: 0.65rem; color: #b45309; text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">Activates</span>
-                                <strong style="font-size: 0.95rem; color: #92400e;"><%= new Date(new Date(c.dynamicActDate || c.activationDate || c.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></strong>
+                                <span style="display: block; font-size: 0.75rem; color: #d97706; text-transform: uppercase; font-weight: 800; margin-bottom: 2px;"><i class="ri-time-line"></i> <%= daysText %></span>
+                                <strong style="font-size: 0.9rem; color: #92400e;"><%= dateStr %></strong>
                             </div>
                         </div>
                     <% }) %>

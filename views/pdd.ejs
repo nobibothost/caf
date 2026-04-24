@@ -139,7 +139,7 @@
                         <% } %>
 
                         <div class="card-actions" style="margin-top: 15px; margin-bottom: 15px;">
-                            <button type="button" class="btn-whatsapp" style="flex: 1;" onclick="openWaModal('<%= customer.mobile %>', '<%= customer.name %>', 'pdd', '<%= customer.billDate %>')"><i class="ri-whatsapp-line"></i> Remind on WA</button>
+                            <button type="button" class="btn-whatsapp" style="flex: 1;" onclick="openWaModal('<%= customer.mobile %>', '<%= customer.name %>', 'pdd', '<%= customer.gender || '' %>')"><i class="ri-whatsapp-line"></i> Remind on WA</button>
                             <a href="tel:8657973703,<%= customer.mobile %>" class="btn-call" style="flex: 1; background: rgba(255,255,255,0.7);" data-id="<%= customer._id %>" data-page="pdd" onclick="handleCallClick(event, this)"><i class="ri-phone-fill"></i> Call</a>
                         </div>
 

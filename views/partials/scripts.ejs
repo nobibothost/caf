@@ -1,6 +1,11 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-<script src="/app.js"></script>
+<script src="/core.js"></script>
+<script src="/modals.js"></script>
+<script src="/calls.js"></script>
+<script src="/forms.js"></script>
+<script src="/features.js"></script>
+<script src="/ai.js"></script>
 
 <div id="agendaModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.6); z-index:10000; align-items:center; justify-content:center; padding:20px; backdrop-filter: blur(4px); opacity: 0; transition: opacity 0.3s ease;">
     <div style="background:white; border-radius:20px; width:100%; max-width:380px; display:flex; flex-direction:column; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5); overflow:hidden; transform: translateY(20px); transition: transform 0.3s ease;" id="agendaModalContent">
@@ -33,7 +38,6 @@
 </div>
 
 <script>
-    // --- PWA SERVICE WORKER REGISTRATION ---
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('/sw.js').then(reg => {
@@ -42,29 +46,23 @@
         });
     }
 
-    // 1. SMART NOTIFICATION BELL LOGIC (WITH READ/UNREAD FEATURE)
     async function fetchAgenda() {
         try {
             const res = await fetch('/api/agenda');
             const data = await res.json();
             
-            // Get what the user has already acknowledged (Read History)
             let ackVerCount = parseInt(localStorage.getItem('ackVerCount')) || 0;
             let ackBillCount = parseInt(localStorage.getItem('ackBillCount')) || 0;
 
-            // Smart comparison for Verifications
             let unreadVer = data.pendingVerifications;
             if (data.pendingVerifications <= ackVerCount) {
-                unreadVer = 0; // Everything is read
-                // Auto-sync downwards if tasks were completed
+                unreadVer = 0; 
                 localStorage.setItem('ackVerCount', data.pendingVerifications);
             }
 
-            // Smart comparison for Bills
             let unreadBill = data.pendingBills;
             if (data.pendingBills <= ackBillCount) {
-                unreadBill = 0; // Everything is read
-                // Auto-sync downwards if bills were paid
+                unreadBill = 0;
                 localStorage.setItem('ackBillCount', data.pendingBills);
             }
 
@@ -78,22 +76,18 @@
                 badge.style.display = 'none';
             }
 
-            // Text inside modal will show actual total, but badge stays hidden if read
             document.getElementById('agenda-ver-text').innerHTML = data.pendingVerifications > 0 
                 ? `<strong style="color:#ef4444">${data.pendingVerifications}</strong> verifications due.` 
                 : "All caught up!";
             document.getElementById('agenda-bill-text').innerHTML = data.pendingBills > 0 
                 ? `<strong style="color:#dc2626">${data.pendingBills}</strong> bills pending.` 
                 : "No pending bills!";
-            
-            // Store globally so the click handlers can save them to LocalStorage
             window.currentAgendaVerifications = data.pendingVerifications;
             window.currentAgendaBills = data.pendingBills;
 
         } catch(e) { console.error("Agenda Fetch Error:", e); }
     }
 
-    // Handler to Mark as Read and Redirect
     function handleAgendaClick(type) {
         if (type === 'verifications') {
             localStorage.setItem('ackVerCount', window.currentAgendaVerifications || 0);
@@ -109,7 +103,6 @@
         const content = document.getElementById('agendaModalContent');
         if(modal.style.display === 'none') {
             modal.style.display = 'flex';
-            // Trigger reflow for animation
             void modal.offsetWidth;
             modal.style.opacity = '1';
             content.style.transform = 'translateY(0)';
@@ -120,20 +113,15 @@
         }
     }
 
-    // Close agenda when clicking outside
     document.getElementById('agendaModal').addEventListener('click', function(e) {
         if(e.target === this) toggleAgendaModal();
     });
-
-    // Fetch on load
     document.addEventListener('DOMContentLoaded', fetchAgenda);
 
-    // 2. SUCCESS ANIMATIONS (CONFETTI) OVERRIDE
     const originalSubmit = HTMLFormElement.prototype.submit;
     HTMLFormElement.prototype.submit = function() {
         const actionUrl = this.getAttribute('action') || '';
         if (actionUrl.includes('/complete/') || actionUrl.includes('/pay-bill') || actionUrl.includes('/pay-all-bills')) {
-            // Fire Confetti Party!
             const duration = 1200;
             const end = Date.now() + duration;
             (function frame() {
@@ -155,12 +143,10 @@
                     requestAnimationFrame(frame);
                 }
             }());
-            // Wait slightly for animation to be enjoyed before jumping to next page
             setTimeout(() => {
                 originalSubmit.call(this);
             }, duration + 100);
         } else {
-            // Normal silent submit for other forms
             originalSubmit.call(this);
         }
     };
