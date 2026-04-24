@@ -1,7 +1,9 @@
 {
   "name": "VerifyHub Workspace",
   "short_name": "VerifyHub",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#f1f5f9",
   "theme_color": "#4f46e5",
