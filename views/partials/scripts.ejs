@@ -33,6 +33,15 @@
 </div>
 
 <script>
+    // --- PWA SERVICE WORKER REGISTRATION ---
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').then(reg => {
+                console.log('SW Registered', reg);
+            }).catch(err => console.error('SW Reg Failed:', err));
+        });
+    }
+
     // 1. SMART NOTIFICATION BELL LOGIC (WITH READ/UNREAD FEATURE)
     async function fetchAgenda() {
         try {
@@ -76,6 +85,7 @@
             document.getElementById('agenda-bill-text').innerHTML = data.pendingBills > 0 
                 ? `<strong style="color:#dc2626">${data.pendingBills}</strong> bills pending.` 
                 : "No pending bills!";
+            
             // Store globally so the click handlers can save them to LocalStorage
             window.currentAgendaVerifications = data.pendingVerifications;
             window.currentAgendaBills = data.pendingBills;
@@ -114,6 +124,7 @@
     document.getElementById('agendaModal').addEventListener('click', function(e) {
         if(e.target === this) toggleAgendaModal();
     });
+
     // Fetch on load
     document.addEventListener('DOMContentLoaded', fetchAgenda);
 
