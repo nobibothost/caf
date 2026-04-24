@@ -11,19 +11,64 @@
         <div class="container">
             <div class="section-title"><h2><i class="ri-calendar-check-fill"></i> <%= headerTitle %></h2><p class="subtitle">Showing pending tasks.</p></div>
 
-            <form action="/" method="GET" class="filter-form"><div class="filter-wrapper"><i class="ri-filter-3-line"></i><select name="month" class="filter-select" onchange="handleFilterChange(event, this)"><option value="0" <%= monthOffset == 0 ? 'selected' : '' %>>This Month</option><option value="1" <%= monthOffset == 1 ? 'selected' : '' %>>Last Month</option><option value="2" <%= monthOffset == 2 ? 'selected' : '' %>>2 Months Ago</option><option value="all" <%= monthOffset === 'all' ? 'selected' : '' %>>Show All Pending</option></select></div></form>
+            <form action="/" method="GET" class="filter-form" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <div class="filter-wrapper" style="flex: 1; min-width: 140px;">
+                    <i class="ri-filter-3-line"></i>
+                    <select name="month" class="filter-select" onchange="handleFilterChange(event, this)">
+                        <option value="0" <%= monthOffset == 0 ? 'selected' : '' %>>This Month</option>
+                        <option value="1" <%= monthOffset == 1 ? 'selected' : '' %>>Last Month</option>
+                        <option value="2" <%= monthOffset == 2 ? 'selected' : '' %>>2 Months Ago</option>
+                        <option value="all" <%= monthOffset === 'all' ? 'selected' : '' %>>Show All Pending</option>
+                        <option value="custom" <%= monthOffset === 'custom' ? 'selected' : '' %> style="display:none;">Custom Range</option>
+                    </select>
+                </div>
+                <div class="filter-wrapper" style="flex: 1; min-width: 180px;">
+                    <i class="ri-calendar-line"></i>
+                    <input type="text" class="filter-select custom-range-picker" placeholder="Select Custom Range" value="<%= typeof daterange !== 'undefined' ? daterange : '' %>" readonly style="cursor: pointer; background: transparent; padding-left: 5px;">
+                </div>
+            </form>
 
             <div class="search-box"><i class="ri-search-line"></i><input type="text" id="searchInput" onkeyup="filterList()" placeholder="Quick filter on this page..."></div>
 
             <div class="grid-layout" id="customerList" data-current-page="<%= typeof currentPage !== 'undefined' ? currentPage : 1 %>" data-total-pages="<%= typeof totalPages !== 'undefined' ? totalPages : 1 %>">
+                <% 
+                    let globalIstNow = new Date(new Date().getTime() + 330*60000);
+                    globalIstNow.setUTCHours(0,0,0,0);
+                %>
                 <% if (customers.length === 0) { %>
                     <div style="text-align: center; padding: 50px 20px; background: white; border-radius: 20px; border: 1px dashed #cbd5e1; margin-top: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.02); grid-column: 1 / -1;">
                         <div style="width: 80px; height: 80px; background: #d1fae5; color: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 3.5rem; margin: 0 auto 20px auto; box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.2);"><i class="ri-shield-check-fill"></i></div>
                         <h3 style="margin: 0 0 10px 0; color: #0f172a; font-size: 1.4rem;">All Caught Up!</h3><p style="margin: 0; color: #64748b; font-size: 0.95rem;">No pending verifications for this period.</p>
                     </div>
                 <% } else { %>
-                    <% customers.forEach(customer => { %>
-                        <div class="card search-item" <%= customer.isFamilyGroup ? 'style="border: 2px solid #fbcfe8; background: white;"' : 'style="background: white;"' %>>
+                    <% customers.forEach(customer => { 
+                        let cVer = new Date(new Date(customer.verificationDate || customer.createdAt).getTime() + 330*60000);
+                        cVer.setUTCHours(0,0,0,0);
+                        let dueClass = "";
+                        let dueBg = "transparent";
+                        let dueColor = "#ef4444";
+                        if (cVer < globalIstNow) {
+                            dueClass = "badge-urgent";
+                            dueBg = "#fee2e2";
+                        } else if (cVer.getTime() === globalIstNow.getTime()) {
+                            dueClass = "badge-today";
+                            dueBg = "#fef3c7";
+                            dueColor = "#d97706";
+                        }
+
+                        let tintClass = "bg-tint-default";
+                        let mainType = customer.category;
+                        if (customer.isFamilyGroup || customer.category === 'Family') {
+                            mainType = customer.triggerDoc ? customer.triggerDoc.subType : 'Family';
+                        }
+                        if (mainType === 'NC') tintClass = 'bg-tint-NC';
+                        else if (mainType === 'P2P') tintClass = 'bg-tint-P2P';
+                        else if (mainType === 'MNP') tintClass = 'bg-tint-MNP';
+                        else if (mainType === 'NMNP') tintClass = 'bg-tint-NMNP';
+                        else if (mainType === 'PDR') tintClass = 'bg-tint-PDR';
+                        else if (mainType === 'Family' || mainType === 'Existing') tintClass = 'bg-tint-Family';
+                    %>
+                        <div class="card search-item <%= customer.isFamilyGroup ? 'bg-tint-Family' : tintClass %>" <%= customer.isFamilyGroup ? 'style="border-left: 4px solid #06b6d4 !important;"' : '' %>>
                             <div class="card-top">
                                 <div style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">
                                     <% if (customer.isFamilyGroup || customer.category === 'Family') { %> 
@@ -31,25 +76,33 @@
                                     <% } else { %> 
                                         <span class="badge badge-<%= customer.category %>"><%= customer.category %></span> 
                                     <% } %>
-                                    <% if(customer.plan) { %><span class="badge" style="background: #f3f4f6; color: #475569; font-size: 0.65rem;">₹<%= customer.plan %></span><% } %>
+                                    <% if(customer.plan) { %><span class="badge" style="background: rgba(255, 255, 255, 0.7); color: #475569; font-size: 0.65rem; border: 1px solid rgba(0,0,0,0.05);">₹<%= customer.plan %></span><% } %>
                                     <% if (customer.billDate) { %><span class="badge" style="background: rgba(14, 165, 233, 0.1); color: #0ea5e9;"><i class="ri-bill-line"></i> Bill: <%= customer.billDate %>th</span><% } %>
                                 </div>
                                 <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
-                                    <span style="font-size: 0.75rem; font-weight: 600; color: #64748b; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">Act: <%= new Date(new Date(customer.activationDate || customer.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></span>
-                                    <span style="font-size: 0.75rem; font-weight: 600; color: #ef4444; padding: 2px 0;">Due: <%= new Date(new Date(customer.verificationDate || customer.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></span>
+                                    <span style="font-size: 0.75rem; font-weight: 600; color: #64748b; background: rgba(255, 255, 255, 0.7); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.05);">Act: <%= new Date(new Date(customer.activationDate || customer.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></span>
+                                    <span class="<%= dueClass %>" style="font-size: 0.75rem; font-weight: 600; color: <%= dueColor %>; padding: 2px 6px; border-radius: 4px; background: <%= dueBg %>;">Due: <%= new Date(new Date(customer.verificationDate || customer.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></span>
                                 </div>
                             </div>
                      
                             <% if (customer.isFamilyGroup || customer.category === 'Family') { %>
                                 <div class="family-wrapper" style="margin-bottom: 0; padding: 10px;">
                                     
-                                    <div class="family-section primary-sec" style="margin-bottom: 0; padding-bottom: 0; border-bottom: none; display: flex; flex-direction: column; gap: 10px;">
+                                    <% 
+                                        let pBadge = 'Existing';
+                                        if (customer.triggerDoc && customer.triggerDoc.subType && customer.triggerDoc.subType !== 'Existing') pBadge = customer.triggerDoc.subType;
+                                        else if (customer.primary && customer.primary.subType && customer.primary.subType !== 'Existing') pBadge = customer.primary.subType;
+                                        else if (customer.linkedPrimaryStatus && customer.linkedPrimaryStatus !== 'Existing' && customer.linkedPrimaryStatus !== '') pBadge = customer.linkedPrimaryStatus;
+                                        else if (customer.subType && customer.subType !== 'Existing') pBadge = customer.subType;
+                                    %>
+
+                                    <div class="family-section primary-sec bg-tint-<%= pBadge === 'Existing' ? 'default' : pBadge %>" style="margin-bottom: 0; padding: 12px; border-radius: 12px; border-bottom: none; display: flex; flex-direction: column; gap: 10px;">
                                         <div style="display: flex; justify-content: space-between; align-items: center;">
                                             <span class="fs-label primary-label" style="color: var(--primary); margin: 0;">
                                                 <% if (customer.triggerDoc && customer.triggerDoc.familyRole === 'Secondary') { %>
                                                     <i class="ri-user-add-line"></i> Add-on Connection <span class="badge badge-<%= customer.triggerDoc.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= customer.triggerDoc.subType %></span>
                                                 <% } else { %>
-                                                    Primary Connection <span class="badge badge-<%= customer.triggerDoc ? customer.triggerDoc.subType : 'Existing' %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= customer.triggerDoc ? customer.triggerDoc.subType : 'Existing' %></span>
+                                                    <i class="ri-star-fill" style="color: #eab308;"></i> Primary Connection <span class="badge badge-<%= pBadge %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= pBadge %></span>
                                                 <% } %>
                                             </span>
                                         </div>
@@ -60,8 +113,8 @@
                                                 <p style="margin: 0; font-family: monospace; font-size: 0.85rem; color: #64748b;"><%= customer.triggerDoc ? customer.triggerDoc.mobile : customer.linkedPrimaryNumber %></p>
                                             </div>
                                             <div style="display: flex; gap: 8px;">
-                                                <button type="button" onclick="openWaModal('<%= customer.triggerDoc ? customer.triggerDoc.mobile : customer.linkedPrimaryNumber %>', '<%= customer.triggerDoc ? customer.triggerDoc.name : (customer.linkedPrimaryName || 'Existing Connection') %>', 'verification')" style="border:none; width: 32px; height: 32px; background: #d1fae5; color: #059669; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;"><i class="ri-whatsapp-line"></i></button>
-                                                <a href="tel:8657973703,<%= customer.triggerDoc ? customer.triggerDoc.mobile : customer.linkedPrimaryNumber %>" style="width: 32px; height: 32px; background: #e2e8f0; color: #475569; border-radius: 50%; display: flex; align-items: center; justify-content: center;" onclick="handleCallClick(event, this)" data-id="<%= customer.triggerDoc ? customer.triggerDoc._id : customer._id %>" data-page="verification"><i class="ri-phone-fill"></i></a>
+                                                <button type="button" onclick="openWaModal('<%= customer.triggerDoc ? customer.triggerDoc.mobile : customer.linkedPrimaryNumber %>', '<%= customer.triggerDoc ? customer.triggerDoc.name : (customer.linkedPrimaryName || 'Existing Connection') %>', 'verification')" class="icon-btn-round-wa"><i class="ri-whatsapp-line"></i></button>
+                                                <a href="tel:8657973703,<%= customer.triggerDoc ? customer.triggerDoc.mobile : customer.linkedPrimaryNumber %>" class="icon-btn-round-call" onclick="handleCallClick(event, this)" data-id="<%= customer.triggerDoc ? customer.triggerDoc._id : customer._id %>" data-page="verification"><i class="ri-phone-fill"></i></a>
                                             </div>
                                         </div>
 
@@ -74,14 +127,15 @@
                                         <% } %>
                                     </div>
 
-                                    <div style="display: flex; gap: 8px; margin-top: 15px;">
-                                        <button type="button" onclick="openFamilyModal('<%= customer._id.toString() %>')" style="flex: 1; padding: 10px 5px; background: #fdf2f8; border: 1px dashed #fbcfe8; color: #db2777; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; transition: all 0.2s ease;">
+                                    <% let isFamilyPending = (customer.triggerDoc && customer.triggerDoc.status !== 'completed' && customer.triggerDoc.subType !== 'Existing'); %>
+                                    <div style="display: grid; grid-template-columns: <%= isFamilyPending ? '1fr 1fr' : '1fr' %>; gap: 10px; margin-top: 15px;">
+                                        <button type="button" class="btn-theme btn-view-tree" data-tree-id="<%= customer._id.toString() %>" style="width: 100%; margin: 0;">
                                             <i class="ri-team-fill" style="font-size: 1.1rem;"></i> View Tree
                                         </button>
 
-                                        <% if (customer.triggerDoc && customer.triggerDoc.status !== 'completed' && customer.triggerDoc.subType !== 'Existing') { %>
-                                            <form action="/complete/<%= customer.triggerDoc._id %>" method="POST" style="flex: 1; margin: 0;" onsubmit="openConfirmModal(event, this, 'done')">
-                                                <button type="submit" style="width: 100%; height: 100%; padding: 10px 5px; background: #d1fae5; border: 1px dashed #10b981; color: #059669; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; transition: all 0.2s ease;">
+                                        <% if (isFamilyPending) { %>
+                                            <form action="/complete/<%= customer.triggerDoc._id %>" method="POST" style="margin: 0;" onsubmit="openConfirmModal(event, this, 'done')">
+                                                <button type="submit" class="btn-done" style="width: 100%; height: 100%; padding: 10px; margin: 0;">
                                                     <i class="ri-check-line" style="font-size: 1.1rem;"></i> Verify Done
                                                 </button>
                                             </form>
@@ -89,17 +143,17 @@
                                     </div>
                                     
                                     <div id="tree_data_<%= customer._id.toString() %>" style="display: none;">
-                                        <div style="padding-bottom: 15px; border-bottom: 2px dashed #e2e8f0; margin-bottom: 15px;">
+                                        <div class="bg-tint-<%= pBadge === 'Existing' ? 'default' : pBadge %>" style="padding: 15px; border-radius: 12px; margin-bottom: 15px;">
                                             <div style="display:flex; justify-content: space-between; align-items: center;">
                                                 <span class="fs-label" style="color: #475569; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;">
                                                     <i class="ri-star-fill" style="color: #eab308;"></i> Primary Account 
-                                                    <% if(customer.primary){ %>
-                                                        <span class="badge badge-<%= customer.primary.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= customer.primary.subType %></span>
+                                                    <% if(pBadge !== 'Existing'){ %>
+                                                        <span class="badge badge-<%= pBadge %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= pBadge %></span>
                                                     <% } else { %>
                                                         <span class="badge" style="background:#e2e8f0; color:#475569; font-size: 0.6rem; padding: 2px 5px;">Existing</span>
                                                     <% } %>
                                                 </span>
-                                                <span style="font-size: 0.65rem; font-weight: 600; color: #4f46e5; padding: 2px 0;">Status: <%= customer.primary ? customer.primary.status.toUpperCase() : 'ACTIVE' %></span>
+                                                <span style="font-size: 0.65rem; font-weight: 600; color: var(--success); padding: 2px 0;">Status: <%= customer.primary ? customer.primary.status.toUpperCase() : 'ACTIVE' %></span>
                                             </div>
                                             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
                                                 <div>
@@ -107,8 +161,8 @@
                                                     <p style="margin: 0; font-family: monospace; font-size: 0.9rem; color: #64748b;"><%= customer.linkedPrimaryNumber %></p>
                                                 </div>
                                                 <div style="display: flex; gap: 8px;">
-                                                    <button type="button" onclick="openWaModal('<%= customer.linkedPrimaryNumber %>', '<%= customer.primary ? customer.primary.name : (customer.linkedPrimaryName || 'Existing Connection') %>', 'verification')" style="border:none; width: 38px; height: 38px; background: #d1fae5; color: #059669; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.2rem;"><i class="ri-whatsapp-line"></i></button>
-                                                    <a href="tel:8657973703,<%= customer.linkedPrimaryNumber %>" style="width: 38px; height: 38px; background: #e2e8f0; color: #475569; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;" onclick="handleCallClick(event, this)" data-id="<%= customer.primary ? customer.primary._id : 'N/A' %>" data-page="verification"><i class="ri-phone-fill"></i></a>
+                                                    <button type="button" onclick="openWaModal('<%= customer.linkedPrimaryNumber %>', '<%= customer.primary ? customer.primary.name : (customer.linkedPrimaryName || 'Existing Connection') %>', 'verification')" class="icon-btn-round-wa large"><i class="ri-whatsapp-line"></i></button>
+                                                    <a href="tel:8657973703,<%= customer.linkedPrimaryNumber %>" class="icon-btn-round-call large" onclick="handleCallClick(event, this)" data-id="<%= customer.primary ? customer.primary._id : 'N/A' %>" data-page="verification"><i class="ri-phone-fill"></i></a>
                                                 </div>
                                             </div>
                                         </div>
@@ -116,12 +170,12 @@
                                         <% if (customer.secondaries && customer.secondaries.length > 0) { %>
                                             <h5 style="margin: 0 0 10px 0; color: #64748b; font-size: 0.8rem; text-transform: uppercase;">Linked Add-ons (<%= customer.secondaries.length %>)</h5>
                                             <% customer.secondaries.forEach((sec, idx) => { %>
-                                                <div style="background: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 10px;">
+                                                <div class="bg-tint-<%= sec.subType === 'Existing' ? 'default' : sec.subType %>" style="padding: 12px; border-radius: 10px; margin-bottom: 10px;">
                                                     <div style="display:flex; justify-content: space-between; align-items: center;">
                                                         <span class="fs-label" style="color: #475569; font-weight: 600; font-size: 0.75rem;">
                                                             Secondary #<%= idx + 1 %> <span class="badge badge-<%= sec.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= sec.subType %></span>
                                                         </span>
-                                                        <span style="font-size: 0.65rem; font-weight: 600; color: #4f46e5; padding: 2px 0;">Status: <%= sec.status.toUpperCase() %></span>
+                                                        <span style="font-size: 0.65rem; font-weight: 600; color: var(--success); padding: 2px 0;">Status: <%= sec.status.toUpperCase() %></span>
                                                     </div>
                                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
                                                         <div>
@@ -129,8 +183,8 @@
                                                             <p style="margin: 0; font-family: monospace; font-size: 0.85rem; color: #64748b;"><%= sec.mobile %></p>
                                                         </div>
                                                         <div style="display: flex; gap: 8px;">
-                                                            <button type="button" onclick="openWaModal('<%= sec.mobile %>', '<%= sec.name %>', 'verification')" style="border:none; width: 32px; height: 32px; background: #d1fae5; color: #059669; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;"><i class="ri-whatsapp-line"></i></button>
-                                                            <a href="tel:8657973703,<%= sec.mobile %>" style="width: 32px; height: 32px; background: #e2e8f0; color: #475569; border-radius: 50%; display: flex; align-items: center; justify-content: center;" onclick="handleCallClick(event, this)" data-id="<%= sec._id %>" data-page="verification"><i class="ri-phone-fill"></i></a>
+                                                            <button type="button" onclick="openWaModal('<%= sec.mobile %>', '<%= sec.name %>', 'verification')" class="icon-btn-round-wa"><i class="ri-whatsapp-line"></i></button>
+                                                            <a href="tel:8657973703,<%= sec.mobile %>" class="icon-btn-round-call" onclick="handleCallClick(event, this)" data-id="<%= sec._id %>" data-page="verification"><i class="ri-phone-fill"></i></a>
                                                         </div>
                                                     </div>
                                                     <div style="margin-top: 8px; font-size: 0.7rem; color: #94a3b8; font-weight: 500;">
@@ -158,27 +212,35 @@
                                     </div>
                                 <% } %>
 
-                                <div class="card-actions" style="margin-bottom: 8px;">
-                                    <button type="button" class="btn-whatsapp" style="flex: 1;" onclick="openWaModal('<%= customer.mobile %>', '<%= customer.name %>', 'verification')"><i class="ri-whatsapp-line"></i> WhatsApp</button>
-                                    <a href="tel:8657973703,<%= customer.mobile %>" class="btn-call" style="flex: 1;" data-id="<%= customer._id %>" data-page="verification" onclick="handleCallClick(event, this)"><i class="ri-phone-fill"></i> Call</a>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; margin-top: 15px;">
+                                    <button type="button" class="btn-whatsapp" style="margin: 0; width: 100%;" onclick="openWaModal('<%= customer.mobile %>', '<%= customer.name %>', 'verification')">
+                                        <i class="ri-whatsapp-line"></i> WhatsApp
+                                    </button>
+                                    <a href="tel:8657973703,<%= customer.mobile %>" class="btn-call" style="margin: 0; width: 100%;" data-id="<%= customer._id %>" data-page="verification" onclick="handleCallClick(event, this)">
+                                        <i class="ri-phone-fill"></i> Call
+                                    </a>
                                 </div>
 
-                                <div class="card-actions" style="margin-top: 8px; display: flex; gap: 8px;">
-                                    <% if (customer.remarks && customer.remarks.trim() !== "") { %> 
-                                        <button type="button" class="btn-note" style="flex: 1; padding: 10px;" data-name="<%= customer.name %>" data-remarks="<%= customer.remarks %>" onclick="openRemarksModal(this)"><i class="ri-sticky-note-fill"></i> Remarks</button> 
-                                    <% } %>
-                                    <% if (customer.status !== 'completed') { %>
-                                        <form action="/complete/<%= customer._id %>" method="POST" style="flex: 1; margin: 0;" onsubmit="openConfirmModal(event, this, 'done')">
-                                            <button type="submit" class="btn-done" style="margin: 0; width: 100%; height: 100%; padding: 10px; background: #d1fae5; border: 1px dashed #10b981; color: #059669; border-radius: 8px; font-size: 0.8rem; font-weight: 600;"><i class="ri-check-line"></i> Verify Done</button>
-                                        </form>
-                                    <% } %>
-                                </div>
-                            <% } %>
-                            
-                            <% if (customer.isFamilyGroup && customer.remarks && customer.remarks.trim() !== "") { %>
-                                <div class="card-actions" style="margin-top: 12px;">
-                                    <button type="button" class="btn-note" data-name="<%= customer.triggerDoc ? customer.triggerDoc.name : (customer.name || (customer.primary ? customer.primary.name : 'Family Group')) %>" data-remarks="<%= customer.remarks %>" onclick="openRemarksModal(this)" style="width: 100%;"><i class="ri-sticky-note-fill"></i> View Remarks</button> 
-                                </div>
+                                <% let hasRemarks = (customer.remarks && customer.remarks.trim() !== ""); %>
+                                <% let isPending = (customer.status !== 'completed'); %>
+                                
+                                <% if (hasRemarks || isPending) { %>
+                                    <div style="display: grid; grid-template-columns: <%= (hasRemarks && isPending) ? '1fr 1fr' : '1fr' %>; gap: 10px;">
+                                        <% if (hasRemarks) { %> 
+                                            <button type="button" class="btn-note" data-name="<%= customer.name %>" data-remarks="<%= customer.remarks %>" onclick="openRemarksModal(this)" style="margin: 0; width: 100%;">
+                                                <i class="ri-sticky-note-fill"></i> Remarks
+                                            </button> 
+                                        <% } %>
+                                        
+                                        <% if (isPending) { %>
+                                            <form action="/complete/<%= customer._id %>" method="POST" style="margin: 0;" onsubmit="openConfirmModal(event, this, 'done')">
+                                                <button type="submit" class="btn-done" style="margin: 0; width: 100%; height: 100%; padding: 10px;">
+                                                    <i class="ri-check-line" style="font-size: 1.1rem;"></i> Verify Done
+                                                </button>
+                                            </form>
+                                        <% } %>
+                                    </div>
+                                <% } %>
                             <% } %>
                         </div>
                     <% }) %>
@@ -187,49 +249,15 @@
             <div id="autoLoadSpinner" class="scroll-loader"><i class="ri-loader-4-line spin-loader"></i><br>Loading more...</div>
         </div>
 
-        <div id="familyTreeModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.7); z-index:9999; align-items:center; justify-content:center; padding:20px; backdrop-filter: blur(4px);">
-            <div style="background:white; border-radius:20px; width:100%; max-width:450px; max-height:85vh; display:flex; flex-direction:column; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5); overflow:hidden; animation: modalFadeIn 0.3s ease;">
-                <div style="padding:20px; background: linear-gradient(135deg, #fdf2f8, #fbcfe8); border-bottom:1px solid #f9a8d4; display:flex; justify-content:space-between; align-items:center;">
-                    <h3 style="margin:0; font-size:1.2rem; color:#be185d; display: flex; align-items: center; gap: 8px;">
-                        <i class="ri-team-fill"></i> Full Family Tree
-                    </h3>
-                    <button type="button" onclick="closeFamilyModal()" style="background:white; border:none; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#db2777; box-shadow: 0 4px 6px rgba(0,0,0,0.05);"><i class="ri-close-line" style="font-size:1.4rem;"></i></button>
+        <div id="familyTreeModal" class="modal-overlay" style="display:none; z-index:9999;">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3><i class="ri-team-fill" style="color: var(--primary);"></i> Family Tree</h3>
+                    <button type="button" onclick="window.closeFamilyModal()" class="icon-btn"><i class="ri-close-line"></i></button>
                 </div>
-                <div id="familyTreeBody" style="padding:20px; overflow-y:auto; flex: 1;">
-                    </div>
+                <div id="familyTreeBody" style="padding:10px;"></div>
             </div>
         </div>
-        <style>
-            @keyframes modalFadeIn {
-                from { opacity: 0; transform: scale(0.95) translateY(10px); }
-                to { opacity: 1; transform: scale(1) translateY(0); }
-            }
-        </style>
-
-        <script>
-            function openFamilyModal(id) {
-                const dataDiv = document.getElementById('tree_data_' + id);
-                if (dataDiv) {
-                    document.getElementById('familyTreeBody').innerHTML = dataDiv.innerHTML;
-                    document.getElementById('familyTreeModal').style.display = 'flex';
-                    document.body.style.overflow = 'hidden'; 
-                } else {
-                    console.error("Data container not found for ID:", id);
-                }
-            }
-
-            function closeFamilyModal() {
-                document.getElementById('familyTreeModal').style.display = 'none';
-                document.getElementById('familyTreeBody').innerHTML = ''; 
-                document.body.style.overflow = 'auto'; 
-            }
-
-            document.getElementById('familyTreeModal').addEventListener('click', function(e) {
-                if(e.target === this) {
-                    closeFamilyModal();
-                }
-            });
-        </script>
 
         <%- include('partials/modals') %>
     </div> 

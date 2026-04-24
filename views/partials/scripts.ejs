@@ -60,7 +60,6 @@
             }
 
             let totalUnread = unreadVer + unreadBill;
-
             const badge = document.getElementById('bell-badge');
             if(totalUnread > 0) {
                 badge.innerText = totalUnread > 99 ? '99+' : totalUnread;
@@ -74,11 +73,9 @@
             document.getElementById('agenda-ver-text').innerHTML = data.pendingVerifications > 0 
                 ? `<strong style="color:#ef4444">${data.pendingVerifications}</strong> verifications due.` 
                 : "All caught up!";
-                
             document.getElementById('agenda-bill-text').innerHTML = data.pendingBills > 0 
                 ? `<strong style="color:#dc2626">${data.pendingBills}</strong> bills pending.` 
                 : "No pending bills!";
-
             // Store globally so the click handlers can save them to LocalStorage
             window.currentAgendaVerifications = data.pendingVerifications;
             window.currentAgendaBills = data.pendingBills;
@@ -103,7 +100,7 @@
         if(modal.style.display === 'none') {
             modal.style.display = 'flex';
             // Trigger reflow for animation
-            void modal.offsetWidth; 
+            void modal.offsetWidth;
             modal.style.opacity = '1';
             content.style.transform = 'translateY(0)';
         } else {
@@ -117,7 +114,6 @@
     document.getElementById('agendaModal').addEventListener('click', function(e) {
         if(e.target === this) toggleAgendaModal();
     });
-
     // Fetch on load
     document.addEventListener('DOMContentLoaded', fetchAgenda);
 
@@ -125,12 +121,10 @@
     const originalSubmit = HTMLFormElement.prototype.submit;
     HTMLFormElement.prototype.submit = function() {
         const actionUrl = this.getAttribute('action') || '';
-        
         if (actionUrl.includes('/complete/') || actionUrl.includes('/pay-bill') || actionUrl.includes('/pay-all-bills')) {
             // Fire Confetti Party!
             const duration = 1200;
             const end = Date.now() + duration;
-
             (function frame() {
                 confetti({
                     particleCount: 6,
@@ -146,12 +140,10 @@
                     origin: { x: 1, y: 0.6 },
                     colors: ['#10b981', '#3b82f6', '#f59e0b']
                 });
-
                 if (Date.now() < end) {
                     requestAnimationFrame(frame);
                 }
             }());
-            
             // Wait slightly for animation to be enjoyed before jumping to next page
             setTimeout(() => {
                 originalSubmit.call(this);

@@ -9,14 +9,23 @@
 
     <div id="app-main">
         <div class="container">
-            <div class="section-title" style="margin-bottom: 25px;"><h2><i class="ri-file-paper-2-fill" style="color: #3b82f6;"></i> <%= headerTitle %></h2><p class="subtitle">Track and follow up on pending bill payments.</p></div>
+            <div class="section-title" style="margin-bottom: 25px;">
+                <div>
+                    <h2><i class="ri-file-paper-2-fill" style="color: #3b82f6;"></i> <%= headerTitle %></h2>
+                    <p class="subtitle">Track and follow up on pending bill payments.</p>
+                </div>
+            </div>
             
             <% if(pendingBills.length > 0) { %>
                 <div style="background: #fffbfa; border: 1px solid #fed7aa; border-left: 4px solid #f59e0b; padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; display: flex; gap: 15px; align-items: flex-start; box-shadow: 0 4px 6px rgba(245, 158, 11, 0.05);">
                     <i class="ri-error-warning-fill" style="color: #f59e0b; font-size: 1.6rem; margin-top: 2px;"></i>
                     <div style="flex: 1;"><strong style="color: #92400e; display: block; font-size: 0.95rem; margin-bottom: 4px;">Action Required</strong><span style="color: #b45309; font-size: 0.85rem; line-height: 1.4;">You have <b><%= pendingBills.length %></b> pending bills right now. Make sure to follow up to prevent loss of retention payout.</span></div>
                 </div>
-                <form action="/pay-all-bills" method="POST" style="margin-bottom: 25px;" onsubmit="openConfirmModal(event, this, 'payAll')"><button type="submit" class="btn-submit" style="background: #f8fafc; color: #10b981; border: 1px solid #10b981; box-shadow: 0 2px 4px rgba(16,185,129,0.1);"><i class="ri-checkbox-multiple-fill"></i> Mark All as Paid (Clear List)</button></form>
+                <form action="/pay-all-bills" method="POST" style="margin-bottom: 25px;" onsubmit="openConfirmModal(event, this, 'payAll')">
+                    <button type="submit" class="btn-submit" style="background: #f8fafc; color: #10b981; border: 1px solid #10b981; box-shadow: 0 2px 4px rgba(16,185,129,0.1);">
+                        <i class="ri-checkbox-multiple-fill"></i> Mark All as Paid (Clear List)
+                    </button>
+                </form>
             <% } else { %>
                 <div style="text-align: center; padding: 50px 20px; background: white; border-radius: 20px; border: 1px dashed #cbd5e1; margin-top: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.02);">
                     <div style="width: 80px; height: 80px; background: #d1fae5; color: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 3.5rem; margin: 0 auto 20px auto; box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.2);"><i class="ri-shield-check-fill"></i></div>
@@ -24,21 +33,55 @@
                 </div>
             <% } %>
 
+            <form action="/pdd" method="GET" class="filter-form" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <div class="filter-wrapper" style="flex: 1; min-width: 140px;">
+                    <i class="ri-filter-3-line"></i>
+                    <select name="month" class="filter-select" onchange="handleFilterChange(event, this)">
+                        <option value="0" <%= monthOffset == 0 ? 'selected' : '' %>>This Month</option>
+                        <option value="1" <%= monthOffset == 1 ? 'selected' : '' %>>Last Month</option>
+                        <option value="2" <%= monthOffset == 2 ? 'selected' : '' %>>2 Months Ago</option>
+                        <option value="all" <%= monthOffset === 'all' ? 'selected' : '' %>>Show All Pending</option>
+                        <option value="custom" <%= monthOffset === 'custom' ? 'selected' : '' %> style="display:none;">Custom Range</option>
+                    </select>
+                </div>
+                <div class="filter-wrapper" style="flex: 1; min-width: 180px;">
+                    <i class="ri-calendar-line"></i>
+                    <input type="text" class="filter-select custom-range-picker" placeholder="Select Custom Range" value="<%= typeof daterange !== 'undefined' ? daterange : '' %>" readonly style="cursor: pointer; background: transparent; padding-left: 5px;">
+                </div>
+            </form>
+
+            <div class="search-box"><i class="ri-search-line"></i><input type="text" id="searchInput" onkeyup="filterList()" placeholder="Quick filter on this page..."></div>
+
             <div class="grid-layout" id="customerList" data-current-page="<%= typeof currentPage !== 'undefined' ? currentPage : 1 %>" data-total-pages="<%= typeof totalPages !== 'undefined' ? totalPages : 1 %>">
-                <% pendingBills.forEach(customer => { %>
-                    <div class="card search-item" style="position: relative; overflow: hidden; border: 1px solid #fee2e2; box-shadow: 0 4px 6px rgba(239, 68, 68, 0.05);">
+                <% pendingBills.forEach(customer => { 
+                    let tintClass = "bg-tint-default";
+                    let mainType = customer.category;
+                    if (customer.category === 'Family') {
+                        mainType = customer.subType || 'Family';
+                    }
+                    if (mainType === 'NC') tintClass = 'bg-tint-NC';
+                    else if (mainType === 'P2P') tintClass = 'bg-tint-P2P';
+                    else if (mainType === 'MNP') tintClass = 'bg-tint-MNP';
+                    else if (mainType === 'NMNP') tintClass = 'bg-tint-NMNP';
+                    else if (mainType === 'PDR') tintClass = 'bg-tint-PDR';
+                    else if (mainType === 'Family' || mainType === 'Existing') tintClass = 'bg-tint-Family';
+                %>
+                    <div class="card search-item <%= customer.category === 'Family' ? 'bg-tint-Family' : tintClass %>" style="position: relative; overflow: hidden; box-shadow: 0 4px 6px rgba(239, 68, 68, 0.05); <%= customer.category === 'Family' ? 'border-left: 4px solid #06b6d4 !important;' : '' %>">
                         <div style="position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: #ef4444;"></div>
-                         
-                        <div class="card-top" style="margin-top: 5px;">
+                        
+                        <div class="card-top" style="margin-top: 5px; margin-bottom: 10px;">
                             <div style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">
                                 <% if (customer.category === 'Family') { %> <span class="badge badge-Family">Family</span> <% } else { %> <span class="badge badge-<%= customer.category %>"><%= customer.category %></span> <% } %>
-                                <% if(customer.plan) { %><span class="badge" style="background: #f3f4f6; color: #475569; font-size: 0.65rem;">₹<%= customer.plan %></span><% } %>
-                                <span class="badge" style="background: #fee2e2; color: #dc2626;"><i class="ri-bill-line"></i> Bill Due: <%= customer.billDate %>th</span>
+                                <% if(customer.plan) { %><span class="badge" style="background: rgba(255, 255, 255, 0.7); color: #475569; font-size: 0.65rem; border: 1px solid rgba(0,0,0,0.05);">₹<%= customer.plan %></span><% } %>
                             </div>
                         </div>
 
                         <% if (customer.category === 'Family') { %>
-                            <div class="family-section primary-sec" style="margin-bottom: 0; padding-bottom: 0; border-bottom: none; display: flex; flex-direction: column; gap: 10px; padding: 10px;">
+                            <% 
+                                let pBadge = 'Existing';
+                                if (customer.subType && customer.subType !== 'Existing') pBadge = customer.subType;
+                            %>
+                            <div class="family-section primary-sec bg-tint-<%= pBadge === 'Existing' ? 'default' : pBadge %>" style="margin-bottom: 0; padding: 12px; border-radius: 12px; border-bottom: none; display: flex; flex-direction: column; gap: 10px;">
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
                                     <span class="fs-label" style="color: #dc2626; margin: 0; font-weight: 700;">
                                         <% if (customer.familyRole === 'Secondary') { %>
@@ -63,33 +106,94 @@
                             </div>
                         <% } %>
 
+                        <div class="bill-details-grid">
+                            <div class="bd-row">
+                                <div>
+                                    <span class="bd-label"><i class="ri-toggle-line"></i> Activation Date</span>
+                                    <span class="bd-value"><%= new Date(new Date(customer.activationDate || customer.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></span>
+                                </div>
+                                <div style="text-align: right;">
+                                    <span class="bd-label"><i class="ri-refresh-line"></i> Bill Cycle</span>
+                                    <span class="bd-value bd-highlight"><%= customer.cycleString || '1st Bill' %></span>
+                                </div>
+                            </div>
+                            <div class="bd-divider"></div>
+                            <div class="bd-row">
+                                <div>
+                                    <span class="bd-label"><i class="ri-file-list-3-line"></i> Bill Generated</span>
+                                    <span class="bd-value"><%= customer.exactBillDate ? new Date(new Date(customer.exactBillDate).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') : 'N/A' %></span>
+                                </div>
+                                <div style="text-align: right;">
+                                    <span class="bd-label" style="color: #dc2626;"><i class="ri-alarm-warning-line"></i> Due Date (Pay By)</span>
+                                    <span class="bd-value bd-danger"><%= customer.exactDueDate ? new Date(new Date(customer.exactDueDate).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') : 'N/A' %></span>
+                                </div>
+                            </div>
+                        </div>
+
                         <% if (customer.callLogs && customer.callLogs.length > 0) { %>
                             <% const lc = customer.callLogs[customer.callLogs.length - 1]; %>
                             <div class="last-call-tracker" style="margin-top: 12px; margin-bottom: 8px;">
                                 <i class="ri-phone-find-line"></i> 
                                 <span>Last Call: <%= new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(lc.callDate)) %> - <strong><%= lc.reason %></strong></span>
-                             </div>
+                            </div>
                         <% } %>
 
-                        <div class="card-actions" style="margin-bottom: 15px;">
+                        <div class="card-actions" style="margin-top: 15px; margin-bottom: 15px;">
                             <button type="button" class="btn-whatsapp" style="flex: 1;" onclick="openWaModal('<%= customer.mobile %>', '<%= customer.name %>', 'pdd', '<%= customer.billDate %>')"><i class="ri-whatsapp-line"></i> Remind on WA</button>
-                            <a href="tel:8657973703,<%= customer.mobile %>" class="btn-call" style="flex: 1;" data-id="<%= customer._id %>" data-page="pdd" onclick="handleCallClick(event, this)"><i class="ri-phone-fill"></i> Call</a>
+                            <a href="tel:8657973703,<%= customer.mobile %>" class="btn-call" style="flex: 1; background: rgba(255,255,255,0.7);" data-id="<%= customer._id %>" data-page="pdd" onclick="handleCallClick(event, this)"><i class="ri-phone-fill"></i> Call</a>
                         </div>
 
                         <div class="card-actions" style="margin-top: 0; display: flex; gap: 8px;">
                             <% if (customer.remarks && customer.remarks.trim() !== "") { %> 
                                 <button type="button" class="btn-note" style="padding: 10px; flex: 0.3;" data-name="<%= customer.name %>" data-remarks="<%= customer.remarks %>" onclick="openRemarksModal(this)"><i class="ri-sticky-note-fill"></i></button> 
                             <% } %>
+                            
+                            <% if (customer.category === 'Family') { %>
+                                <button type="button" class="btn-theme btn-view-tree" data-tree-id="<%= customer._id.toString() %>" style="flex: 1;">
+                                    <i class="ri-team-fill" style="font-size: 1.1rem;"></i> View Tree
+                                </button>
+                            <% } %>
+
                             <form action="/pay-bill/<%= customer._id %>" method="POST" style="flex: 1; margin: 0;" onsubmit="openConfirmModal(event, this, 'pay')">
                                  <input type="hidden" name="cycleKey" value="<%= customer.cycleKey %>">
-                                 <button type="submit" class="btn-done" style="margin: 0; width: 100%; padding: 10px; background: #fee2e2; border: 1px dashed #ef4444; color: #dc2626; border-radius: 8px; font-weight: 600;"><i class="ri-money-rupee-circle-line"></i> Mark as Paid</button>
+                                 <button type="submit" class="btn-done" style="margin: 0; width: 100%; padding: 10px; background: #ffffff; border: 1px dashed #ef4444; color: #dc2626; border-radius: 8px; font-weight: 600; box-shadow: 0 3px 5px rgba(0,0,0,0.06);"><i class="ri-money-rupee-circle-line"></i> Mark as Paid</button>
                             </form>
                         </div>
+                        
+                        <% if (customer.category === 'Family') { %>
+                            <div id="tree_data_<%= customer._id.toString() %>" style="display: none;">
+                                <div class="bg-tint-<%= customer.subType === 'Existing' ? 'default' : customer.subType %>" style="padding: 15px; border-radius: 12px; margin-bottom: 15px;">
+                                    <div style="display:flex; justify-content: space-between; align-items: center;">
+                                        <span class="fs-label" style="color: #475569; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;">
+                                            <i class="ri-star-fill" style="color: #eab308;"></i> Primary Account 
+                                        </span>
+                                        <span style="font-size: 0.65rem; font-weight: 600; color: var(--success); padding: 2px 0;">Status: <%= customer.status.toUpperCase() %></span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                                        <div>
+                                            <h4 style="margin: 0; font-size: 1.1rem; color: #0f172a;"><%= customer.name %></h4>
+                                            <p style="margin: 0; font-family: monospace; font-size: 0.9rem; color: #64748b;"><%= customer.mobile %></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        <% } %>
+                        
                     </div>
                 <% }) %>
             </div>
             <div id="autoLoadSpinner" class="scroll-loader"><i class="ri-loader-4-line spin-loader"></i><br>Loading more...</div>
          </div>
+
+        <div id="familyTreeModal" class="modal-overlay" style="display:none; z-index:9999;">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3><i class="ri-team-fill" style="color: var(--primary);"></i> Full Family Tree</h3>
+                    <button type="button" onclick="closeFamilyModal()" class="icon-btn"><i class="ri-close-line"></i></button>
+                </div>
+                <div id="familyTreeBody" style="padding:5px;"></div>
+            </div>
+        </div>
 
         <%- include('partials/modals') %>
     </div> 

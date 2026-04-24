@@ -1,3 +1,5 @@
+// routes/customerRoutes.js
+
 const express = require('express');
 const router = express.Router();
 const Customer = require('../models/Customer');
@@ -9,37 +11,54 @@ const {
 
 const ITEMS_PER_PAGE = 10;
 
+const getOrdinalSuffix = (i) => {
+    let j = i % 10, k = i % 100;
+    if (j == 1 && k != 11) return i + "st";
+    if (j == 2 && k != 12) return i + "nd";
+    if (j == 3 && k != 13) return i + "rd";
+    return i + "th";
+};
+
 router.get('/', isAuthenticated, async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const monthQuery = req.query.month; 
         let monthOffset = (monthQuery === 'all') ? 'all' : ((monthQuery === undefined) ? 0 : parseInt(monthQuery));
+        let startQuery = req.query.start;
+        let endQuery = req.query.end;
+        let isCustomDate = startQuery && endQuery;
+        let daterange = '';
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         
-        // 🕒 Exact End of Today Calculation in IST
         const d = new Date();
         const istNow = new Date(d.getTime() + (330 * 60000));
         const istEndOfDay = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate(), 23, 59, 59, 999));
         const utcEndOfDay = new Date(istEndOfDay.getTime() - (330 * 60000));
 
-        // 🛡️ Strict Filter: Never show 'Existing' on Verification Page
         let query = { 
             status: 'pending',
             subType: { $nin: ['Existing', 'existing', 'EXISTING', ' Existing', 'Existing '] },
             category: { $nin: ['Existing', 'existing', 'EXISTING'] }
         };
-        
+
         let headerTitle = "All Pending";
 
-        if (monthOffset === 'all') {
-            // Only show tasks due today or earlier. Future dates hidden!
+        if (isCustomDate) {
+            const sParts = startQuery.split('-');
+            const eParts = endQuery.split('-');
+            const sUTC = new Date(Date.UTC(sParts[0], sParts[1]-1, sParts[2], 0, 0, 0) - (330 * 60000));
+            const eUTC = new Date(Date.UTC(eParts[0], eParts[1]-1, eParts[2], 23, 59, 59, 999) - (330 * 60000));
+            query.verificationDate = { $gte: sUTC, $lte: eUTC };
+            headerTitle = `Pending: ${sParts[2]}/${sParts[1]}/${sParts[0]} to ${eParts[2]}/${eParts[1]}/${eParts[0]}`;
+            monthOffset = 'custom';
+            daterange = `${startQuery} to ${endQuery}`;
+        } else if (monthOffset === 'all') {
             query.verificationDate = { $lte: utcEndOfDay };
         } else {
             const { start, end } = getISTDate(monthOffset);
             const displayMonth = new Date(start);
             displayMonth.setMinutes(displayMonth.getMinutes() + 330);
             
-            // Only show tasks strictly due up to the end of today
             if (utcEndOfDay < end) {
                 query.verificationDate = { $gte: start, $lte: utcEndOfDay };
             } else {
@@ -50,14 +69,14 @@ router.get('/', isAuthenticated, async (req, res) => {
         }
         
         const fullCustomers = await fetchGroupedCustomers(query, { verificationDate: 1 });
-        
         const totalPages = Math.ceil(fullCustomers.length / ITEMS_PER_PAGE);
         const paginatedCustomers = fullCustomers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
-        res.render('index', { customers: paginatedCustomers, error: null, page: 'home', monthOffset, headerTitle, currentPage: page, totalPages });
+        res.render('index', { customers: paginatedCustomers, error: null, page: 'home', monthOffset, headerTitle, currentPage: page, totalPages, daterange });
+
     } catch (err) { 
         console.error('Home Route Error:', err);
-        res.render('index', { customers: [], error: "Connection Error", page: 'home', monthOffset: 0, headerTitle: "Error", currentPage: 1, totalPages: 1 }); 
+        res.render('index', { customers: [], error: "Connection Error", page: 'home', monthOffset: 0, headerTitle: "Error", currentPage: 1, totalPages: 1, daterange: '' }); 
     }
 });
 
@@ -66,10 +85,28 @@ router.get('/all', isAuthenticated, async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const monthQuery = req.query.month; 
         let monthOffset = (monthQuery === 'all') ? 'all' : ((monthQuery === undefined) ? 0 : parseInt(monthQuery));
+        let startQuery = req.query.start;
+        let endQuery = req.query.end;
+        let isCustomDate = startQuery && endQuery;
+        let daterange = '';
         let query = {}; let headerTitle = "All History";
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         
-        if (monthOffset !== 'all') { 
+        if (isCustomDate) {
+            const sParts = startQuery.split('-');
+            const eParts = endQuery.split('-');
+            const sUTC = new Date(Date.UTC(sParts[0], sParts[1]-1, sParts[2], 0, 0, 0) - (330 * 60000));
+            const eUTC = new Date(Date.UTC(eParts[0], eParts[1]-1, parseInt(eParts[2])+1, 0, 0, 0) - (330 * 60000));
+            query = { 
+                $or: [
+                    { createdAt: { $gte: sUTC, $lt: eUTC } },
+                    { activationDate: { $gte: sUTC, $lt: eUTC } }
+                ] 
+            }; 
+            headerTitle = `History: ${sParts[2]}/${sParts[1]}/${sParts[0]} to ${eParts[2]}/${eParts[1]}/${eParts[0]}`;
+            monthOffset = 'custom';
+            daterange = `${startQuery} to ${endQuery}`;
+        } else if (monthOffset !== 'all') { 
             const { start, end } = getISTDate(monthOffset);
             query = { 
                 $or: [
@@ -80,14 +117,15 @@ router.get('/all', isAuthenticated, async (req, res) => {
             
             const displayMonth = new Date(start);
             displayMonth.setMinutes(displayMonth.getMinutes() + 330);
-            headerTitle = "History: " + monthNames[displayMonth.getMonth()] + " " + displayMonth.getFullYear(); 
+            headerTitle = "History: " + monthNames[displayMonth.getMonth()] + " " + displayMonth.getFullYear();
         }
+        
         const fullCustomers = await fetchGroupedCustomers(query, { createdAt: -1 });
-
         const totalPages = Math.ceil(fullCustomers.length / ITEMS_PER_PAGE);
         const paginatedCustomers = fullCustomers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
-        res.render('all', { customers: paginatedCustomers, page: 'all', monthOffset, headerTitle, currentPage: page, totalPages });
+        res.render('all', { customers: paginatedCustomers, page: 'all', monthOffset, headerTitle, currentPage: page, totalPages, daterange });
+
     } catch (err) { 
         console.error('All History Route Error:', err);
         res.redirect('/'); 
@@ -97,6 +135,36 @@ router.get('/all', isAuthenticated, async (req, res) => {
 router.get('/pdd', isAuthenticated, async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
+        const monthQuery = req.query.month;
+        let monthOffset = (monthQuery === 'all') ? 'all' : ((monthQuery === undefined) ? 0 : parseInt(monthQuery));
+        let startQuery = req.query.start;
+        let endQuery = req.query.end;
+        let isCustomDate = startQuery && endQuery;
+        let daterange = '';
+        let headerTitle = "PDD Tracking";
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+        let filterStart, filterEnd;
+
+        if (isCustomDate) {
+            const sParts = startQuery.split('-');
+            const eParts = endQuery.split('-');
+            filterStart = new Date(Date.UTC(sParts[0], sParts[1]-1, sParts[2], 0, 0, 0) - (330 * 60000));
+            filterEnd = new Date(Date.UTC(eParts[0], eParts[1]-1, parseInt(eParts[2])+1, 0, 0, 0) - (330 * 60000));
+            headerTitle = `PDD: ${sParts[2]}/${sParts[1]}/${sParts[0]} to ${eParts[2]}/${eParts[1]}/${eParts[0]}`;
+            monthOffset = 'custom';
+            daterange = `${startQuery} to ${endQuery}`;
+        } else if (monthOffset !== 'all') {
+            const { start, end } = getISTDate(monthOffset);
+            filterStart = start;
+            filterEnd = end;
+            const displayMonth = new Date(start);
+            displayMonth.setMinutes(displayMonth.getMinutes() + 330);
+            headerTitle = "PDD: " + monthNames[displayMonth.getMonth()] + " " + displayMonth.getFullYear();
+        } else {
+            headerTitle = "All Pending Bills";
+        }
+
         const customers = await Customer.find({ billDate: { $ne: null } }).lean();
         
         const today = new Date();
@@ -105,7 +173,7 @@ router.get('/pdd', isAuthenticated, async (req, res) => {
         const currentMonth = istNow.getUTCMonth();
         const currentYear = istNow.getUTCFullYear();
 
-        let pendingBills = [];
+        let pendingBillsRaw = [];
 
         customers.forEach(c => {
             let billYear = currentYear;
@@ -132,19 +200,39 @@ router.get('/pdd', isAuthenticated, async (req, res) => {
 
             if (calcBillVal >= actVal) {
                 const cycleKey = `${billYear}-${String(billMonth + 1).padStart(2, '0')}`;
-
                 if (!c.paidMonths || !c.paidMonths.includes(cycleKey)) {
-                    pendingBills.push({ ...c, cycleKey });
+                    
+                    const exactBillDate = new Date(Date.UTC(billYear, billMonth, c.billDate, 0, 0, 0) - (330 * 60000));
+                    const exactDueDate = new Date(exactBillDate.getTime() + (10 * 24 * 60 * 60 * 1000));
+                    
+                    let cycleNum = (billYear - actYear) * 12 + (billMonth - actMonth);
+                    if (c.billDate >= actDay) cycleNum += 1;
+                    
+                    let effectiveCycle = cycleNum > 0 ? cycleNum : 1;
+                    let maxBills = (c.subType === 'MNP' || c.subType === 'NMNP' || c.category === 'MNP' || c.category === 'NMNP') ? 4 : 3;
+
+                    if (effectiveCycle <= maxBills) {
+                        let cycleString = getOrdinalSuffix(effectiveCycle) + " Bill";
+                        c.exactBillDate = exactBillDate;
+                        c.exactDueDate = exactDueDate;
+                        pendingBillsRaw.push({ ...c, cycleKey, cycleString });
+                    }
                 }
             }
         });
-        
-        pendingBills.sort((a, b) => a.billDate - b.billDate);
+
+        let pendingBills = pendingBillsRaw;
+        if (monthOffset !== 'all') {
+            pendingBills = pendingBillsRaw.filter(b => b.exactBillDate >= filterStart && b.exactBillDate < filterEnd);
+        }
+
+        pendingBills.sort((a, b) => a.exactBillDate - b.exactBillDate);
 
         const totalPages = Math.ceil(pendingBills.length / ITEMS_PER_PAGE);
         const paginatedBills = pendingBills.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
-        res.render('pdd', { pendingBills: paginatedBills, page: 'pdd', headerTitle: "PDD Tracking", currentPage: page, totalPages });
+        res.render('pdd', { pendingBills: paginatedBills, page: 'pdd', headerTitle, currentPage: page, totalPages, monthOffset, daterange });
+
     } catch (err) { 
         console.error('PDD Route Error:', err);
         res.redirect('/'); 
@@ -155,24 +243,42 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
     try {
         const monthQuery = req.query.month; 
         let monthOffset = (monthQuery === 'all') ? 'all' : ((monthQuery === undefined) ? 0 : parseInt(monthQuery));
+        let startQuery = req.query.start;
+        let endQuery = req.query.end;
+        let isCustomDate = startQuery && endQuery;
+        let daterange = '';
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         let headerTitle = "All Time Analysis";
 
-        const { start, end, now } = getISTDate(monthOffset === 'all' ? 0 : monthOffset);
+        let start, end, now = new Date();
 
-        if (monthOffset !== 'all') {
-            const displayMonth = new Date(start);
-            displayMonth.setMinutes(displayMonth.getMinutes() + 330);
-            headerTitle = "Analysis: " + monthNames[displayMonth.getMonth()] + " " + displayMonth.getFullYear();
+        if (isCustomDate) {
+            const sParts = startQuery.split('-');
+            const eParts = endQuery.split('-');
+            start = new Date(Date.UTC(sParts[0], sParts[1]-1, sParts[2], 0, 0, 0) - (330 * 60000));
+            end = new Date(Date.UTC(eParts[0], eParts[1]-1, parseInt(eParts[2])+1, 0, 0, 0) - (330 * 60000));
+            headerTitle = `Analysis: ${sParts[2]}/${sParts[1]}/${sParts[0]} to ${eParts[2]}/${eParts[1]}/${eParts[0]}`;
+            monthOffset = 'custom';
+            daterange = `${startQuery} to ${endQuery}`;
+        } else {
+            const dateObj = getISTDate(monthOffset === 'all' ? 0 : monthOffset);
+            start = dateObj.start;
+            end = dateObj.end;
+            now = dateObj.now;
+            if (monthOffset !== 'all') {
+                const displayMonth = new Date(start);
+                displayMonth.setMinutes(displayMonth.getMinutes() + 330);
+                headerTitle = "Analysis: " + monthNames[displayMonth.getMonth()] + " " + displayMonth.getFullYear();
+            }
         }
 
         const allCustomers = await Customer.find().lean();
 
         const stats = { 
             total: 0, activated: 0, runs: 0, revenue: 0,
-            nc: 0, p2p: 0, mnp: 0, nmnp: 0, family: 0, 
+            nc: 0, p2p: 0, mnp: 0, nmnp: 0, pdr: 0, family: 0, 
             completed: 0, pending: 0,
-            carry_activated: 0, carry_nc: 0, carry_p2p: 0, carry_mnp: 0, carry_nmnp: 0, carry_family: 0, carry_revenue: 0
+            carry_activated: 0, carry_nc: 0, carry_p2p: 0, carry_mnp: 0, carry_nmnp: 0, carry_pdr: 0, carry_family: 0, carry_revenue: 0
         };
 
         const pendingListRaw = [];
@@ -198,7 +304,7 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
                     const pStatus = c.linkedPrimaryStatus || '';
                     if (!pStatus.includes('Existing') && !pStatus.includes('Active')) {
                         const primaryDoc = allCustomers.find(p => p.category === 'Family' && p.familyRole === 'Primary' && p.mobile === c.linkedPrimaryNumber);
-                        if (!primaryDoc) stats.total++; 
+                        if (!primaryDoc) stats.total++;
                     }
                 }
             }
@@ -213,6 +319,7 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
                 else if (c.subType === 'P2P') { stats.p2p++; if (isCarry) stats.carry_p2p++; }
                 else if (c.subType === 'MNP') { stats.mnp++; if (isCarry) stats.carry_mnp++; }
                 else if (c.subType === 'NMNP') { stats.nmnp++; if (isCarry) stats.carry_nmnp++; }
+                else if (c.subType === 'PDR') { stats.pdr++; if (isCarry) stats.carry_pdr++; }
                 
                 if (c.category === 'Family') { stats.family++; if (isCarry) stats.carry_family++; }
 
@@ -235,10 +342,11 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
                     if (!pStatus.includes('Existing') && !pStatus.includes('Active')) {
                         const primaryDoc = allCustomers.find(p => p.category === 'Family' && p.familyRole === 'Primary' && p.mobile === c.linkedPrimaryNumber);
                         if (!primaryDoc) {
-                            let ghostType = 'NC'; 
+                            let ghostType = 'NC';
                             if (pStatus.includes('NMNP')) ghostType = 'NMNP'; 
                             else if (pStatus.includes('MNP')) ghostType = 'MNP';
                             else if (pStatus.includes('P2P')) ghostType = 'P2P';
+                            else if (pStatus.includes('PDR')) ghostType = 'PDR';
 
                             if (isActuallyActivated) {
                                 stats.activated++;
@@ -249,7 +357,7 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
                                 if (isCarry) stats.carry_revenue += ghostEarned;
                             }
                             
-                            stats.runs += getRuns('Family', ghostType); 
+                            stats.runs += getRuns('Family', ghostType);
                             stats.family++;
                             if (isCarry) stats.carry_family++;
                             
@@ -259,6 +367,7 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
                             else if (ghostType === 'P2P') { stats.p2p++; if (isCarry) stats.carry_p2p++; }
                             else if (ghostType === 'MNP') { stats.mnp++; if (isCarry) stats.carry_mnp++; }
                             else if (ghostType === 'NMNP') { stats.nmnp++; if (isCarry) stats.carry_nmnp++; }
+                            else if (ghostType === 'PDR') { stats.pdr++; if (isCarry) stats.carry_pdr++; }
                         }
                     }
                 }
@@ -276,7 +385,7 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
             .filter(c => !(c.category === 'Family' && c.familyRole === 'Primary'))
             .sort((a, b) => a.dynamicActDate - b.dynamicActDate);
 
-        res.render('analytics', { stats, pendingList, page: 'analytics', monthOffset, headerTitle });
+        res.render('analytics', { stats, pendingList, page: 'analytics', monthOffset, headerTitle, daterange });
     } catch (err) { 
         console.error('Analytics Route Error:', err);
         res.redirect('/'); 
@@ -288,9 +397,27 @@ router.get('/manage', isAuthenticated, async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const monthQuery = req.query.month; 
         let monthOffset = (monthQuery === 'all') ? 'all' : ((monthQuery === undefined) ? 0 : parseInt(monthQuery));
+        let startQuery = req.query.start;
+        let endQuery = req.query.end;
+        let isCustomDate = startQuery && endQuery;
+        let daterange = '';
         let query = {}; let headerTitle = "Managing All Records";
         
-        if (monthOffset !== 'all') { 
+        if (isCustomDate) {
+            const sParts = startQuery.split('-');
+            const eParts = endQuery.split('-');
+            const sUTC = new Date(Date.UTC(sParts[0], sParts[1]-1, sParts[2], 0, 0, 0) - (330 * 60000));
+            const eUTC = new Date(Date.UTC(eParts[0], eParts[1]-1, parseInt(eParts[2])+1, 0, 0, 0) - (330 * 60000));
+            query = { 
+                $or: [
+                    { createdAt: { $gte: sUTC, $lt: eUTC } },
+                    { activationDate: { $gte: sUTC, $lt: eUTC } }
+                ] 
+            }; 
+            headerTitle = `Managing: ${sParts[2]}/${sParts[1]}/${sParts[0]} to ${eParts[2]}/${eParts[1]}/${eParts[0]}`;
+            monthOffset = 'custom';
+            daterange = `${startQuery} to ${endQuery}`;
+        } else if (monthOffset !== 'all') { 
             const { start, end } = getISTDate(monthOffset);
             query = { 
                 $or: [
@@ -304,7 +431,8 @@ router.get('/manage', isAuthenticated, async (req, res) => {
         const totalPages = Math.ceil(fullCustomers.length / ITEMS_PER_PAGE);
         const paginatedCustomers = fullCustomers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
-        res.render('manage', { customers: paginatedCustomers, page: 'manage', monthOffset, headerTitle, currentPage: page, totalPages });
+        res.render('manage', { customers: paginatedCustomers, page: 'manage', monthOffset, headerTitle, currentPage: page, totalPages, daterange });
+
     } catch (err) { 
         console.error('Manage Route Error:', err);
         res.redirect('/'); 
@@ -334,6 +462,7 @@ router.get('/search', isAuthenticated, async (req, res) => {
         const paginatedCustomers = fullCustomers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
         res.render('search', { customers: paginatedCustomers, query: q, page: 'search', headerTitle: "Global Search", currentPage: page, totalPages, totalItems: fullCustomers.length });
+
     } catch (err) {
         console.error('Search Route Error:', err);
         res.redirect('/');
@@ -342,7 +471,6 @@ router.get('/search', isAuthenticated, async (req, res) => {
 
 router.post('/add', isAuthenticated, async (req, res) => {
     try {
-        // Safe String Extraction
         const getFirst = (val) => {
             let v = Array.isArray(val) ? val[0] : (val || '');
             return typeof v === 'string' ? v.trim() : v;
@@ -364,7 +492,6 @@ router.post('/add', isAuthenticated, async (req, res) => {
 
             const pLogic = calculateLogic(entryDate, p_type);
 
-            // Do not save Primary if it's 'Existing'
             if (p_type !== 'Existing') {
                 const primaryCustomer = new Customer({
                     name: p_name, mobile: p_mobile, category: 'Family', subType: p_type, plan: plan, region: 'NA',
@@ -379,13 +506,14 @@ router.post('/add', isAuthenticated, async (req, res) => {
             const s_mobiles = Array.isArray(req.body.s_mobile) ? req.body.s_mobile : [req.body.s_mobile];
 
             for (let i = 0; i < s_names.length; i++) {
-                if (!s_names[i] || s_names[i].trim() === '') continue; 
-                
+                if (!s_names[i] || s_names[i].trim() === '') continue;
+
                 const sType = (s_types[i] || 'NC').trim();
                 const sName = s_names[i].trim();
                 const sMobile = s_mobiles[i].trim();
 
                 const sLogic = calculateLogic(entryDate, sType);
+
                 let finalActDate = sLogic.realActivationDate;
                 let finalVerDate = sLogic.realVerificationDate;
 
@@ -394,7 +522,6 @@ router.post('/add', isAuthenticated, async (req, res) => {
                     finalVerDate = pLogic.realVerificationDate;
                 }
 
-                // If secondary is Existing, mark it completed immediately
                 let secStatus = sType === 'Existing' ? 'completed' : 'pending';
 
                 const secondaryCustomer = new Customer({
@@ -409,7 +536,6 @@ router.post('/add', isAuthenticated, async (req, res) => {
             const n_mobile = getFirst(req.body.n_mobile);
             
             const nLogic = calculateLogic(entryDate, category);
-            // If Normal category is Existing, it shouldn't show in pending verifications
             let nStatus = category === 'Existing' ? 'completed' : 'pending';
             
             const newCustomer = new Customer({
@@ -420,6 +546,7 @@ router.post('/add', isAuthenticated, async (req, res) => {
             await newCustomer.save();
         }
         safeRedirect(req, res);
+
     } catch (err) { 
         console.error('Add Route Error:', err);
         safeRedirect(req, res); 
@@ -447,7 +574,6 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
         const n_mobile = getFirst(req.body.n_mobile);
         const billDateStr = getFirst(req.body.billDate);
 
-        // SAFELY HANDLE FAMILY PSEUDO ID
         const isFamGroup = req.params.id.startsWith('fam_');
         let existingDoc = null;
         
@@ -470,34 +596,32 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
             const oldPrimaryMobile = existingDoc.familyRole === 'Primary' ? existingDoc.mobile : existingDoc.linkedPrimaryNumber;
             const pLogic = calculateLogic(newEntryDate, p_type);
             
-            // Primary logic: Update, Create, or set to Completed if 'Existing'
             if (p_type !== 'Existing') {
                 const primaryUpdate = {
                     name: p_name, mobile: p_mobile, subType: p_type, plan: plan, 
                     createdAt: newEntryDate, activationDate: pLogic.realActivationDate, 
                     verificationDate: pLogic.realVerificationDate, billDate: bDate, remarks: remarks || '', status: 'pending'
                 };
+
                 const existingPrimary = await Customer.findOne({ category: 'Family', familyRole: 'Primary', mobile: oldPrimaryMobile });
+
                 if (existingPrimary) {
                     await Customer.findByIdAndUpdate(existingPrimary._id, primaryUpdate);
                 } else {
                     await new Customer({ ...primaryUpdate, category: 'Family', familyRole: 'Primary', linkedPrimaryName: 'Self', linkedPrimaryNumber: p_mobile, linkedPrimaryStatus: 'Primary Account' }).save();
                 }
             } else {
-                // If user changes Primary to 'Existing', make sure to mark it completed so it disappears from verification
                 await Customer.findOneAndUpdate(
                     { category: 'Family', familyRole: 'Primary', mobile: oldPrimaryMobile },
                     { status: 'completed', subType: 'Existing', name: p_name, mobile: p_mobile }
                 );
             }
 
-            // Sync Secondaries
             await Customer.updateMany(
                 { category: 'Family', familyRole: 'Secondary', linkedPrimaryNumber: oldPrimaryMobile },
                 { linkedPrimaryName: p_name, linkedPrimaryNumber: p_mobile, linkedPrimaryStatus: `Type: ${p_type}`, plan: plan, remarks: remarks || '' }
             );
 
-            // Handle Secondaries (Dynamic Array processing)
             const getArray = (val) => {
                 if (val === undefined || val === null) return [];
                 return Array.isArray(val) ? val : [val];
@@ -513,15 +637,15 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
                 let cName = typeof s_names[i] === 'string' ? s_names[i].trim() : '';
                 let cMobile = typeof s_mobiles[i] === 'string' ? s_mobiles[i].trim() : '';
                 let cType = typeof s_types[i] === 'string' ? s_types[i].trim() : 'NC';
-                
+
                 if (!cName || cName === '') continue;
 
                 let secLogic = calculateLogic(newEntryDate, cType);
                 let secAct = secLogic.realActivationDate;
                 let secVer = secLogic.realVerificationDate;
-                
+
                 if (pLogic.realVerificationDate > secVer) { 
-                    secAct = pLogic.realActivationDate; 
+                    secAct = pLogic.realActivationDate;
                     secVer = pLogic.realVerificationDate; 
                 }
 
@@ -545,18 +669,17 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
                 }
             }
         } else {
-            // Normal Customer Edit
             let updateData = { 
                 category, remarks, plan, billDate: bDate,
                 name: n_name, mobile: n_mobile, subType: category,
                 region: 'NA', familyRole: '', linkedPrimaryName: '', linkedPrimaryNumber: '', linkedPrimaryStatus: '',
-                status: category === 'Existing' ? 'completed' : 'pending' // Force existing to bypass pending queue
+                status: category === 'Existing' ? 'completed' : 'pending' 
             };
-            
+
             const nLogic = calculateLogic(newEntryDate, category);
             updateData.createdAt = newEntryDate; 
             updateData.activationDate = nLogic.realActivationDate; 
-            updateData.verificationDate = nLogic.realVerificationDate; 
+            updateData.verificationDate = nLogic.realVerificationDate;
 
             if (!isFamGroup) {
                 await Customer.findByIdAndUpdate(req.params.id, updateData);
@@ -564,6 +687,7 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
         }
 
         safeRedirect(req, res);
+
     } catch (err) { 
         console.error('Edit Route Error:', err);
         safeRedirect(req, res); 
@@ -585,7 +709,8 @@ router.post('/delete/:id', isAuthenticated, async (req, res) => {
             await Customer.findByIdAndDelete(req.params.id); 
         }
         safeRedirect(req, res);
-    } catch (err) { 
+    } 
+    catch (err) { 
         console.error('Delete Route Error:', err);
         safeRedirect(req, res); 
     } 
@@ -657,13 +782,22 @@ router.post('/pay-all-bills', isAuthenticated, async (req, res) => {
             if (calcBillVal >= actVal) {
                 const cycleKey = `${billYear}-${String(billMonth + 1).padStart(2, '0')}`;
                 if (!c.paidMonths || !c.paidMonths.includes(cycleKey)) {
-                    bulkOps.push({
-                        updateOne: { filter: { _id: c._id }, update: { $addToSet: { paidMonths: cycleKey } } }
-                    });
-                    if (c.category === 'Family' && c.familyRole === 'Secondary') {
+                    
+                    let cycleNum = (billYear - actYear) * 12 + (billMonth - actMonth);
+                    if (c.billDate >= actDay) cycleNum += 1;
+                    
+                    let effectiveCycle = cycleNum > 0 ? cycleNum : 1;
+                    let maxBills = (c.subType === 'MNP' || c.subType === 'NMNP' || c.category === 'MNP' || c.category === 'NMNP') ? 4 : 3;
+
+                    if (effectiveCycle <= maxBills) {
                         bulkOps.push({
-                            updateOne: { filter: { category: 'Family', familyRole: 'Primary', mobile: c.linkedPrimaryNumber }, update: { $addToSet: { paidMonths: cycleKey } } }
+                            updateOne: { filter: { _id: c._id }, update: { $addToSet: { paidMonths: cycleKey } } }
                         });
+                        if (c.category === 'Family' && c.familyRole === 'Secondary') {
+                            bulkOps.push({
+                                updateOne: { filter: { category: 'Family', familyRole: 'Primary', mobile: c.linkedPrimaryNumber }, update: { $addToSet: { paidMonths: cycleKey } } }
+                            });
+                        }
                     }
                 }
             }
@@ -671,6 +805,7 @@ router.post('/pay-all-bills', isAuthenticated, async (req, res) => {
 
         if (bulkOps.length > 0) { await Customer.bulkWrite(bulkOps); }
         safeRedirect(req, res);
+
     } catch(err) { 
         console.error('Pay All Bills Error:', err);
         safeRedirect(req, res); 
@@ -685,6 +820,7 @@ router.post('/log-call/:id', isAuthenticated, async (req, res) => {
                 callLogs: { callDate: new Date(), pageType, reason, notes }
             }
         });
+       
         res.json({ success: true });
     } catch (err) {
         console.error('Log Call Error:', err);
@@ -692,7 +828,6 @@ router.post('/log-call/:id', isAuthenticated, async (req, res) => {
     }
 });
 
-// Smart Notification API (Today's Agenda)
 router.get('/api/agenda', isAuthenticated, async (req, res) => {
     try {
         const today = new Date();
@@ -701,11 +836,9 @@ router.get('/api/agenda', isAuthenticated, async (req, res) => {
         const currentMonth = istNow.getUTCMonth();
         const currentYear = istNow.getUTCFullYear();
 
-        // Exact End of Today in UTC
         const istEndOfDay = new Date(Date.UTC(currentYear, currentMonth, currentDay, 23, 59, 59, 999));
         const utcEndOfDay = new Date(istEndOfDay.getTime() - (330 * 60000));
 
-        // 1. Pending Verifications (Strict exclusion of Existing and Future Dates)
         const query = { 
             status: 'pending',
             subType: { $nin: ['Existing', 'existing', 'EXISTING', ' Existing', 'Existing '] },
@@ -714,7 +847,6 @@ router.get('/api/agenda', isAuthenticated, async (req, res) => {
         };
         const pendingVerifications = await Customer.countDocuments(query);
 
-        // 2. Pending Bills
         const customersForBills = await Customer.find({ billDate: { $ne: null } }).lean();
         let pendingBills = 0;
 
@@ -740,7 +872,16 @@ router.get('/api/agenda', isAuthenticated, async (req, res) => {
             if (calcBillVal >= actVal) {
                 const cycleKey = `${billYear}-${String(billMonth + 1).padStart(2, '0')}`;
                 if (!c.paidMonths || !c.paidMonths.includes(cycleKey)) {
-                    pendingBills++;
+                    
+                    let cycleNum = (billYear - actYear) * 12 + (billMonth - actMonth);
+                    if (c.billDate >= actDay) cycleNum += 1;
+                    
+                    let effectiveCycle = cycleNum > 0 ? cycleNum : 1;
+                    let maxBills = (c.subType === 'MNP' || c.subType === 'NMNP' || c.category === 'MNP' || c.category === 'NMNP') ? 4 : 3;
+
+                    if (effectiveCycle <= maxBills) {
+                        pendingBills++;
+                    }
                 }
             }
         });
@@ -749,6 +890,20 @@ router.get('/api/agenda', isAuthenticated, async (req, res) => {
     } catch (err) {
         console.error('Agenda API Error:', err);
         res.status(500).json({ pendingVerifications: 0, pendingBills: 0, total: 0 });
+    }
+});
+
+router.get('/backup', isAuthenticated, async (req, res) => {
+    try {
+        const allCustomers = await Customer.find().lean();
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        res.setHeader('Content-disposition', `attachment; filename=verifyhub_backup_${timestamp}.json`);
+        res.setHeader('Content-type', 'application/json');
+        res.write(JSON.stringify(allCustomers, null, 2));
+        res.end();
+    } catch (err) {
+        console.error('Backup Error:', err);
+        res.status(500).send('Database Backup Failed');
     }
 });
 

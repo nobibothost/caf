@@ -1,3 +1,5 @@
+// utils/helpers.js
+
 const Customer = require('../models/Customer');
 
 const RULES = {
@@ -6,6 +8,7 @@ const RULES = {
         'P2P': 0,         
         'MNP': 3,         
         'NMNP': 5,        
+        'PDR': 0,
         'Existing': 0     
     },
     VERIFICATION_DELAY: 3 
@@ -14,8 +17,7 @@ const RULES = {
 function getISTDate(offsetMonths = 0) {
     const d = new Date();
     const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
-    const nd = new Date(utc + (3600000 * 5.5)); 
-    
+    const nd = new Date(utc + (3600000 * 5.5));
     let targetYear = nd.getFullYear();
     let targetMonth = nd.getMonth() - offsetMonths;
     while(targetMonth < 0) { targetMonth += 12; targetYear -= 1; }
@@ -23,17 +25,14 @@ function getISTDate(offsetMonths = 0) {
     const start = new Date(Date.UTC(targetYear, targetMonth, 1));
     start.setHours(start.getHours() - 5);
     start.setMinutes(start.getMinutes() - 30);
-    
     const end = new Date(Date.UTC(targetYear, targetMonth + 1, 1));
     end.setHours(end.getHours() - 5);
     end.setMinutes(end.getMinutes() - 30);
-
     return { start, end, now: new Date() }; 
 }
 
 function parseISTDateString(dateStr, preserveTimeFrom = null) {
     let targetIstHours, targetIstMins, targetIstSecs, targetIstMs;
-    
     if (preserveTimeFrom) {
         const pD = new Date(preserveTimeFrom);
         const pIst = new Date(pD.getTime() + (330 * 60000));
@@ -67,11 +66,11 @@ function parseISTDateString(dateStr, preserveTimeFrom = null) {
 
 function getRuns(category, subType) {
     if (category === 'Family') {
-        if (subType === 'MNP' || subType === 'NMNP') return 3; 
+        if (subType === 'MNP' || subType === 'NMNP') return 3;
         if (subType === 'P2P') return 2; 
         return 1; 
     } else {
-        if (subType === 'MNP' || subType === 'NMNP') return 2; 
+        if (subType === 'MNP' || subType === 'NMNP') return 2;
         return 1; 
     }
 }
@@ -136,11 +135,9 @@ function calculateLogic(baseDate, type) {
 
 async function fetchGroupedCustomers(baseQuery, sortObj) {
     const matchingDocs = await Customer.find(baseQuery).lean();
-    
     let displayList = [];
     let familyPrimaryNumbers = new Set();
     let normalCustomers = [];
-
     matchingDocs.forEach(doc => {
         // 🔴 CORE BLOCKER: 'Existing' means NOTHING! Never generate a main tracking card for it.
         const st = doc.subType ? doc.subType.trim().toLowerCase() : '';
@@ -176,11 +173,9 @@ async function fetchGroupedCustomers(baseQuery, sortObj) {
             fullFamiliesMap.get(pNum).secondaries.push(doc);
         }
     });
-
     fullFamiliesMap.forEach(fam => {
         fam.secondaries.sort((a, b) => b.createdAt - a.createdAt);
     });
-
     matchingDocs.forEach(doc => {
         // 🔴 CORE BLOCKER AGAIN
         const st = doc.subType ? doc.subType.trim().toLowerCase() : '';
@@ -207,7 +202,6 @@ async function fetchGroupedCustomers(baseQuery, sortObj) {
             displayList.push(famCard);
         }
     });
-
     let result = [...displayList, ...normalCustomers];
 
     if (sortObj && sortObj.verificationDate) {
