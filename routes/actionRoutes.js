@@ -1,11 +1,35 @@
-// routes/actionRoutes.js
 const express = require('express');
 const router = express.Router();
 const Customer = require('../models/Customer');
 const { isAuthenticated } = require('../middleware/auth');
 const { parseISTDateString, calculateLogic, safeRedirect } = require('../utils/helpers');
 const { getFinalActDate, guessGenderAI } = require('../utils/smartHelpers');
+const { sendAutoWaMessage } = require('../utils/whatsapp'); // 🔥 Ensure this path is correct
 
+// ==========================================
+// BACKGROUND AUTOMATED WHATSAPP ROUTE
+// ==========================================
+router.post('/send-wa/:phone', isAuthenticated, async (req, res) => {
+    try {
+        const phone = req.params.phone;
+        const { message } = req.body;
+        
+        if (!message) {
+            return res.status(400).json({ success: false, msg: "Message content is required" });
+        }
+        
+        const isSent = await sendAutoWaMessage(phone, message);
+        if (isSent) {
+            res.json({ success: true, msg: "WhatsApp message sent successfully in background!" });
+        } else {
+            res.status(500).json({ success: false, msg: "Failed to send WhatsApp message. Make sure your phone is connected." });
+        }
+    } catch (err) {
+        res.status(500).json({ success: false, msg: "Internal Server Error" });
+    }
+});
+
+// ... baaki add, edit, delete routes (same as before)
 // ==========================================
 // ADD ROUTE
 // ==========================================
@@ -27,7 +51,6 @@ router.post('/add', isAuthenticated, async (req, res) => {
             let p_name = getFirst(req.body.p_name);
             const p_mobile = getFirst(req.body.p_mobile);
             
-            // Prevent mobile number from being saved as Name
             if (!p_name || p_name.trim() === '' || p_name === p_mobile) {
                 p_name = 'Primary Account'; 
             }
@@ -114,9 +137,6 @@ router.post('/add', isAuthenticated, async (req, res) => {
     } catch (err) { safeRedirect(req, res); }
 });
 
-// ==========================================
-// EDIT ROUTE 
-// ==========================================
 router.post('/edit/:id', isAuthenticated, async (req, res) => {
     try {
         const getFirst = (val) => { let v = Array.isArray(val) ? val[0] : (val || ''); return typeof v === 'string' ? v.trim() : v; };
@@ -147,7 +167,6 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
             const p_mobile = getFirst(req.body.p_mobile);
             let p_name = getFirst(req.body.p_name);
             
-            // Prevent mobile number from being saved as Name
             if (!p_name || p_name.trim() === '' || p_name === p_mobile) {
                 p_name = 'Primary Account'; 
             }
@@ -168,7 +187,6 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
             const pLogic = calculateLogic(newEntryDate, p_type);
             pLogic.realActivationDate = await getFinalActDate(newEntryDate, p_type, pLogic.realActivationDate);
             
-            // 🔥 FIX: FORCE UPDATE FULL PRIMARY DETAILS EVEN IF "EXISTING"
             const primaryUpdateData = {
                 name: p_name, mobile: p_mobile, gender: finalPGender, subType: p_type, plan: plan, 
                 createdAt: newEntryDate, activationDate: pLogic.realActivationDate, 
