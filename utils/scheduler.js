@@ -1,173 +1,86 @@
-require('dotenv').config();
-const express = require('express');
-const mongoose = require('mongoose');
-const bodyParser = require('body-parser');
-const path = require('path');
-const session = require('express-session');
-const MongoStore = require('connect-mongo');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit'); 
+const cron = require('node-cron');
+const axios = require('axios');
+const Customer = require('../models/Customer');
+const { getPayout } = require('./helpers');
+const { sendAutoWaMessage } = require('./whatsapp');
 
-// --- Import Modular Routes & Models ---
-const authRoutes = require('./routes/authRoutes');
-const aiRoutes = require('./routes/aiRoutes');
-const Customer = require('./models/Customer'); // 🔥 Customer model imported for Indexing
-
-// --- Import Security Middleware ---
-const requireAuth = require('./middleware/auth');
-
-<<<<<<< HEAD
-// --- Import Helpers & WhatsApp Engine ---
-const { getPayout } = require('./utils/helpers');
-const { connectToWhatsApp, getWaState } = require('./utils/whatsapp'); 
-=======
-// --- Import Helpers, WhatsApp Engine & Scheduler ---
-const { connectToWhatsApp, getWaState } = require('./utils/whatsapp'); 
-const { startCronJobs } = require('./utils/scheduler'); 
->>>>>>> 89efb50 (restore changes after fix)
-
-const app = express();
+const EMAIL_SERVICE_URL = process.env.EMAIL_SERVICE_URL || 'http://localhost:5000';
+const ADMIN_EMAIL_RECEIVER = process.env.ADMIN_EMAIL_RECEIVER || 'your-email@gmail.com';
+const ADMIN_WA_NUMBER = process.env.ADMIN_WA_NUMBER;
 const PORT = process.env.PORT || 3000;
-const SESSION_SECRET = process.env.SESSION_SECRET || 'supersecretkey';
-const MONGO_URI = process.env.MONGO_URI;
 
-// --- SECURITY MIDDLEWARES ---
-app.use(helmet({ 
-    contentSecurityPolicy: false,
-    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-    xPoweredBy: false 
-}));
+function startCronJobs() {
+    console.log('⏳ Background Scheduler (Emails & WA Reports) Started...');
 
-const globalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, 
-    max: 800, 
-    message: 'Too many requests from this IP, please try again after 15 minutes.',
-    standardHeaders: true, 
-    legacyHeaders: false, 
-});
-app.use(globalLimiter);
+    // =========================================================================
+    // 🔥 DAILY WHATSAPP KAMAI REPORT (CRON at 10:30 AM IST)
+    // =========================================================================
+    if (ADMIN_WA_NUMBER) {
+        cron.schedule('30 10 * * *', async () => {
+            console.log('⏳ Running Daily 10:30 AM WhatsApp Kamai Report...');
+            try {
+                const istNow = new Date(new Date().getTime() + (330 * 60000));
+                const startOfMonth = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), 1, 0, 0, 0) - (330*60000));
+                const endOfMonth = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth() + 1, 0, 23, 59, 59, 999) - (330*60000));
 
-const authLimiter = rateLimit({
-    windowMs: 10 * 60 * 1000, 
-    max: 20, 
-    message: 'Too many login attempts. Try again in 10 minutes.'
-});
-app.use('/login', authLimiter);
-app.use('/verify-otp', authLimiter);
+                const allCustomers = await Customer.find().lean();
+                let mnp_fam_c = 0, mnp_fam_r = 0; let other_fam_c = 0, other_fam_r = 0;
+                let mnp_non_c = 0, mnp_non_r = 0; let fresh_non_c = 0, fresh_non_r = 0;
+                let p2p_non_c = 0, p2p_non_r = 0;
 
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.json());
+                allCustomers.forEach(c => {
+                    let cAct = new Date(c.activationDate || c.createdAt);
+                    let isActThisMonth = (cAct >= startOfMonth && cAct <= endOfMonth);
+                    let isActuallyActivated = (cAct <= istNow) || (c.status === 'completed');
 
-app.use(express.static(path.join(__dirname, 'public')));
-app.set('view engine', 'ejs');
+                    if (isActThisMonth && isActuallyActivated) {
+                        let earned = 0;
+                        try { earned = getPayout(c.category, c.subType, c.plan) || 0; } catch(e) {}
 
-// 🔥 FIX FOR RENDER: Trust the reverse proxy to allow secure cookies over HTTPS
-app.set('trust proxy', 1);
+                        let type = c.category; let sub = c.subType || c.category;
 
-// --- SESSION SETUP (Encrypted & Hardened) ---
-app.use(session({
-    secret: SESSION_SECRET,
-    name: 'sessionId', 
-    resave: false,
-    saveUninitialized: false,
-    store: MongoStore.create({
-        mongoUrl: MONGO_URI,
-        collectionName: 'sessions',
-        ttl: 14 * 24 * 60 * 60, 
-        autoRemove: 'native',
-        touchAfter: 24 * 3600
-    }),
-    cookie: { 
-        httpOnly: true, 
-        maxAge: 14 * 24 * 60 * 60 * 1000, 
-        sameSite: 'strict', 
-        secure: process.env.NODE_ENV === 'production' 
+                        if (c.category === 'Family' && c.familyRole === 'Secondary') {
+                            const pStatus = c.linkedPrimaryStatus || '';
+                            if (!pStatus.includes('Existing') && !pStatus.includes('Active')) {
+                                const primaryDoc = allCustomers.find(p => p.category === 'Family' && p.familyRole === 'Primary' && p.mobile === c.linkedPrimaryNumber);
+                                if (!primaryDoc) {
+                                    let ghostType = 'NC';
+                                    if (pStatus.includes('NMNP')) ghostType = 'NMNP'; else if (pStatus.includes('MNP')) ghostType = 'MNP'; else if (pStatus.includes('P2P')) ghostType = 'P2P';
+                                    else if (pStatus.includes('PDR')) ghostType = 'PDR';
+                                    let ghostEarned = 0;
+                                    try { ghostEarned = getPayout('Family', ghostType, c.plan) || 0; } catch(e){}
+                                    if (ghostType === 'MNP' || ghostType === 'NMNP') { mnp_fam_c++; mnp_fam_r += ghostEarned; } else { other_fam_c++; other_fam_r += ghostEarned; }
+                                }
+                            }
+                        }
+
+                        if (type === 'Family') {
+                            if (sub === 'MNP' || sub === 'NMNP') { mnp_fam_c++; mnp_fam_r += earned; } else if (sub !== 'Existing') { other_fam_c++; other_fam_r += earned; }
+                        } else if (type === 'MNP' || type === 'NMNP') { mnp_non_c++; mnp_non_r += earned;
+                        } else if (type === 'NC') { fresh_non_c++; fresh_non_r += earned;
+                        } else if (type === 'P2P' || type === 'PDR') { p2p_non_c++; p2p_non_r += earned; }
+                    }
+                });
+                
+                let total_c = mnp_fam_c + other_fam_c + mnp_non_c + fresh_non_c + p2p_non_c;
+                let total_r = mnp_fam_r + other_fam_r + mnp_non_r + fresh_non_r + p2p_non_r;
+                let todayStr = istNow.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+
+                let waMsg = `*💰 MERI KAMAI REPORT* 💰\n_Date: ${todayStr}_\n\n*📊 KPI / Gross / Incentive*\n------------------------\n📱 MNP FAMILY: ${mnp_fam_c} / ₹${mnp_fam_r}\n👨‍👩‍👧 OTHER FAMILY: ${other_fam_c} / ₹${other_fam_r}\n🔄 MNP NON-FAMILY: ${mnp_non_c} / ₹${mnp_non_r}\n🆕 FRESH NON-FAMILY: ${fresh_non_c} / ₹${fresh_non_r}\n🔁 P2P NON-FAMILY: ${p2p_non_c} / ₹${p2p_non_r}\n------------------------\n*✅ TOTAL GROSS:* ${total_c}\n*💸 TOTAL INCENTIVE:* ₹${total_r}`;
+
+                let cleanNumber = ADMIN_WA_NUMBER.toString().replace(/^91/, '');
+                const sent = await sendAutoWaMessage(cleanNumber, waMsg);
+                if(sent) console.log(`✅ Daily Kamai sent to WhatsApp: ${cleanNumber}`);
+
+            } catch (err) {
+                console.error('❌ Cron WA Kamai Error:', err.message);
+            }
+        }, { timezone: "Asia/Kolkata" });
     }
-}));
 
-// --- DB CONNECTION ---
-const connectDB = async () => {
-    try { 
-        await mongoose.connect(MONGO_URI, { 
-            maxPoolSize: 10, minPoolSize: 2, socketTimeoutMS: 45000, serverSelectionTimeoutMS: 5000, family: 4              
-        });
-        console.log('✅ MongoDB Connected'); 
-        
-        // =====================================================================
-        // 🔥 POINT 4: MONGODB INDEXING (SUPER SPEED)
-        // =====================================================================
-        Customer.collection.createIndex({ mobile: 1 }).catch(()=>{});
-        Customer.collection.createIndex({ name: 1 }).catch(()=>{});
-        Customer.collection.createIndex({ status: 1, activationDate: -1 }).catch(()=>{});
-        Customer.collection.createIndex({ category: 1 }).catch(()=>{});
-        console.log('⚡ Smart Indexes Activated: Search & Load will be 10x faster!');
-        
-    } 
-    catch (err) { console.error('❌ MongoDB Error:', err.message); setTimeout(connectDB, 5000); }
-};
-connectDB();
-
-// --- GLOBAL ROUTES & MOUNTING ---
-app.get('/health', (req, res) => res.status(200).send('OK'));
-
-app.post('/power-off', (req, res) => {
-    res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Server Stopped</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700&display=swap" rel="stylesheet">
-            <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
-        </head>
-        <body style="font-family:'Inter', sans-serif; text-align:center; padding:50px 20px; background:#f8fafc; color:#0f172a; display:flex; flex-direction:column; align-items:center; justify-content:center; height:80vh; margin:0;">
-            <div style="font-size:4.5rem; color:#ef4444; margin-bottom:15px; animation: scaleDown 0.5s ease-out;"><i class="ri-shut-down-line"></i></div>
-            <h2 style="margin:0 0 10px 0; font-size:1.5rem;">Server Turned Off</h2>
-            <p style="color:#64748b; font-size:0.95rem; max-width:300px; line-height:1.5;">Aapka session aur WhatsApp connection safe hai. Aap ab is tab ko close kar sakte hain. Wapas chalane ke liye Termux se server start karein.</p>
-            <style>@keyframes scaleDown { from{transform:scale(1.2); opacity:0;} to{transform:scale(1); opacity:1;} }</style>
-        </body>
-        </html>
-    `);
-    console.log("🛑 Server shutdown requested via Web UI. Exiting in 1 second...");
-    setTimeout(() => {
-        process.exit(0);
-    }, 1000);
-});
-
-// 1. PUBLIC ROUTES (Accessible to everyone)
-app.use('/', authRoutes);
-
-// 🔒 THE IRON GATE: Everything below this line requires login!
-app.use(requireAuth); 
-
-// 🔥 SECURE WHATSAPP STATUS ROUTE
-app.get('/whatsapp', (req, res) => {
-    const waState = getWaState();
-    res.render('whatsapp', { 
-        isConnected: waState.isConnected, 
-        qr: waState.qr, 
-        page: 'whatsapp' // Set active page for bottom navigation
-    });
-});
-
-// 2. PRIVATE ROUTES (Fully protected)
-app.use('/api/ai', aiRoutes);
-app.use('/', require('./routes/viewRoutes'));
-app.use('/', require('./routes/actionRoutes')); 
-app.use('/', require('./routes/billingRoutes'));
-app.use('/', require('./routes/reportRoutes'));
-
-app.get('*', (req, res) => { res.redirect('/'); });
-
-// --- SERVER INITIALIZATION ---
-app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-    console.log(`🛡️ Security modules (Helmet, RateLimit, AuthLock) active!`);
-    
-    // 🔥 Start Background WhatsApp Automation Engine
-    connectToWhatsApp();
-
-<<<<<<< HEAD
+    // =========================================================================
+    // 🔥 INTERVAL BASED EMAIL ALERTS (10 AM & 11 AM) + HEALTH PING
+    // =========================================================================
     const PING_INTERVAL = 5 * 60 * 1000; 
     const TARGET_URL = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
     
@@ -274,9 +187,6 @@ app.listen(PORT, () => {
             }
         } catch (err) {} 
     }, PING_INTERVAL);
-});
-=======
-    // 🔥 Start Scheduled Tasks (Emails & WhatsApp Reports)
-    startCronJobs();
-});
->>>>>>> 89efb50 (restore changes after fix)
+}
+
+module.exports = { startCronJobs };

@@ -2,8 +2,8 @@
 const aiStyle = document.createElement('style');
 aiStyle.innerHTML = `
     @keyframes fadeInAi { from { opacity: 0; transform: translateY(-20px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
-    @keyframes popInAi { 0% { opacity: 0; transform: translate(-50%, 30px) scale(0.8); } 100% { opacity: 1; transform: translate(-50%, 0) scale(1); } }
-    @keyframes popOutAi { 0% { opacity: 1; transform: translate(-50%, 0) scale(1); } 100% { opacity: 0; transform: translate(-50%, 30px) scale(0.8); } }
+    @keyframes popInAi { 0% { opacity: 0; transform: translateY(-20px); } 100% { opacity: 1; transform: translateY(0); } }
+    @keyframes popOutAi { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-20px); } }
     @keyframes shakeAiBtn { 0%, 100% { transform: translateY(-50%) translateX(0); } 25% { transform: translateY(-50%) translateX(-4px); } 75% { transform: translateY(-50%) translateX(4px); } }
     
     .ai-modal-overlay button:last-child { border-bottom: none !important; }
@@ -13,23 +13,25 @@ aiStyle.innerHTML = `
         background: #ffffff; border: 1px solid #ede9fe; cursor: pointer;
         font-size: 1.2rem; color: #8b5cf6; padding: 4px 6px; border-radius: 6px;
         outline: none; transition: all 0.2s ease; z-index: 10;
-        display: flex; align-items: center; justify-content: center;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.02); height: calc(100% - 12px); max-height: 32px;
+        display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); height: calc(100% - 12px); max-height: 32px;
     }
     .ai-inline-btn:hover { background: #f5f3ff; transform: translateY(-50%) scale(1.05); }
     
+    /* 🔥 Android 4 Top-Right Position */
     #ai-toast-container {
-        position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 999999;
-        display: flex; flex-direction: column; gap: 10px; align-items: center; pointer-events: none;
+        position: fixed;
+        top: 75px; right: 20px; z-index: 999999;
+        display: flex; flex-direction: column; gap: 10px; align-items: flex-end; pointer-events: none;
     }
+    
+    /* 🔥 Android 4 Pill Shaped Dark Theme */
     .ai-toast-msg {
-        background: rgba(15, 23, 42, 0.9); color: white; padding: 12px 24px; border-radius: 50px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.2); font-size: 0.95rem; font-weight: 600;
-        display: flex; align-items: center; gap: 8px; backdrop-filter: blur(4px);
-        animation: popInAi 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        background: rgba(50, 50, 50, 0.95); color: white;
+        padding: 10px 20px; border-radius: 24px;
+        box-shadow: none; font-size: 0.9rem; font-weight: 500;
+        display: flex; align-items: center; gap: 8px;
+        animation: popInAi 0.3s ease-out forwards;
     }
-    .ai-toast-success { background: rgba(16, 185, 129, 0.95); }
-    .ai-toast-error { background: rgba(245, 158, 11, 0.95); }
 `;
 document.head.appendChild(aiStyle);
 
@@ -39,8 +41,8 @@ document.body.appendChild(toastContainer);
 
 window.showAIToast = function(msg, isSuccess = true) {
     const toast = document.createElement('div');
-    toast.className = `ai-toast-msg ${isSuccess ? 'ai-toast-success' : 'ai-toast-error'}`;
-    toast.innerHTML = isSuccess ? `<i class="ri-magic-line" style="font-size:1.2rem;"></i> ${msg}` : `<i class="ri-error-warning-line" style="font-size:1.2rem;"></i> ${msg}`;
+    toast.className = `ai-toast-msg`;
+    toast.innerHTML = isSuccess ? `<i class="ri-check-line" style="font-size:1.1rem; color:#4ade80;"></i> ${msg}` : `<i class="ri-error-warning-line" style="font-size:1.1rem; color:#f87171;"></i> ${msg}`;
     toastContainer.appendChild(toast);
     setTimeout(() => {
         toast.style.animation = 'popOutAi 0.3s ease-in forwards';
@@ -72,11 +74,9 @@ window.triggerGenderAI = async function(inputElem, selectElem) {
     let rawName = inputElem.value.trim();
     // Clean name to remove brackets like (Primary) so AI isn't confused
     let name = rawName.replace(/\(.*\)/g, '').trim();
-    
     if (!name || name.length < 2 || name.toLowerCase() === 'primary account' || name.toLowerCase() === 'self') return;
-    
     // Only fetch if dropdown is on Auto/KEEP or Empty
-    if (selectElem.value !== 'KEEP' && selectElem.value !== '') return; 
+    if (selectElem.value !== 'KEEP' && selectElem.value !== '') return;
 
     const originalBorder = inputElem.style.borderColor;
     inputElem.style.borderColor = '#8b5cf6'; 
@@ -112,7 +112,7 @@ window.showAiSuggestions = async function(inputElement, btnElement, e) {
     }
     const existingOverlay = document.querySelector('.ai-modal-overlay');
     if (existingOverlay) existingOverlay.remove();
-
+    
     const originalIcon = btnElement.innerHTML;
     btnElement.innerHTML = '<i class="ri-loader-4-line spin-loader" style="color:#8b5cf6;"></i>';
     btnElement.disabled = true;
@@ -126,15 +126,15 @@ window.showAiSuggestions = async function(inputElement, btnElement, e) {
         const data = await res.json();
         btnElement.innerHTML = originalIcon;
         btnElement.disabled = false;
-        
+
         if (data.success && data.suggestions && data.suggestions.length > 0) {
             const overlay = document.createElement('div');
             overlay.className = 'ai-modal-overlay';
             overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.6); z-index:99999; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(4px);';
-
+            
             const popup = document.createElement('div');
             popup.style.cssText = 'background:#ffffff; width:90%; max-width:400px; border-radius:12px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5); overflow:hidden; animation:fadeInAi 0.2s ease-out;';
-
+            
             const header = document.createElement('div');
             header.innerHTML = '<span style="display:flex; gap:6px; align-items:center;"><i class="ri-sparkling-fill"></i> Select a Suggestion</span> <button type="button" class="close-ai-btn" style="background:transparent; border:none; color:#6d28d9; font-size:1.2rem; cursor:pointer;"><i class="ri-close-line"></i></button>';
             header.style.cssText = 'padding:15px; background:linear-gradient(135deg, #f3e8ff, #e0e7ff); color:#6d28d9; font-size:0.95rem; font-weight:700; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;';
@@ -169,6 +169,7 @@ window.showAiSuggestions = async function(inputElement, btnElement, e) {
 window.loadDailyPlanDashboard = async function() {
     const container = document.getElementById('aiDailyPlanContainer');
     if (!container) return;
+
     container.innerHTML = `
         <div style="background: linear-gradient(135deg, #f3e8ff, #e0e7ff); border: 1px solid #c4b5fd; padding: 15px 20px; border-radius: 12px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
             <div style="font-size: 2rem; color: #8b5cf6;"><i class="ri-robot-2-fill"></i></div>
@@ -178,12 +179,18 @@ window.loadDailyPlanDashboard = async function() {
             </div>
         </div>
     `;
+
     try {
         const res = await fetch('/api/ai/daily-plan');
         const data = await res.json();
-        if (data.success) { document.getElementById('aiPlanText').innerText = data.plan; } 
-        else { container.style.display = 'none'; }
-    } catch (e) { container.style.display = 'none'; }
+        if (data.success) { 
+            document.getElementById('aiPlanText').innerText = data.plan; 
+        } else { 
+            container.style.display = 'none'; 
+        }
+    } catch (e) { 
+        container.style.display = 'none'; 
+    }
 };
 
 const observer = new MutationObserver(() => {
@@ -193,9 +200,13 @@ const observer = new MutationObserver(() => {
         window.loadDailyPlanDashboard();
     }
 });
+
 observer.observe(document.body, { childList: true, subtree: true });
 
 document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('aiDailyPlanContainer');
-    if (container) { container.dataset.aiLoaded = 'true'; window.loadDailyPlanDashboard(); }
+    if (container) { 
+        container.dataset.aiLoaded = 'true'; 
+        window.loadDailyPlanDashboard(); 
+    }
 });
