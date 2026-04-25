@@ -5,6 +5,13 @@ const fs = require('fs');
 const path = require('path');
 
 let sock;
+let currentQr = null;     // 🔥 Added for Web UI QR
+let isConnected = false;  // 🔥 Added for Web UI Status
+
+// 🔥 Web server ko status batane ke liye function
+function getWaState() {
+    return { isConnected, qr: currentQr };
+}
 
 // 🔥 NAYA JUGAAD: Auto Storage Manager (Bina logout kiye unused files clean karega)
 function cleanOldSessionData() {
@@ -65,6 +72,9 @@ async function connectToWhatsApp() {
             const { connection, lastDisconnect, qr } = update;
             
             if (qr) {
+                currentQr = qr;      // 🔥 Store for Web UI
+                isConnected = false; // 🔥 Update Status
+                
                 console.clear(); 
                 console.log('\n=================================================');
                 console.log('📱 SCAN THIS QR CODE WITH YOUR WHATSAPP');
@@ -74,6 +84,9 @@ async function connectToWhatsApp() {
             }
             
             if (connection === 'close') {
+                isConnected = false; // 🔥 Update Status
+                currentQr = null;    // 🔥 Clear QR
+                
                 const statusCode = lastDisconnect?.error?.output?.statusCode;
                 const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
                 
@@ -97,6 +110,9 @@ async function connectToWhatsApp() {
                     setTimeout(() => connectToWhatsApp(), 3000);
                 }
             } else if (connection === 'open') {
+                isConnected = true;  // 🔥 Update Status
+                currentQr = null;    // 🔥 Clear QR
+                
                 console.clear();
                 console.log('✅ ===========================================');
                 console.log('✅ WhatsApp Connected Successfully!');
@@ -154,22 +170,16 @@ async function gracefulShutdown(reason) {
     }, 1000);
 }
 
-// 1. Ctrl + C in terminal
 process.on('SIGINT', () => gracefulShutdown('SIGINT (Ctrl+C)'));
-
-// 2. Terminal achanak close kar dena ya background kill
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM (Terminal Closed)'));
-
-// 3. Syntax Error ya koi Runtime Crash
 process.on('uncaughtException', (err) => {
     console.error('❌ Uncaught Exception (App Crashed):', err.message);
     gracefulShutdown('Crash');
 });
-
-// 4. Unhandled Promise Rejection
 process.on('unhandledRejection', (reason, promise) => {
     console.error('❌ Unhandled Promise Rejection:', reason);
     gracefulShutdown('Crash');
 });
 
-module.exports = { connectToWhatsApp, sendAutoWaMessage };
+// 🔥 Added getWaState to exports
+module.exports = { connectToWhatsApp, sendAutoWaMessage, getWaState };

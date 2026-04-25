@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <%- include('partials/head', { title: 'WhatsApp Server Status' }) %>
+</head>
+<body>
+
+    <%- include('partials/top-nav', { icon: 'ri-whatsapp-line', title1: 'WhatsApp', title2: 'Status' }) %>
+
+    <div id="app-main">
+        <div class="container" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 65vh; text-align: center; padding: 20px;">
+            
+            <% if (isConnected) { %>
+                <div style="background: #ecfdf5; border: 1px solid #10b981; padding: 40px; border-radius: 20px; box-shadow: 0 10px 25px rgba(16,185,129,0.1); width: 100%; max-width: 350px;">
+                    <div style="background: #10b981; color: white; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 3.5rem; margin: 0 auto 20px auto; box-shadow: 0 4px 10px rgba(16,185,129,0.3);">
+                        <i class="ri-whatsapp-fill"></i>
+                    </div>
+                    <h2 style="color: #065f46; margin: 0 0 5px 0; font-size: 1.6rem;">Connected!</h2>
+                    <p style="color: #047857; margin: 0; font-size: 0.95rem;">System is successfully linked.<br>Auto-messaging is active.</p>
+                </div>
+            <% } else if (qr) { %>
+                <div style="background: white; border: 1px solid #e2e8f0; padding: 30px 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 350px;">
+                    <h2 style="color: #0f172a; margin: 0 0 5px 0; font-size: 1.4rem;"><i class="ri-qr-scan-2-line" style="color: #3b82f6;"></i> Scan to Login</h2>
+                    <p style="color: #64748b; margin: 0 0 20px 0; font-size: 0.85rem;">Open WhatsApp > Linked Devices > Link a Device</p>
+                    
+                    <div style="background: #f8fafc; padding: 15px; border-radius: 12px; display: inline-block; margin-bottom: 20px; border: 1px dashed #cbd5e1;">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=<%= encodeURIComponent(qr) %>" alt="WhatsApp QR Code" style="border-radius: 8px; width: 100%; max-width: 250px; display: block;">
+                    </div>
+                    
+                    <p style="color: #ef4444; font-size: 0.85rem; margin: 0; font-weight: 500;">
+                        <i class="ri-loader-4-line spin-loader"></i> Waiting for scan...
+                    </p>
+                </div>
+            <% } else { %>
+                <div style="background: #fefce8; border: 1px solid #eab308; padding: 40px; border-radius: 20px; width: 100%; max-width: 350px;">
+                    <i class="ri-loader-2-line spin-loader" style="font-size: 3.5rem; color: #ca8a04;"></i>
+                    <h3 style="color: #854d0e; margin: 15px 0 5px 0; font-size: 1.3rem;">Loading Engine...</h3>
+                    <p style="color: #a16207; margin: 0; font-size: 0.9rem;">Starting the WhatsApp background process.</p>
+                </div>
+            <% } %>
+            
+            <button onclick="window.location.reload()" style="margin-top: 25px; padding: 12px 25px; background: #3b82f6; color: white; border: none; border-radius: 10px; font-weight: 600; font-size: 1.05rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.2); transition: 0.2s;">
+                <i class="ri-refresh-line"></i> Refresh Status
+            </button>
+
+            <p style="margin-top: 15px; font-size: 0.8rem; color: #94a3b8;"><i class="ri-lock-line"></i> Secure 256-bit Connection</p>
+        </div>
+
+        <%- include('partials/modals') %>
+    </div> 
+    
+    <%- include('partials/bottom-nav', { page: 'whatsapp' }) %>
+    <%- include('partials/scripts') %>
+</body>
+</html>

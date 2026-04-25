@@ -7,15 +7,19 @@ const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const axios = require('axios');
 const helmet = require('helmet');
+const rateLimit = require('express-rate-limit'); // 🔥 Security Package
 
 // --- Import Modular Routes & Models ---
 const authRoutes = require('./routes/authRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const Customer = require('./models/Customer');
 
+// --- Import Security Middleware ---
+const requireAuth = require('./middleware/auth');
+
 // --- Import Helpers & WhatsApp Engine ---
 const { getPayout } = require('./utils/helpers');
-const { connectToWhatsApp } = require('./utils/whatsapp');
+const { connectToWhatsApp, getWaState } = require('./utils/whatsapp'); // 🔥 Imported getWaState
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,20 +30,45 @@ const ADMIN_EMAIL_RECEIVER = process.env.ADMIN_EMAIL_RECEIVER || 'your-email@gma
 const SESSION_SECRET = process.env.SESSION_SECRET || 'supersecretkey';
 const MONGO_URI = process.env.MONGO_URI;
 
-// --- MIDDLEWARE ---
+// --- SECURITY MIDDLEWARES ---
+
+// 1. Helmet helps secure Express apps by setting various HTTP headers.
 app.use(helmet({ 
-    contentSecurityPolicy: false,
-    referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
+    contentSecurityPolicy: false, // Turned off to allow external scripts/charts if needed
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    xPoweredBy: false // Hides "Express" to prevent targeted attacks
 }));
+
+// 2. Global Rate Limiting (Prevents DDoS and Brute Force Attacks)
+const globalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 800, // Limit each IP to 800 requests per `window`
+    message: 'Too many requests from this IP, please try again after 15 minutes.',
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+app.use(globalLimiter);
+
+// 3. Strict Rate Limiting for Login/OTP (Stops Password Guessing)
+const authLimiter = rateLimit({
+    windowMs: 10 * 60 * 1000, // 10 minutes
+    max: 20, // Max 20 attempts
+    message: 'Too many login attempts. Try again in 10 minutes.'
+});
+app.use('/login', authLimiter);
+app.use('/verify-otp', authLimiter);
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
+
+// Public static files (CSS/JS for login page)
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 
-// --- SESSION SETUP ---
+// --- SESSION SETUP (Encrypted & Hardened) ---
 app.use(session({
     secret: SESSION_SECRET,
+    name: 'sessionId', // Custom name instead of default 'connect.sid' (Security through obscurity)
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
@@ -49,7 +78,12 @@ app.use(session({
         autoRemove: 'native',
         touchAfter: 24 * 3600
     }),
-    cookie: { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'strict' }
+    cookie: { 
+        httpOnly: true, // Prevents client-side JS from reading the cookie (Stops XSS session hijacking)
+        maxAge: 14 * 24 * 60 * 60 * 1000, 
+        sameSite: 'strict', // Protects against CSRF attacks
+        secure: process.env.NODE_ENV === 'production' // Only send over HTTPS in production
+    }
 }));
 
 // --- DB CONNECTION ---
@@ -67,10 +101,51 @@ connectDB();
 // --- GLOBAL ROUTES & MOUNTING ---
 app.get('/health', (req, res) => res.status(200).send('OK'));
 
+// 🔥 Power Off Route: Stops Server but KEEPS Session
+app.post('/power-off', (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Server Stopped</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700&display=swap" rel="stylesheet">
+            <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+        </head>
+        <body style="font-family:'Inter', sans-serif; text-align:center; padding:50px 20px; background:#f8fafc; color:#0f172a; display:flex; flex-direction:column; align-items:center; justify-content:center; height:80vh; margin:0;">
+            <div style="font-size:4.5rem; color:#ef4444; margin-bottom:15px; animation: scaleDown 0.5s ease-out;"><i class="ri-shut-down-line"></i></div>
+            <h2 style="margin:0 0 10px 0; font-size:1.5rem;">Server Turned Off</h2>
+            <p style="color:#64748b; font-size:0.95rem; max-width:300px; line-height:1.5;">Aapka session aur WhatsApp connection safe hai. Aap ab is tab ko close kar sakte hain. Wapas chalane ke liye Termux se server start karein.</p>
+            <style>@keyframes scaleDown { from{transform:scale(1.2); opacity:0;} to{transform:scale(1); opacity:1;} }</style>
+        </body>
+        </html>
+    `);
+    console.log("🛑 Server shutdown requested via Web UI. Exiting in 1 second...");
+    setTimeout(() => {
+        process.exit(0);
+    }, 1000);
+});
+
+// 1. PUBLIC ROUTES (Accessible to everyone, protected by authLimiter)
 app.use('/', authRoutes);
+
+// 🔒 THE IRON GATE: Everything below this line requires login!
+app.use(requireAuth); 
+
+// 🔥 SECURE WHATSAPP STATUS ROUTE
+app.get('/whatsapp', (req, res) => {
+    const waState = getWaState();
+    res.render('whatsapp', { 
+        isConnected: waState.isConnected, 
+        qr: waState.qr, 
+        page: 'whatsapp' // Set active page for bottom navigation
+    });
+});
+
+// 2. PRIVATE ROUTES (Fully protected)
 app.use('/api/ai', aiRoutes);
 app.use('/', require('./routes/viewRoutes'));
-app.use('/', require('./routes/actionRoutes'));
+app.use('/', require('./routes/actionRoutes')); 
 app.use('/', require('./routes/billingRoutes'));
 app.use('/', require('./routes/reportRoutes'));
 
@@ -79,6 +154,7 @@ app.get('*', (req, res) => { res.redirect('/'); });
 // --- SERVER & DAILY CRON JOBS ---
 app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`🛡️ Security modules (Helmet, RateLimit, AuthLock) active!`);
     
     // 🔥 Start Background WhatsApp Automation Engine
     connectToWhatsApp();
@@ -102,7 +178,6 @@ app.listen(PORT, () => {
                 global.lastDailyEmail = todayStr;
                 
                 const pendingCount = await Customer.countDocuments({ status: 'pending', activationDate: { $lte: new Date(istNow.getTime() - (330*60000)) } });
-                
                 let msg = `
                 <!DOCTYPE html>
                 <html>
@@ -137,9 +212,9 @@ app.listen(PORT, () => {
                 const endOfMonth = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth() + 1, 0, 23, 59, 59, 999) - (330*60000));
 
                 const allCustomers = await Customer.find().lean();
-
                 let mnp_fam_c = 0, mnp_fam_r = 0; let other_fam_c = 0, other_fam_r = 0;
-                let mnp_non_c = 0, mnp_non_r = 0; let fresh_non_c = 0, fresh_non_r = 0; let p2p_non_c = 0, p2p_non_r = 0;
+                let mnp_non_c = 0, mnp_non_r = 0; let fresh_non_c = 0, fresh_non_r = 0;
+                let p2p_non_c = 0, p2p_non_r = 0;
 
                 allCustomers.forEach(c => {
                     let cAct = new Date(c.activationDate || c.createdAt);
@@ -158,7 +233,8 @@ app.listen(PORT, () => {
                                 const primaryDoc = allCustomers.find(p => p.category === 'Family' && p.familyRole === 'Primary' && p.mobile === c.linkedPrimaryNumber);
                                 if (!primaryDoc) {
                                     let ghostType = 'NC';
-                                    if (pStatus.includes('NMNP')) ghostType = 'NMNP'; else if (pStatus.includes('MNP')) ghostType = 'MNP'; else if (pStatus.includes('P2P')) ghostType = 'P2P'; else if (pStatus.includes('PDR')) ghostType = 'PDR';
+                                    if (pStatus.includes('NMNP')) ghostType = 'NMNP'; else if (pStatus.includes('MNP')) ghostType = 'MNP'; else if (pStatus.includes('P2P')) ghostType = 'P2P';
+                                    else if (pStatus.includes('PDR')) ghostType = 'PDR';
                                     let ghostEarned = 0;
                                     try { ghostEarned = getPayout('Family', ghostType, c.plan) || 0; } catch(e){}
                                     if (ghostType === 'MNP' || ghostType === 'NMNP') { mnp_fam_c++; mnp_fam_r += ghostEarned; } else { other_fam_c++; other_fam_r += ghostEarned; }
@@ -173,10 +249,8 @@ app.listen(PORT, () => {
                         } else if (type === 'P2P' || type === 'PDR') { p2p_non_c++; p2p_non_r += earned; }
                     }
                 });
-
                 let total_c = mnp_fam_c + other_fam_c + mnp_non_c + fresh_non_c + p2p_non_c;
                 let total_r = mnp_fam_r + other_fam_r + mnp_non_r + fresh_non_r + p2p_non_r;
-
                 let kamaiMsg = `
                 <!DOCTYPE html>
                 <html>
@@ -194,7 +268,6 @@ app.listen(PORT, () => {
 
                 await axios.post(`${EMAIL_SERVICE_URL}/send-email`, { recipient: ADMIN_EMAIL_RECEIVER, subject: `Meri Kamai Report`, message: kamaiMsg });
             }
-
         } catch (err) {} 
     }, PING_INTERVAL);
 });
