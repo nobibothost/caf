@@ -7,7 +7,7 @@ const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const axios = require('axios');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit'); // 🔥 Security Package
+const rateLimit = require('express-rate-limit'); 
 
 // --- Import Modular Routes & Models ---
 const authRoutes = require('./routes/authRoutes');
@@ -19,7 +19,7 @@ const requireAuth = require('./middleware/auth');
 
 // --- Import Helpers & WhatsApp Engine ---
 const { getPayout } = require('./utils/helpers');
-const { connectToWhatsApp, getWaState } = require('./utils/whatsapp'); // 🔥 Imported getWaState
+const { connectToWhatsApp, getWaState } = require('./utils/whatsapp'); 
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -31,28 +31,24 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'supersecretkey';
 const MONGO_URI = process.env.MONGO_URI;
 
 // --- SECURITY MIDDLEWARES ---
-
-// 1. Helmet helps secure Express apps by setting various HTTP headers.
 app.use(helmet({ 
-    contentSecurityPolicy: false, // Turned off to allow external scripts/charts if needed
+    contentSecurityPolicy: false,
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-    xPoweredBy: false // Hides "Express" to prevent targeted attacks
+    xPoweredBy: false 
 }));
 
-// 2. Global Rate Limiting (Prevents DDoS and Brute Force Attacks)
 const globalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 800, // Limit each IP to 800 requests per `window`
+    windowMs: 15 * 60 * 1000, 
+    max: 800, 
     message: 'Too many requests from this IP, please try again after 15 minutes.',
-    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    standardHeaders: true, 
+    legacyHeaders: false, 
 });
 app.use(globalLimiter);
 
-// 3. Strict Rate Limiting for Login/OTP (Stops Password Guessing)
 const authLimiter = rateLimit({
-    windowMs: 10 * 60 * 1000, // 10 minutes
-    max: 20, // Max 20 attempts
+    windowMs: 10 * 60 * 1000, 
+    max: 20, 
     message: 'Too many login attempts. Try again in 10 minutes.'
 });
 app.use('/login', authLimiter);
@@ -61,14 +57,16 @@ app.use('/verify-otp', authLimiter);
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
 
-// Public static files (CSS/JS for login page)
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
+
+// 🔥 FIX FOR RENDER: Trust the reverse proxy to allow secure cookies over HTTPS
+app.set('trust proxy', 1);
 
 // --- SESSION SETUP (Encrypted & Hardened) ---
 app.use(session({
     secret: SESSION_SECRET,
-    name: 'sessionId', // Custom name instead of default 'connect.sid' (Security through obscurity)
+    name: 'sessionId', 
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
@@ -79,10 +77,10 @@ app.use(session({
         touchAfter: 24 * 3600
     }),
     cookie: { 
-        httpOnly: true, // Prevents client-side JS from reading the cookie (Stops XSS session hijacking)
+        httpOnly: true, 
         maxAge: 14 * 24 * 60 * 60 * 1000, 
-        sameSite: 'strict', // Protects against CSRF attacks
-        secure: process.env.NODE_ENV === 'production' // Only send over HTTPS in production
+        sameSite: 'strict', 
+        secure: process.env.NODE_ENV === 'production' 
     }
 }));
 
@@ -101,7 +99,6 @@ connectDB();
 // --- GLOBAL ROUTES & MOUNTING ---
 app.get('/health', (req, res) => res.status(200).send('OK'));
 
-// 🔥 Power Off Route: Stops Server but KEEPS Session
 app.post('/power-off', (req, res) => {
     res.send(`
         <!DOCTYPE html>
@@ -126,7 +123,7 @@ app.post('/power-off', (req, res) => {
     }, 1000);
 });
 
-// 1. PUBLIC ROUTES (Accessible to everyone, protected by authLimiter)
+// 1. PUBLIC ROUTES (Accessible to everyone)
 app.use('/', authRoutes);
 
 // 🔒 THE IRON GATE: Everything below this line requires login!
@@ -173,10 +170,8 @@ app.listen(PORT, () => {
             const hours = istNow.getUTCHours();
             const todayStr = istNow.toISOString().split('T')[0];
 
-            // 1. DAILY 10:00 AM PENDING TASKS ALERT
             if (hours === 10 && global.lastDailyEmail !== todayStr) {
                 global.lastDailyEmail = todayStr;
-                
                 const pendingCount = await Customer.countDocuments({ status: 'pending', activationDate: { $lte: new Date(istNow.getTime() - (330*60000)) } });
                 let msg = `
                 <!DOCTYPE html>
@@ -200,14 +195,11 @@ app.listen(PORT, () => {
                     </table>
                 </body>
                 </html>`;
-                
                 await axios.post(`${EMAIL_SERVICE_URL}/send-email`, { recipient: ADMIN_EMAIL_RECEIVER, subject: `Daily Alert: ${pendingCount} Pending Tasks`, message: msg });
             }
 
-            // 2. DAILY 11:00 AM KAMAI (INCENTIVE) REPORT
             if (hours === 11 && global.lastKamaiEmail !== todayStr) {
                 global.lastKamaiEmail = todayStr;
-
                 const startOfMonth = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), 1, 0, 0, 0) - (330*60000));
                 const endOfMonth = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth() + 1, 0, 23, 59, 59, 999) - (330*60000));
 
