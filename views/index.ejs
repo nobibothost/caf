@@ -69,7 +69,7 @@
                         else if (mainType === 'NMNP') tintClass = 'bg-tint-NMNP';
                         else if (mainType === 'PDR') tintClass = 'bg-tint-PDR';
                         else if (mainType === 'Family' || mainType === 'Existing') tintClass = 'bg-tint-Family';
-                        %>
+                    %>
                         <div class="card search-item <%= customer.isFamilyGroup ? 'bg-tint-Family' : tintClass %>" <%= customer.isFamilyGroup ? 'style="border-left: 4px solid #06b6d4 !important;"' : '' %>>
                             
                             <div class="card-top">
@@ -100,7 +100,6 @@
                                             let actDateOnly = new Date(Date.UTC(cActFull.getUTCFullYear(), cActFull.getUTCMonth(), cActFull.getUTCDate()));
                                             
                                             let diffDays = Math.round((actDateOnly - todayDateOnly) / (1000 * 60 * 60 * 24));
-                                            
                                             if (diffDays === 0) {
                                                 waitingText = "Act: Today";
                                             } else if (diffDays === 1) {
@@ -160,6 +159,13 @@
                                             </div>
                                         <% } %>
                                     </div>
+
+                                    <% let famHasRemarks = (customer.remarks && customer.remarks.trim() !== ""); %>
+                                    <% if (famHasRemarks) { %>
+                                        <button type="button" class="btn-note" data-name="<%= customer.triggerDoc ? customer.triggerDoc.name : (customer.linkedPrimaryName || 'Family Connection') %>" data-remarks="<%= customer.remarks %>" onclick="openRemarksModal(this)" style="width: 100%; margin-top: 10px; margin-bottom: 0px;">
+                                            <i class="ri-sticky-note-fill"></i> Remarks
+                                        </button>
+                                    <% } %>
 
                                     <% let isFamilyPending = (customer.triggerDoc && customer.triggerDoc.status !== 'completed' && customer.triggerDoc.subType !== 'Existing'); %>
                                     <div style="display: grid; grid-template-columns: <%= isFamilyPending ? '1fr 1fr' : '1fr' %>; gap: 10px; margin-top: 15px;">

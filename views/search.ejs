@@ -35,7 +35,6 @@
                         </div>
                     <% } else { %>
                         <% customers.forEach(customer => { 
-                            
                             // 🔥 SMART PRIMARY FALLBACK LOGIC
                             let priGender = '';
                             let priStatus = 'Existing';
@@ -124,7 +123,7 @@
                                                 data-is-family="true"
                                                 data-category="Family" 
                                                 data-plan="<%= customer.plan || '' %>" 
-                                                data-date="<%= new Date(new Date(customer.createdAt).getTime() + 330*60000).toISOString().split('T')[0] %>" 
+                                                data-date="<%= new Date(new Date(customer.primary ? customer.primary.createdAt : customer.createdAt).getTime() + 330*60000).toISOString().split('T')[0] %>" 
                                                 data-remarks="<%= customer.remarks || '' %>" 
                                                 data-p-name="<%= priName %>" 
                                                 data-p-mobile="<%= priMobile %>" 

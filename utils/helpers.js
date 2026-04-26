@@ -1,5 +1,6 @@
 // utils/helpers.js
 
+const mongoose = require('mongoose');
 const Customer = require('../models/Customer');
 
 const RULES = {
@@ -133,75 +134,118 @@ function calculateLogic(baseDate, type) {
     return { realActivationDate, realVerificationDate };
 }
 
+async function autoMigrateGroupIds() {
+    const unmigrated = await Customer.find({ $or: [{ groupId: { $exists: false } }, { groupId: '' }] });
+    if(unmigrated.length === 0) return;
+
+    for (let doc of unmigrated) {
+        if (doc.category !== 'Family') {
+            await Customer.findByIdAndUpdate(doc._id, { groupId: doc._id.toString() });
+        } else if (doc.familyRole === 'Primary') {
+            const gId = doc._id.toString();
+            await Customer.findByIdAndUpdate(doc._id, { groupId: gId });
+            await Customer.updateMany(
+                { category: 'Family', familyRole: 'Secondary', linkedPrimaryNumber: doc.mobile, $or: [{ groupId: { $exists: false } }, { groupId: '' }] },
+                { groupId: gId }
+            );
+        } else if (doc.familyRole === 'Secondary') {
+            const primary = await Customer.findOne({ category: 'Family', familyRole: 'Primary', mobile: doc.linkedPrimaryNumber });
+            const gId = primary ? (primary.groupId || primary._id.toString()) : doc._id.toString();
+            await Customer.findByIdAndUpdate(doc._id, { groupId: gId });
+        }
+    }
+}
+
 async function fetchGroupedCustomers(baseQuery, sortObj) {
+    const unmigratedCount = await Customer.countDocuments({ $or: [{ groupId: { $exists: false } }, { groupId: '' }] });
+    if (unmigratedCount > 0) await autoMigrateGroupIds();
+
     const matchingDocs = await Customer.find(baseQuery).lean();
     let displayList = [];
-    let familyPrimaryNumbers = new Set();
+    let familyGroupIds = new Set();
     let normalCustomers = [];
+
     matchingDocs.forEach(doc => {
-        // 🔴 CORE BLOCKER: 'Existing' means NOTHING! Never generate a main tracking card for it.
         const st = doc.subType ? doc.subType.trim().toLowerCase() : '';
         if (st === 'existing') return;
 
         if (doc.category === 'Family') {
-            familyPrimaryNumbers.add(doc.familyRole === 'Primary' ? doc.mobile : doc.linkedPrimaryNumber);
+            familyGroupIds.add(doc.groupId);
         } else {
             normalCustomers.push(doc);
         }
     });
 
     let familyDocs = [];
-    if (familyPrimaryNumbers.size > 0) {
+    if (familyGroupIds.size > 0) {
         familyDocs = await Customer.find({
             category: 'Family',
-            $or: [
-                { mobile: { $in: Array.from(familyPrimaryNumbers) }, familyRole: 'Primary' },
-                { linkedPrimaryNumber: { $in: Array.from(familyPrimaryNumbers) } }
-            ]
+            groupId: { $in: Array.from(familyGroupIds) }
         }).lean();
     }
 
     let fullFamiliesMap = new Map();
     familyDocs.forEach(doc => {
-        const pNum = doc.familyRole === 'Primary' ? doc.mobile : doc.linkedPrimaryNumber;
-        if (!fullFamiliesMap.has(pNum)) {
-            fullFamiliesMap.set(pNum, { primary: null, secondaries: [] });
+        if (!fullFamiliesMap.has(doc.groupId)) {
+            fullFamiliesMap.set(doc.groupId, { primary: null, secondaries: [] });
         }
-        if (doc.familyRole === 'Primary') {
-            fullFamiliesMap.get(pNum).primary = doc;
-        } else {
-            fullFamiliesMap.get(pNum).secondaries.push(doc);
-        }
+        if (doc.familyRole === 'Primary') fullFamiliesMap.get(doc.groupId).primary = doc;
+        else fullFamiliesMap.get(doc.groupId).secondaries.push(doc);
     });
+    
     fullFamiliesMap.forEach(fam => {
         fam.secondaries.sort((a, b) => b.createdAt - a.createdAt);
     });
+
+    // 🔥 TIMELINE BUG FIX: Now groups by BOTH GroupID and DATE! 
+    // This allows Secondaries created on different dates to render as independent cards on their correct timeline dates.
+    let seenGroupsByDate = new Set(); 
+
     matchingDocs.forEach(doc => {
-        // 🔴 CORE BLOCKER AGAIN
         const st = doc.subType ? doc.subType.trim().toLowerCase() : '';
         if (st === 'existing') return;
 
         if (doc.category === 'Family') {
-            const pNum = doc.familyRole === 'Primary' ? doc.mobile : doc.linkedPrimaryNumber;
-            const fullFam = fullFamiliesMap.get(pNum);
+            // Determine the date key based on sorting logic (mostly createdAt for timeline)
+            const refDate = doc.verificationDate || doc.createdAt;
+            const dateKey = new Date(refDate).toISOString().split('T')[0];
+            const compositeKey = `${doc.groupId}_${dateKey}`;
 
-            let famCard = {
-                isFamilyGroup: true,
-                triggerDoc: doc, 
-                primary: fullFam.primary,
-                secondaries: fullFam.secondaries,
-                _id: doc._id, 
-                linkedPrimaryNumber: pNum,
-                createdAt: doc.createdAt,
-                activationDate: doc.activationDate,
-                verificationDate: doc.verificationDate,
-                billDate: doc.billDate,
-                plan: doc.plan,
-                remarks: doc.remarks
-            };
-            displayList.push(famCard);
+            if (!seenGroupsByDate.has(compositeKey)) {
+                seenGroupsByDate.add(compositeKey);
+                const fullFam = fullFamiliesMap.get(doc.groupId);
+                if (!fullFam) return; 
+
+                // SMART INHERITANCE: Automatically show old remarks & call logs on secondary if missing
+                if (fullFam.primary) {
+                    if (!doc.remarks || doc.remarks.trim() === '') {
+                        doc.remarks = fullFam.primary.remarks;
+                    }
+                    if (!doc.callLogs || doc.callLogs.length === 0) {
+                        doc.callLogs = fullFam.primary.callLogs;
+                    }
+                }
+
+                let famCard = {
+                    isFamilyGroup: true,
+                    triggerDoc: doc, 
+                    primary: fullFam.primary,
+                    secondaries: fullFam.secondaries,
+                    _id: doc._id, 
+                    groupId: doc.groupId,
+                    linkedPrimaryNumber: fullFam.primary ? fullFam.primary.mobile : doc.linkedPrimaryNumber,
+                    createdAt: doc.createdAt,
+                    activationDate: doc.activationDate,
+                    verificationDate: doc.verificationDate,
+                    billDate: doc.billDate,
+                    plan: doc.plan,
+                    remarks: doc.remarks
+                };
+                displayList.push(famCard);
+            }
         }
     });
+    
     let result = [...displayList, ...normalCustomers];
 
     if (sortObj && sortObj.verificationDate) {
@@ -241,5 +285,5 @@ const safeRedirect = (req, res) => {
 
 module.exports = {
     RULES, getISTDate, parseISTDateString, getRuns, getPayout,
-    getEmailTemplate, calculateLogic, fetchGroupedCustomers, safeRedirect
+    getEmailTemplate, calculateLogic, fetchGroupedCustomers, autoMigrateGroupIds, safeRedirect
 };

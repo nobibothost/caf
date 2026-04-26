@@ -16,6 +16,13 @@ window.initApp = function() {
     const editEl = document.getElementById("editDate"); 
     if(editEl) window.fpEdit = flatpickr(editEl, window.fpConfig);
 
+    // Initialize Flatpickr on all Secondary Date fields
+    document.querySelectorAll('.s-date-picker').forEach(el => {
+        if(!el._flatpickr && typeof flatpickr !== 'undefined') {
+            flatpickr(el, window.fpConfig);
+        }
+    });
+
     const rangePickers = document.querySelectorAll('.custom-range-picker');
     if (rangePickers.length > 0) {
         flatpickr(rangePickers, {

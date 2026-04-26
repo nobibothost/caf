@@ -16,6 +16,7 @@
     const sNameId = isEdit ? 'editSName' : 's_name';
     const sMobileId = isEdit ? 'editSMobile' : 's_mobile';
     const sGenderId = isEdit ? 'editSGender' : 's_gender';
+    const sDateId = isEdit ? 'editSDate' : 's_date';
     const billDateId = isEdit ? 'editBillDate' : 'billDate';
     const remarksId = isEdit ? 'editRemarks' : 'remarks';
 %>
@@ -66,6 +67,13 @@
         </div>
     </div>
     <div class="input-group">
+        <label>Mobile</label>
+        <div class="input-wrapper">
+            <i class="ri-smartphone-line icon-left"></i>
+            <input type="tel" name="n_mobile" id="<%= nMobileId %>" pattern="[0-9]{10}" placeholder="e.g., 9876543210" required>
+        </div>
+    </div>
+    <div class="input-group">
         <label>Gender (AI Auto)</label>
         <div class="input-wrapper">
             <i class="ri-men-line icon-left"></i>
@@ -75,13 +83,6 @@
                 <option value="Female">Female</option>
                 <option value="CLEAR">Remove (Default Sir)</option>
             </select>
-        </div>
-    </div>
-    <div class="input-group">
-        <label>Mobile</label>
-        <div class="input-wrapper">
-            <i class="ri-smartphone-line icon-left"></i>
-            <input type="tel" name="n_mobile" id="<%= nMobileId %>" pattern="[0-9]{10}" placeholder="e.g., 9876543210" required>
         </div>
     </div>
 </div>
@@ -112,6 +113,12 @@
     </div>
     <div class="input-group">
         <div class="input-wrapper">
+            <i class="ri-smartphone-line icon-left"></i>
+            <input type="tel" name="p_mobile" id="<%= pMobileId %>" placeholder="e.g., 9876543210" pattern="[0-9]{10}">
+        </div>
+    </div>
+    <div class="input-group">
+        <div class="input-wrapper">
             <i class="ri-men-line icon-left"></i>
             <select name="p_gender" id="<%= pGenderId %>">
                 <option value="KEEP" selected>Auto / Keep Existing</option>
@@ -121,17 +128,20 @@
             </select>
         </div>
     </div>
-    <div class="input-group">
-        <div class="input-wrapper">
-            <i class="ri-smartphone-line icon-left"></i>
-            <input type="tel" name="p_mobile" id="<%= pMobileId %>" placeholder="e.g., 9876543210" pattern="[0-9]{10}">
-        </div>
-    </div>
     
     <div class="divider"><span>AND</span></div>
     <span class="section-label">Secondary Connection (This SIM)</span>
     
     <input type="hidden" name="s_id" id="<%= isEdit ? 'editSId' : 's_id' %>">
+    
+    <div class="input-group">
+        <label>Secondary Entry Date</label>
+        <div class="input-wrapper">
+            <i class="ri-calendar-line icon-left"></i>
+            <input type="text" name="s_date" id="<%= sDateId %>" class="s-date-picker" placeholder="DD/MM/YYYY (Auto = Today)">
+        </div>
+    </div>
+
     <div class="input-group">
         <label>Secondary Type</label>
         <div class="input-wrapper">
@@ -154,6 +164,12 @@
     </div>
     <div class="input-group">
         <div class="input-wrapper">
+            <i class="ri-smartphone-line icon-left"></i>
+            <input type="tel" name="s_mobile" id="<%= sMobileId %>" placeholder="e.g., 9876543210" pattern="[0-9]{10}">
+        </div>
+    </div>
+    <div class="input-group">
+        <div class="input-wrapper">
             <i class="ri-men-line icon-left"></i>
             <select name="s_gender" id="<%= sGenderId %>">
                 <option value="KEEP" selected>Auto / Keep Existing</option>
@@ -161,12 +177,6 @@
                 <option value="Female">Female</option>
                 <option value="CLEAR">Remove</option>
             </select>
-        </div>
-    </div>
-    <div class="input-group">
-        <div class="input-wrapper">
-            <i class="ri-smartphone-line icon-left"></i>
-            <input type="tel" name="s_mobile" id="<%= sMobileId %>" placeholder="e.g., 9876543210" pattern="[0-9]{10}">
         </div>
     </div>
     

@@ -106,7 +106,7 @@
                                     <button type="button" class="btn-theme btn-view-tree" data-tree-id="<%= customer._id.toString() %>" style="width: 100%; margin-top: 15px;">
                                         <i class="ri-team-fill" style="font-size: 1.1rem;"></i> View Full Family Tree (<%= (customer.secondaries ? customer.secondaries.length : 0) + 1 %>)
                                     </button>
-                                    
+                                     
                                     <div id="tree_data_<%= customer._id.toString() %>" style="display: none;">
                                         <div class="bg-tint-<%= pBadge === 'Existing' ? 'default' : pBadge %>" style="padding: 15px; border-radius: 12px; margin-bottom: 15px;">
                                             <div style="display:flex; justify-content: space-between; align-items: center;">

@@ -38,11 +38,29 @@ window.addSecondaryRow = function(isEdit = false, data = {}) {
     const container = document.getElementById('secondaries-container-' + (isEdit ? 'edit' : 'add'));
     if(!container) return;
     const rowId = Date.now() + Math.random().toString(36).substr(2, 5);
+    
+    let formattedDate = '';
+    if (data.createdAt) {
+        const d = new Date(data.createdAt);
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        formattedDate = `${year}-${month}-${day}`; 
+    }
+
     const html = `
     <div class="secondary-row" id="sec-row-${rowId}" style="position: relative; margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border);">
         ${data._id ? `<input type="hidden" name="s_id" value="${data._id}">` : `<input type="hidden" name="s_id" value="">`}
         <span class="section-label" style="display:inline-block; margin-top:0;">Additional Secondary</span>
         <button type="button" onclick="this.closest('.secondary-row').remove()" style="position: absolute; right: 0; top: 12px; background: #fee2e2; color: #ef4444; border: none; border-radius: 6px; padding: 4px 8px; cursor: pointer;"><i class="ri-delete-bin-line"></i></button>
+        
+        <div class="input-group">
+            <div class="input-wrapper">
+                <i class="ri-calendar-line icon-left"></i>
+                <input type="text" name="s_date" class="s-date-picker" value="${formattedDate}" placeholder="Entry Date (DD/MM/YYYY)">
+            </div>
+        </div>
+
         <div class="input-group">
             <div class="input-wrapper">
                 <i class="ri-sim-card-line icon-left"></i>
@@ -64,6 +82,12 @@ window.addSecondaryRow = function(isEdit = false, data = {}) {
         </div>
         <div class="input-group">
             <div class="input-wrapper">
+                <i class="ri-smartphone-line icon-left"></i>
+                <input type="tel" name="s_mobile" value="${data.mobile || ''}" placeholder="e.g., 9876543210" pattern="[0-9]{10}" required>
+            </div>
+        </div>
+        <div class="input-group">
+            <div class="input-wrapper">
                 <i class="ri-men-line icon-left"></i>
                 <select name="s_gender">
                     <option value="KEEP" ${(!data.gender || data.gender==='KEEP')?'selected':''}>Auto / Keep Existing</option>
@@ -73,14 +97,22 @@ window.addSecondaryRow = function(isEdit = false, data = {}) {
                 </select>
             </div>
         </div>
-        <div class="input-group">
-            <div class="input-wrapper">
-                <i class="ri-smartphone-line icon-left"></i>
-                <input type="tel" name="s_mobile" value="${data.mobile || ''}" placeholder="e.g., 9876543210" pattern="[0-9]{10}" required>
-            </div>
-        </div>
     </div>`;
     container.insertAdjacentHTML('beforeend', html);
+
+    setTimeout(() => {
+        const row = document.getElementById('sec-row-' + rowId);
+        if (row) {
+            const dateInput = row.querySelector('.s-date-picker');
+            if (dateInput && window.flatpickr) {
+                const fp = window.flatpickr(dateInput, window.fpConfig);
+                // 🔥 FIX: If no existing saved date, force TODAY for this new secondary row (both Add & Edit modes)
+                if (!data.createdAt) {
+                    fp.setDate(new Date()); 
+                }
+            }
+        }
+    }, 10);
 };
 
 document.addEventListener('submit', function(e) {

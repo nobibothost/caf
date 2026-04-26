@@ -38,8 +38,20 @@ window.openModal = function() {
     const container = document.getElementById('secondaries-container-add');
     if(container) container.innerHTML = '';
     const sTypeAdd = document.getElementById('s_type'); const sNameAdd = document.getElementById('s_name'); const sMobileAdd = document.getElementById('s_mobile');
-    if(sTypeAdd) sTypeAdd.value = 'NC'; if(sNameAdd) sNameAdd.value = '';
-    if(sMobileAdd) sMobileAdd.value = '';
+    const sDateAdd = document.getElementById('s_date');
+    
+    if(sTypeAdd) sTypeAdd.value = 'NC'; 
+    if(sNameAdd) sNameAdd.value = '';
+    if(sMobileAdd) sMobileAdd.value = ''; 
+    
+    if(sDateAdd) {
+        if(sDateAdd._flatpickr) {
+            sDateAdd._flatpickr.setDate(new Date()); // Auto set to Today
+        } else {
+            sDateAdd.value = '';
+        }
+    }
+    
     if(typeof window.handleCategoryChange === 'function') window.handleCategoryChange(false); 
 };
 
@@ -66,9 +78,39 @@ window.openEditModal = function(btn) {
     document.getElementById('editRemarks').value = btn.getAttribute('data-remarks') || ''; 
     document.getElementById('editBillDate').value = btn.getAttribute('data-billdate') || '';
     
+    // 🔴 SMART PREFILL: Always populate base info to ensure Individual -> Family conversion is seamless
+    const baseName = btn.getAttribute('data-name') || '';
+    const baseMobile = btn.getAttribute('data-mobile') || '';
+    const baseGender = btn.getAttribute('data-gender') || 'KEEP';
+    
+    // Fill Normal inputs
+    document.getElementById('editNName').value = baseName;
+    document.getElementById('editNMobile').value = baseMobile; 
+    if(document.getElementById('editNGender')) document.getElementById('editNGender').value = baseGender;
+    
+    // Pre-fill Primary fields for Family switch
+    document.getElementById('editOldPMobile').value = baseMobile;
+    document.getElementById('editPName').value = baseName;
+    document.getElementById('editPMobile').value = baseMobile;
+    if(document.getElementById('editPGender')) document.getElementById('editPGender').value = baseGender;
+    document.getElementById('editPType').value = (cat === 'Family' || cat === 'Existing') ? 'Existing' : cat;
+
+    // Reset Secondary Connection fields initially
+    document.getElementById('editSType').value = 'NC';
+    document.getElementById('editSName').value = ''; 
+    document.getElementById('editSMobile').value = ''; 
+    document.getElementById('editSId').value = '';
+    if(document.getElementById('editSDate')) {
+        const sDateEl = document.getElementById('editSDate');
+        if (sDateEl._flatpickr) sDateEl._flatpickr.clear();
+        else sDateEl.value = '';
+    }
+    if(document.getElementById('editSGender')) document.getElementById('editSGender').value = 'KEEP';
+    
     if (cat === 'Family') { 
+        // If it's ALREADY a family, override the fallback with specific Primary/Secondary details
         let pMobileFallback = btn.getAttribute('data-p-mobile');
-        if (!pMobileFallback || pMobileFallback.trim() === '') pMobileFallback = btn.getAttribute('data-mobile');
+        if (!pMobileFallback || pMobileFallback.trim() === '') pMobileFallback = baseMobile;
         document.getElementById('editOldPMobile').value = pMobileFallback;
         
         let pStatusFallback = btn.getAttribute('data-p-status');
@@ -76,7 +118,7 @@ window.openEditModal = function(btn) {
         document.getElementById('editPType').value = pStatusFallback;
 
         let pNameFallback = btn.getAttribute('data-p-name');
-        if (!pNameFallback || pNameFallback.trim() === 'Self' || pNameFallback.trim() === '') pNameFallback = btn.getAttribute('data-name');
+        if (!pNameFallback || pNameFallback.trim() === 'Self' || pNameFallback.trim() === '') pNameFallback = baseName;
         document.getElementById('editPName').value = pNameFallback || '';
         document.getElementById('editPMobile').value = pMobileFallback; 
         
@@ -96,6 +138,16 @@ window.openEditModal = function(btn) {
                 document.getElementById('editSName').value = secondaries[0].name || '';
                 document.getElementById('editSMobile').value = secondaries[0].mobile || '';
                 document.getElementById('editSId').value = secondaries[0]._id || '';
+                
+                if(document.getElementById('editSDate')) {
+                    const sDateEl = document.getElementById('editSDate');
+                    if (sDateEl._flatpickr) {
+                        sDateEl._flatpickr.setDate(secondaries[0].createdAt ? new Date(secondaries[0].createdAt) : null);
+                    } else {
+                        sDateEl.value = '';
+                    }
+                }
+
                 if(document.getElementById('editSGender')) {
                     document.getElementById('editSGender').value = (secondaries[0].gender && secondaries[0].gender !== '') ? secondaries[0].gender : 'KEEP';
                 }
@@ -103,19 +155,8 @@ window.openEditModal = function(btn) {
                     if(typeof window.addSecondaryRow === 'function') window.addSecondaryRow(true, secondaries[i]);
                 }
             }
-        } else {
-            document.getElementById('editSType').value = 'NC';
-            document.getElementById('editSName').value = ''; document.getElementById('editSMobile').value = ''; document.getElementById('editSId').value = '';
-            if(document.getElementById('editSGender')) document.getElementById('editSGender').value = 'KEEP';
         }
-    } else { 
-        document.getElementById('editNName').value = btn.getAttribute('data-name');
-        document.getElementById('editNMobile').value = btn.getAttribute('data-mobile'); 
-        if(document.getElementById('editNGender')) {
-            const ng = btn.getAttribute('data-gender');
-            document.getElementById('editNGender').value = (ng && ng !== '') ? ng : 'KEEP';
-        }
-    } 
+    }
     const m = document.getElementById("editModal");
     m.style.display = 'flex'; setTimeout(() => m.classList.add('active'), 10);
 };
@@ -196,7 +237,6 @@ window.openWaModal = function(phone, name, type, gender = '', billDate = '') {
     gInput.value = gender || '';
     bInput.value = billDate || '';
 
-    // 🔥 SMART VISUAL TEMPLATE UPDATE (Verification + PDD)
     const waButtons = m.querySelectorAll('button[data-text], a[data-text]');
     waButtons.forEach(btn => {
         if (!btn.hasAttribute('data-orig-text')) {
@@ -207,7 +247,6 @@ window.openWaModal = function(phone, name, type, gender = '', billDate = '') {
         let origText = btn.getAttribute('data-orig-text');
         let origHtml = btn.getAttribute('data-orig-html');
         
-        // 1. Gender Formatting
         if (gender === 'Female') {
             origText = origText.replace(/\bSir\b/gi, 'Mam').replace(/Sir\/Mam/gi, 'Mam');
             origHtml = origHtml.replace(/\bSir\b/gi, 'Mam').replace(/Sir\/Mam/gi, 'Mam');
@@ -216,12 +255,11 @@ window.openWaModal = function(phone, name, type, gender = '', billDate = '') {
             origHtml = origHtml.replace(/\bMam\b/gi, 'Sir').replace(/Sir\/Mam/gi, 'Sir');
         }
 
-        // 2. Bill Date Formatting (Visually replace so modal looks clean)
         if (billDate) {
             origText = origText.replace(/{{billDate}}/g, billDate);
             origHtml = origHtml.replace(/{{billDate}}/g, billDate);
         } else {
-            origText = origText.replace(/{{billDate}}/g, ''); // Fallback blank if no date provided
+            origText = origText.replace(/{{billDate}}/g, ''); 
             origHtml = origHtml.replace(/{{billDate}}/g, '');
         }
 
@@ -251,15 +289,12 @@ window.closeWaModal = function() {
 };
 
 window.sendWaTemplate = async function(element) {
-    // Prevent multiple sends if already strictly sending
     if (element.dataset.sendingState === 'sending') return;
 
-    // --- UNDO LOGIC: If clicked during countdown, cancel the send ---
     if (element.dataset.sendingState === 'countdown') {
         clearInterval(element.countdownInterval);
         clearTimeout(element.sendTimeout);
         
-        // Restore original button appearance
         element.innerHTML = element.dataset.origBtnHtml;
         element.style.background = ''; 
         element.style.color = '';
@@ -272,7 +307,6 @@ window.sendWaTemplate = async function(element) {
         return;
     }
 
-    // --- START COUNTDOWN ---
     const phone = document.getElementById('waPhone').value;
     let name = document.getElementById('waName').value; 
     let gender = document.getElementById('waGender').value;
@@ -283,23 +317,19 @@ window.sendWaTemplate = async function(element) {
     }
     
     let text = element.getAttribute('data-text'); 
-    // Double ensure replacements in case button raw text still has them
     text = text.replace(/{{name}}/g, name);
     text = text.replace(/{{billDate}}/g, billDate || '');
 
-    // Save original state before modifying
     element.dataset.origBtnHtml = element.innerHTML;
     element.dataset.sendingState = 'countdown';
     
     let timeLeft = 5;
     
-    // Change UI to Undo mode (Red/Orange warning colors)
     element.innerHTML = `<i class="ri-arrow-go-back-line"></i> Undo Send (${timeLeft}s)`;
     element.style.background = '#fee2e2'; 
     element.style.color = '#dc2626';
     element.style.borderColor = '#fca5a5';
 
-    // Update seconds on the button
     element.countdownInterval = setInterval(() => {
         timeLeft--;
         if (timeLeft > 0) {
@@ -307,16 +337,14 @@ window.sendWaTemplate = async function(element) {
         }
     }, 1000);
 
-    // After 5 seconds, actually send the message
     element.sendTimeout = setTimeout(async () => {
         clearInterval(element.countdownInterval);
         element.dataset.sendingState = 'sending';
         
-        // UI Loading State for actual send
         element.innerHTML = '<i class="ri-loader-4-line spin-loader"></i> Sending...';
         element.style.pointerEvents = 'none';
         element.style.opacity = '0.7';
-        element.style.background = ''; // reset to default
+        element.style.background = ''; 
         element.style.color = '';
         element.style.borderColor = '';
 
@@ -349,7 +377,6 @@ window.sendWaTemplate = async function(element) {
                 alert("Network error occurred");
             }
         } finally {
-            // Restore everything
             element.innerHTML = element.dataset.origBtnHtml;
             element.style.pointerEvents = 'auto';
             element.style.opacity = '1';

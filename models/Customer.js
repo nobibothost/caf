@@ -8,6 +8,7 @@ const CallLogSchema = new mongoose.Schema({
 });
 
 const CustomerSchema = new mongoose.Schema({
+    groupId: { type: String, default: '' }, 
     name: { type: String, required: true },
     mobile: { type: String, required: true },
     gender: { type: String, default: '' },

@@ -110,7 +110,8 @@ router.get('/search', isAuthenticated, async (req, res) => {
         let fullCustomers = [];
         if (q) {
             const regex = new RegExp(q, 'i');
-            fullCustomers = await fetchGroupedCustomers({ $or: [{ name: regex }, { mobile: regex }, { linkedPrimaryNumber: regex }, { linkedPrimaryName: regex }] }, { createdAt: -1 });
+            // 🔥 STRICT MATCHING FIX: Removed linkedPrimaryNumber and linkedPrimaryName so it only searches exactly for the person you typed!
+            fullCustomers = await fetchGroupedCustomers({ $or: [{ name: regex }, { mobile: regex }] }, { createdAt: -1 });
         }
         const totalPages = Math.ceil(fullCustomers.length / ITEMS_PER_PAGE);
         const paginatedCustomers = fullCustomers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
