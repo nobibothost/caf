@@ -60,6 +60,7 @@
             <h3><i class="ri-whatsapp-fill" style="color: #10b981;"></i> Quick Message</h3>
             <button onclick="closeWaModal()" class="icon-btn"><i class="ri-close-line"></i></button>
         </div>
+        
         <div id="waVerTemplates">
             <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 10px;">Select a message for pending verification:</p>
             <button class="wa-template-btn" data-text="Sir WhatsApp par check karna, verification ka message aaya hai kya." onclick="sendWaTemplate(this)">💬 Sir WhatsApp par check karna, verification ka message aaya hai kya.</button>
@@ -68,6 +69,7 @@
             <button class="wa-template-btn" data-text="Sir verification ke regarding koi message ya call aaya hai kya, check karna." onclick="sendWaTemplate(this)">💬 Sir verification ke regarding koi message ya call aaya hai kya, check karna.</button>
             <button class="wa-template-btn" data-text="Sir verification ka message ya call aaya hoga, check karna." onclick="sendWaTemplate(this)">💬 Sir verification ka message ya call aaya hoga, check karna.</button>
         </div>
+        
         <div id="waPddTemplates" style="display: none;">
             <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 10px;">Select a message for pending bill payment:</p>
             <button class="wa-template-btn" data-text="Sir aapka bill {{billDate}} ko ban gaya hai, payment kar lena." onclick="sendWaTemplate(this)">💰 Sir aapka bill {{billDate}} ko ban gaya hai, payment kar lena.</button>
@@ -75,5 +77,26 @@
             <button class="wa-template-btn" data-text="Sir abhi tak payment nahi kiya hai, payment kar lena." onclick="sendWaTemplate(this)">⚠️ Sir abhi tak payment nahi kiya hai, payment kar lena.</button>
             <button class="wa-template-btn" data-text="Sir due date nikal chuki hai, abhi tak payment nahi kiya, payment kar lena." onclick="sendWaTemplate(this)">⚠️ Sir due date nikal chuki hai, abhi tak payment nahi kiya, payment kar lena.</button>
         </div>
+
+        <div id="waCustomSection" style="margin-top: 15px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+            <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 10px;">Or type a custom message:</p>
+            
+            <div style="display: flex; align-items: flex-end; gap: 8px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 24px; padding: 6px 6px 6px 16px; transition: all 0.3s ease; box-shadow: inset 0 1px 2px rgba(0,0,0,0.03);">
+                
+                <textarea id="waCustomMessage" 
+                          style="flex: 1; border: none; outline: none; background: transparent; padding: 8px 0; font-family: inherit; font-size: 0.95rem; resize: none; max-height: 100px; overflow-y: auto;" 
+                          rows="1" 
+                          placeholder="Message..." 
+                          oninput="this.style.height = ''; this.style.height = Math.min(this.scrollHeight, 100) + 'px';"></textarea>
+                
+                <button id="waCustomSendBtn" 
+                        onclick="sendWaCustom(this)" 
+                        style="background: var(--primary); color: white; border: none; border-radius: 50px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); flex-shrink: 0; overflow: hidden; white-space: nowrap;">
+                    <i class="ri-send-plane-fill" style="margin-left: 2px;"></i>
+                </button>
+                
+            </div>
+        </div>
+
     </div>
 </div>

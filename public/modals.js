@@ -46,7 +46,7 @@ window.openModal = function() {
     
     if(sDateAdd) {
         if(sDateAdd._flatpickr) {
-            sDateAdd._flatpickr.setDate(new Date()); // Auto set to Today
+            sDateAdd._flatpickr.setDate(new Date()); 
         } else {
             sDateAdd.value = '';
         }
@@ -78,24 +78,20 @@ window.openEditModal = function(btn) {
     document.getElementById('editRemarks').value = btn.getAttribute('data-remarks') || ''; 
     document.getElementById('editBillDate').value = btn.getAttribute('data-billdate') || '';
     
-    // 🔴 SMART PREFILL: Always populate base info to ensure Individual -> Family conversion is seamless
     const baseName = btn.getAttribute('data-name') || '';
     const baseMobile = btn.getAttribute('data-mobile') || '';
     const baseGender = btn.getAttribute('data-gender') || 'KEEP';
     
-    // Fill Normal inputs
     document.getElementById('editNName').value = baseName;
     document.getElementById('editNMobile').value = baseMobile; 
     if(document.getElementById('editNGender')) document.getElementById('editNGender').value = baseGender;
     
-    // Pre-fill Primary fields for Family switch
     document.getElementById('editOldPMobile').value = baseMobile;
     document.getElementById('editPName').value = baseName;
     document.getElementById('editPMobile').value = baseMobile;
     if(document.getElementById('editPGender')) document.getElementById('editPGender').value = baseGender;
     document.getElementById('editPType').value = (cat === 'Family' || cat === 'Existing') ? 'Existing' : cat;
 
-    // Reset Secondary Connection fields initially
     document.getElementById('editSType').value = 'NC';
     document.getElementById('editSName').value = ''; 
     document.getElementById('editSMobile').value = ''; 
@@ -108,7 +104,6 @@ window.openEditModal = function(btn) {
     if(document.getElementById('editSGender')) document.getElementById('editSGender').value = 'KEEP';
     
     if (cat === 'Family') { 
-        // If it's ALREADY a family, override the fallback with specific Primary/Secondary details
         let pMobileFallback = btn.getAttribute('data-p-mobile');
         if (!pMobileFallback || pMobileFallback.trim() === '') pMobileFallback = baseMobile;
         document.getElementById('editOldPMobile').value = pMobileFallback;
@@ -236,6 +231,13 @@ window.openWaModal = function(phone, name, type, gender = '', billDate = '') {
     nInput.value = name || ''; 
     gInput.value = gender || '';
     bInput.value = billDate || '';
+
+    // Clear Custom Message Input when modal opens
+    const waCustomInput = document.getElementById('waCustomMessage');
+    if(waCustomInput) {
+        waCustomInput.value = '';
+        waCustomInput.style.height = 'auto'; // Reset auto-expand
+    }
 
     const waButtons = m.querySelectorAll('button[data-text], a[data-text]');
     waButtons.forEach(btn => {
@@ -380,6 +382,122 @@ window.sendWaTemplate = async function(element) {
             element.innerHTML = element.dataset.origBtnHtml;
             element.style.pointerEvents = 'auto';
             element.style.opacity = '1';
+            delete element.dataset.sendingState;
+        }
+    }, 5000);
+};
+
+// --- WHATSAPP CUSTOM MESSAGE DYNAMIC BUTTON LOGIC ---
+window.sendWaCustom = async function(element) {
+    const textArea = document.getElementById('waCustomMessage');
+    let customText = textArea.value.trim();
+    
+    if(!customText) {
+        if(typeof window.showAIToast === 'function') {
+            window.showAIToast("Please type a message first", false);
+        } else {
+            alert("Please type a message first");
+        }
+        return;
+    }
+
+    if (element.dataset.sendingState === 'sending') return;
+
+    if (element.dataset.sendingState === 'countdown') {
+        clearInterval(element.countdownInterval);
+        clearTimeout(element.sendTimeout);
+        
+        // Restore to small icon button
+        element.innerHTML = element.dataset.origBtnHtml;
+        element.style.background = 'var(--primary)'; 
+        element.style.color = 'white';
+        element.style.borderColor = 'transparent';
+        element.style.width = '38px';
+        element.style.padding = '0';
+        element.style.gap = '0';
+        
+        delete element.dataset.sendingState;
+        
+        if(typeof window.showAIToast === 'function') {
+            window.showAIToast("Message Send Cancelled", false);
+        }
+        return;
+    }
+
+    const phone = document.getElementById('waPhone').value;
+
+    element.dataset.origBtnHtml = element.innerHTML;
+    element.dataset.sendingState = 'countdown';
+    
+    let timeLeft = 5;
+    
+    // Expand to Pill Shape for Undo Action
+    element.innerHTML = `<i class="ri-arrow-go-back-line"></i> <span style="font-size: 0.85rem; font-weight: 600;">Undo (${timeLeft}s)</span>`;
+    element.style.background = '#fee2e2'; 
+    element.style.color = '#dc2626';
+    element.style.borderColor = '#fca5a5';
+    element.style.width = '115px';
+    element.style.padding = '0 12px';
+    element.style.gap = '4px';
+
+    element.countdownInterval = setInterval(() => {
+        timeLeft--;
+        if (timeLeft > 0) {
+            element.innerHTML = `<i class="ri-arrow-go-back-line"></i> <span style="font-size: 0.85rem; font-weight: 600;">Undo (${timeLeft}s)</span>`;
+        }
+    }, 1000);
+
+    element.sendTimeout = setTimeout(async () => {
+        clearInterval(element.countdownInterval);
+        element.dataset.sendingState = 'sending';
+        
+        // Shrink back for Loading Spinner
+        element.innerHTML = '<i class="ri-loader-4-line spin-loader"></i>';
+        element.style.width = '38px';
+        element.style.padding = '0';
+        element.style.gap = '0';
+        element.style.pointerEvents = 'none';
+        element.style.opacity = '0.7';
+
+        try {
+            const response = await fetch(`/send-wa/${phone}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: customText })
+            });
+            
+            const data = await response.json();
+            
+            if(data.success) {
+                if(typeof window.showAIToast === 'function') {
+                    window.showAIToast("Custom message sent!", true);
+                }
+                textArea.value = ''; 
+                textArea.style.height = 'auto'; // Reset height
+                window.closeWaModal();
+            } else {
+                if(typeof window.showAIToast === 'function') {
+                    window.showAIToast(data.msg || "Failed to send", false);
+                } else {
+                    alert(data.msg || "Failed to send");
+                }
+            }
+        } catch (err) {
+            console.error("WhatsApp Custom Send Error:", err);
+            if(typeof window.showAIToast === 'function') {
+                window.showAIToast("Network error occurred", false);
+            } else {
+                alert("Network error occurred");
+            }
+        } finally {
+            // Restore everything perfectly
+            element.innerHTML = element.dataset.origBtnHtml;
+            element.style.pointerEvents = 'auto';
+            element.style.opacity = '1';
+            element.style.background = 'var(--primary)';
+            element.style.color = 'white';
+            element.style.width = '38px';
+            element.style.padding = '0';
             delete element.dataset.sendingState;
         }
     }, 5000);

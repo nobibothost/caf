@@ -9,6 +9,22 @@ window.fpEdit = null;
 window.formToSubmit = null;
 window.fpConfig = { dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", allowInput: true, disableMobile: true };
 
+// --- WHATSAPP STATUS POLLING FUNCTION ---
+window.checkWaStatus = async function() {
+    try {
+        const res = await fetch('/api/wa-status', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        if (res.ok) {
+            const data = await res.json();
+            const dot = document.getElementById('wa-status-dot');
+            if (dot) {
+                dot.style.background = data.isConnected ? '#10b981' : '#ef4444'; 
+            }
+        }
+    } catch (e) {
+        // Silent fail on network errors to avoid console spam
+    }
+};
+
 window.initApp = function() {
     const addEl = document.getElementById("customDate"); 
     if(addEl) window.fpAdd = flatpickr(addEl, window.fpConfig);
@@ -16,7 +32,6 @@ window.initApp = function() {
     const editEl = document.getElementById("editDate"); 
     if(editEl) window.fpEdit = flatpickr(editEl, window.fpConfig);
 
-    // Initialize Flatpickr on all Secondary Date fields
     document.querySelectorAll('.s-date-picker').forEach(el => {
         if(!el._flatpickr && typeof flatpickr !== 'undefined') {
             flatpickr(el, window.fpConfig);
@@ -62,6 +77,9 @@ window.initApp = function() {
         searchInput.removeEventListener('keyup', window.filterList);
         searchInput.addEventListener('keyup', window.filterList);
     }
+
+    // Check WhatsApp status immediately when a page loads/renders
+    window.checkWaStatus();
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -148,3 +166,12 @@ document.addEventListener('click', e => {
         }
     }
 });
+
+// Start global polling for WhatsApp Status
+if (!window.waPollInterval) {
+    window.waPollInterval = setInterval(() => {
+        if(document.getElementById('wa-status-dot')) {
+            window.checkWaStatus();
+        }
+    }, 10000); // Check every 10 seconds
+}

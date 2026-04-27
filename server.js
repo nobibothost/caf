@@ -22,7 +22,7 @@ const { startCronJobs } = require('./utils/scheduler');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SESSION_SECRET = process.env.SESSION_SECRET || 'vHub_Permanent_Secret_2026';
+const SESSION_SECRET = process.env.SESSION_SECRET || 'supersecretkey';
 const MONGO_URI = process.env.MONGO_URI;
 
 // --- SECURITY MIDDLEWARES ---
@@ -55,28 +55,28 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 
-// 🔥 CRITICAL FOR PWA: Trust proxy to allow secure cookies on HTTPS/Render
+// 🔥 FIX FOR RENDER: Trust proxy
 app.set('trust proxy', 1);
 
-// --- SESSION SETUP (Deep Persistence Fix) ---
+// --- SESSION SETUP (PWA Persistent Fix Applied) ---
 app.use(session({
     secret: SESSION_SECRET,
-    name: 'vHub_session', 
-    resave: true, // 🔥 Force save to MongoDB on every request
+    name: 'vHub_session', // Persistent Cookie Name
+    resave: true, 
     saveUninitialized: false,
-    rolling: true, // 🔥 Refresh cookie expiry on every user interaction
+    rolling: true,
     store: MongoStore.create({
         mongoUrl: MONGO_URI,
         collectionName: 'sessions',
-        ttl: 365 * 24 * 60 * 60, // 1 Year storage in DB
+        ttl: 365 * 24 * 60 * 60, 
         autoRemove: 'native',
-        touchAfter: 1 // Update DB entry immediately
+        touchAfter: 1
     }),
     cookie: { 
         httpOnly: true, 
-        maxAge: 30 * 24 * 60 * 60 * 1000, // Default 30 days
+        maxAge: 30 * 24 * 60 * 60 * 1000, 
         sameSite: 'lax', 
-        secure: true // Always use true for PWA/HTTPS stability
+        secure: process.env.NODE_ENV === 'production' 
     }
 }));
 
@@ -126,9 +126,19 @@ app.post('/power-off', (req, res) => {
     }, 1000);
 });
 
+// 1. PUBLIC ROUTES
 app.use('/', authRoutes);
+
+// 🔒 THE IRON GATE: Everything below requires login!
 app.use(requireAuth); 
 
+// 🔥 API FOR REAL-TIME WA STATUS INDICATOR
+app.get('/api/wa-status', (req, res) => {
+    const waState = getWaState();
+    res.json({ isConnected: waState.isConnected });
+});
+
+// 🔥 SECURE WHATSAPP STATUS ROUTE
 app.get('/whatsapp', (req, res) => {
     const waState = getWaState();
     res.render('whatsapp', { 
@@ -138,6 +148,7 @@ app.get('/whatsapp', (req, res) => {
     });
 });
 
+// 2. PRIVATE ROUTES
 app.use('/api/ai', aiRoutes);
 app.use('/', require('./routes/viewRoutes'));
 app.use('/', require('./routes/actionRoutes')); 
@@ -146,8 +157,10 @@ app.use('/', require('./routes/reportRoutes'));
 
 app.get('*', (req, res) => { res.redirect('/'); });
 
+// --- SERVER INITIALIZATION ---
 app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`🛡️ Security modules active!`);
     connectToWhatsApp();
     startCronJobs();
 });
