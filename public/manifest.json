@@ -7,9 +7,17 @@
   "theme_color": "#4f46e5",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/6595/6595982.png",
+      "src": "https://i.ibb.co/HT78xqRs/IMG-20260426-164455.png",
       "sizes": "512x512",
       "type": "image/png"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "https://i.ibb.co/Rp0KyMrY/compressed-1777202280735.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "wide"
     }
   ]
 }
