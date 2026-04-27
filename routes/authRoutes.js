@@ -9,12 +9,10 @@ const EMAIL_SERVICE_URL = process.env.EMAIL_SERVICE_URL || 'http://localhost:500
 const ADMIN_EMAIL_RECEIVER = process.env.ADMIN_EMAIL_RECEIVER || 'your-email@gmail.com';
 
 router.get('/login', (req, res) => {
-    // Note: session.isLoggedIn ya session.isAuthenticated jo bhi aap use karte hain
     if (req.session.isLoggedIn || req.session.isAuthenticated) return res.redirect('/');
     res.render('login', { error: null });
 });
 
-// Limiter yahan se hata diya gaya hai kyunki server.js me authLimiter pehle hi apply ho chuka hai
 router.post('/login', async (req, res) => {
     const { username, Vpassword, remember } = req.body;
     if (username === ADMIN_USERNAME && Vpassword === ADMIN_PASSWORD) {
@@ -42,18 +40,32 @@ router.get('/otp', (req, res) => {
     res.render('otp', { error: null });
 });
 
-// Limiter yahan se bhi hata diya gaya hai
 router.post('/verify-otp', (req, res) => {
     const { otp } = req.body;
     
     if (req.session.otp && otp.replace(/\s/g, '') === req.session.otp) {
-        req.session.isLoggedIn = true;
-        req.session.isAuthenticated = true; // Added to match auth.js Iron Gate check
-        req.session.cookie.maxAge = (req.session.tempUser.remember === 'on') ? 365 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+        const rememberMe = req.session.tempUser ? req.session.tempUser.remember : null;
         
-        delete req.session.otp;
-        delete req.session.tempUser;
-        res.redirect('/');
+        // 🔥 Re-create session to clear any temporary data
+        req.session.regenerate((err) => {
+            if (err) return res.render('otp', { error: 'Session Error' });
+            
+            req.session.isLoggedIn = true;
+            req.session.isAuthenticated = true; 
+            
+            // 🔥 Persistent Time: 1 year for Remember Me, 30 days default
+            const duration = (rememberMe === 'on') ? 365 * 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000;
+            
+            req.session.cookie.maxAge = duration;
+            req.session.cookie.originalMaxAge = duration;
+            req.session.cookie.expires = new Date(Date.now() + duration);
+            
+            // 🔥 Force DB Write
+            req.session.save((saveErr) => {
+                if (saveErr) console.error('Final Save Error:', saveErr);
+                res.redirect('/');
+            });
+        });
     } else {
         res.render('otp', { error: 'Invalid OTP' });
     }
@@ -79,7 +91,7 @@ router.post('/resend-otp', async (req, res) => {
 
 router.get('/logout', (req, res) => {
     req.session.destroy(() => {
-        res.clearCookie('sessionId'); // Updated to the new secure cookie name defined in server.js
+        res.clearCookie('vHub_session'); 
         res.redirect('/login');
     });
 });
