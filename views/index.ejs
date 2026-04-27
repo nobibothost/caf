@@ -11,8 +11,6 @@
         <div class="container">
             <div class="section-title"><h2><i class="ri-calendar-check-fill"></i> <%= headerTitle %></h2><p class="subtitle">Showing pending tasks.</p></div>
 
-            <div id="aiDailyPlanContainer"></div>
-
             <form action="/" method="GET" class="filter-form" style="display: flex; gap: 10px; flex-wrap: wrap;">
                 <div class="filter-wrapper" style="flex: 1; min-width: 140px;">
                     <i class="ri-filter-3-line"></i>
@@ -69,7 +67,7 @@
                         else if (mainType === 'NMNP') tintClass = 'bg-tint-NMNP';
                         else if (mainType === 'PDR') tintClass = 'bg-tint-PDR';
                         else if (mainType === 'Family' || mainType === 'Existing') tintClass = 'bg-tint-Family';
-                    %>
+                        %>
                         <div class="card search-item <%= customer.isFamilyGroup ? 'bg-tint-Family' : tintClass %>" <%= customer.isFamilyGroup ? 'style="border-left: 4px solid #06b6d4 !important;"' : '' %>>
                             
                             <div class="card-top">

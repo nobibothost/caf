@@ -161,6 +161,9 @@ router.post('/add', isAuthenticated, async (req, res) => {
                 remarks: remarks || '', createdAt: entryDate, activationDate: nLogic.realActivationDate, verificationDate: nLogic.realVerificationDate, status: nStatus, billDate: bDate
             }).save();
         }
+        
+        // 🔥 Trigger Success Toast
+        res.cookie('hubToast', 'New Record Added Successfully! 🎉', { maxAge: 5000, httpOnly: false });
         safeRedirect(req, res);
     } catch (err) { safeRedirect(req, res); }
 });
@@ -360,6 +363,9 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
             
             await Customer.findByIdAndUpdate(existingDoc._id, updateData);
         }
+        
+        // 🔥 Trigger Success Toast
+        res.cookie('hubToast', 'Record Updated Successfully! ✏️', { maxAge: 5000, httpOnly: false });
         safeRedirect(req, res);
     } catch (err) { safeRedirect(req, res); }
 });
@@ -387,6 +393,9 @@ router.post('/delete/:id', isAuthenticated, async (req, res) => {
                 await Customer.findByIdAndDelete(req.params.id); 
             }
         }
+        
+        // 🔥 Trigger Delete Toast
+        res.cookie('hubToast', 'Record Deleted Successfully! 🗑️', { maxAge: 5000, httpOnly: false });
         safeRedirect(req, res);
     } catch (err) { safeRedirect(req, res); } 
 });
@@ -404,6 +413,9 @@ router.post('/complete/:id', isAuthenticated, async (req, res) => {
             const doc = await Customer.findById(docId);
             if (doc) await Customer.findByIdAndUpdate(docId, { status: 'completed' });
         }
+        
+        // 🔥 Trigger Done Toast
+        res.cookie('hubToast', 'Verification Marked as Done! ✅', { maxAge: 5000, httpOnly: false });
         safeRedirect(req, res);
     } catch (err) { safeRedirect(req, res); } 
 });
