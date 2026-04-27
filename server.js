@@ -11,7 +11,7 @@ const rateLimit = require('express-rate-limit');
 // --- Import Modular Routes & Models ---
 const authRoutes = require('./routes/authRoutes');
 const aiRoutes = require('./routes/aiRoutes');
-const Customer = require('./models/Customer'); // 🔥 Customer model imported for Indexing
+const Customer = require('./models/Customer'); 
 
 // --- Import Security Middleware ---
 const requireAuth = require('./middleware/auth');
@@ -22,7 +22,7 @@ const { startCronJobs } = require('./utils/scheduler');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SESSION_SECRET = process.env.SESSION_SECRET || 'supersecretkey';
+const SESSION_SECRET = process.env.SESSION_SECRET || 'vHub_Permanent_Secret_2026';
 const MONGO_URI = process.env.MONGO_URI;
 
 // --- SECURITY MIDDLEWARES ---
@@ -55,27 +55,28 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 
-// 🔥 FIX FOR RENDER: Trust the reverse proxy to allow secure cookies over HTTPS
+// 🔥 CRITICAL FOR PWA: Trust proxy to allow secure cookies on HTTPS/Render
 app.set('trust proxy', 1);
 
-// --- SESSION SETUP (Encrypted & Hardened) ---
+// --- SESSION SETUP (Deep Persistence Fix) ---
 app.use(session({
     secret: SESSION_SECRET,
-    name: 'sessionId', 
-    resave: false,
+    name: 'vHub_session', 
+    resave: true, // 🔥 Force save to MongoDB on every request
     saveUninitialized: false,
+    rolling: true, // 🔥 Refresh cookie expiry on every user interaction
     store: MongoStore.create({
         mongoUrl: MONGO_URI,
         collectionName: 'sessions',
-        ttl: 14 * 24 * 60 * 60, 
+        ttl: 365 * 24 * 60 * 60, // 1 Year storage in DB
         autoRemove: 'native',
-        touchAfter: 24 * 3600
+        touchAfter: 1 // Update DB entry immediately
     }),
     cookie: { 
         httpOnly: true, 
-        maxAge: 14 * 24 * 60 * 60 * 1000, 
-        sameSite: 'strict', 
-        secure: process.env.NODE_ENV === 'production' 
+        maxAge: 30 * 24 * 60 * 60 * 1000, // Default 30 days
+        sameSite: 'lax', 
+        secure: true // Always use true for PWA/HTTPS stability
     }
 }));
 
@@ -87,9 +88,6 @@ const connectDB = async () => {
         });
         console.log('✅ MongoDB Connected'); 
         
-        // =====================================================================
-        // 🔥 POINT 4: MONGODB INDEXING (SUPER SPEED)
-        // =====================================================================
         Customer.collection.createIndex({ mobile: 1 }).catch(()=>{});
         Customer.collection.createIndex({ name: 1 }).catch(()=>{});
         Customer.collection.createIndex({ status: 1, activationDate: -1 }).catch(()=>{});
@@ -128,23 +126,18 @@ app.post('/power-off', (req, res) => {
     }, 1000);
 });
 
-// 1. PUBLIC ROUTES (Accessible to everyone)
 app.use('/', authRoutes);
-
-// 🔒 THE IRON GATE: Everything below this line requires login!
 app.use(requireAuth); 
 
-// 🔥 SECURE WHATSAPP STATUS ROUTE
 app.get('/whatsapp', (req, res) => {
     const waState = getWaState();
     res.render('whatsapp', { 
         isConnected: waState.isConnected, 
         qr: waState.qr, 
-        page: 'whatsapp' // Set active page for bottom navigation
+        page: 'whatsapp' 
     });
 });
 
-// 2. PRIVATE ROUTES (Fully protected)
 app.use('/api/ai', aiRoutes);
 app.use('/', require('./routes/viewRoutes'));
 app.use('/', require('./routes/actionRoutes')); 
@@ -153,14 +146,8 @@ app.use('/', require('./routes/reportRoutes'));
 
 app.get('*', (req, res) => { res.redirect('/'); });
 
-// --- SERVER INITIALIZATION ---
 app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
-    console.log(`🛡️ Security modules (Helmet, RateLimit, AuthLock) active!`);
-    
-    // 🔥 Start Background WhatsApp Automation Engine
     connectToWhatsApp();
-
-    // 🔥 Start Scheduled Tasks (Emails & WhatsApp Reports)
     startCronJobs();
 });
