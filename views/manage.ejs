@@ -156,31 +156,44 @@
                                                     <a href="tel:8657973703,<%= customer.linkedPrimaryNumber %>" class="icon-btn-round-call large" onclick="handleCallClick(event, this)" data-id="<%= customer.primary ? customer.primary._id : 'N/A' %>" data-page="normal"><i class="ri-phone-fill"></i></a>
                                                 </div>
                                             </div>
+                                            <% if (pBadge !== 'Existing' && customer.primary) { %>
+                                                <div style="margin-top: 12px; font-size: 0.75rem; color: #64748b; font-weight: 500; display: flex; gap: 12px; background: rgba(255,255,255,0.6); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.05);">
+                                                    <span><i class="ri-calendar-line"></i> Entry: <strong><%= new Date(new Date(customer.primary.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></strong></span>
+                                                    <span style="color: var(--primary);"><i class="ri-flashlight-line"></i> Act Date: <strong><%= new Date(new Date(customer.primary.activationDate || customer.primary.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></strong></span>
+                                                </div>
+                                            <% } %>
                                         </div>
 
                                         <% if (customer.secondaries && customer.secondaries.length > 0) { %>
                                             <h5 style="margin: 0 0 10px 0; color: #64748b; font-size: 0.8rem; text-transform: uppercase;">Linked Add-ons (<%= customer.secondaries.length %>)</h5>
                                             <% customer.secondaries.forEach((sec, idx) => { %>
-                                                <div class="bg-tint-<%= sec.subType === 'Existing' ? 'default' : sec.subType %>" style="padding: 12px; border-radius: 10px; margin-bottom: 10px;">
+                                                <div class="bg-tint-<%= sec.subType === 'Existing' ? 'default' : sec.subType %>" style="padding: 15px; border-radius: 12px; margin-bottom: 15px;">
                                                     <div style="display:flex; justify-content: space-between; align-items: center;">
-                                                        <span class="fs-label" style="color: #475569; font-weight: 600; font-size: 0.75rem;">
-                                                            Secondary #<%= idx + 1 %> <span class="badge badge-<%= sec.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= sec.subType %></span>
+                                                        <span class="fs-label" style="color: #475569; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;">
+                                                            <i class="ri-user-add-fill" style="color: var(--info);"></i> Secondary #<%= idx + 1 %> <span class="badge badge-<%= sec.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= sec.subType %></span>
                                                         </span>
                                                         <span style="font-size: 0.65rem; font-weight: 600; color: var(--success); padding: 2px 0;">Status: <%= sec.status.toUpperCase() %></span>
                                                     </div>
-                                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
                                                         <div>
-                                                            <h4 style="margin: 0; font-size: 1rem; color: #0f172a;"><%= sec.name %></h4>
-                                                            <p style="margin: 0; font-family: monospace; font-size: 0.85rem; color: #64748b;"><%= sec.mobile %></p>
+                                                            <h4 style="margin: 0; font-size: 1.1rem; color: #0f172a;"><%= sec.name %></h4>
+                                                            <p style="margin: 0; font-family: monospace; font-size: 0.9rem; color: #64748b;"><%= sec.mobile %></p>
                                                         </div>
                                                         <div style="display: flex; gap: 8px;">
-                                                            <a href="whatsapp://send?phone=91<%= sec.mobile %>" class="icon-btn-round-wa"><i class="ri-whatsapp-line"></i></a>
-                                                            <a href="tel:8657973703,<%= sec.mobile %>" class="icon-btn-round-call" onclick="handleCallClick(event, this)" data-id="<%= sec._id %>" data-page="normal"><i class="ri-phone-fill"></i></a>
+                                                            <a href="whatsapp://send?phone=91<%= sec.mobile %>" class="icon-btn-round-wa large"><i class="ri-whatsapp-line"></i></a>
+                                                            <a href="tel:8657973703,<%= sec.mobile %>" class="icon-btn-round-call large" onclick="handleCallClick(event, this)" data-id="<%= sec._id %>" data-page="normal"><i class="ri-phone-fill"></i></a>
                                                         </div>
                                                     </div>
-                                                    <div style="margin-top: 8px; font-size: 0.7rem; color: #94a3b8; font-weight: 500;">
-                                                        Entry Date: <%= new Date(new Date(sec.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %>
-                                                    </div>
+                                                    <%
+                                                        let finalSecActDate = sec.createdAt; 
+                                                        if(sec.activationDate) finalSecActDate = sec.activationDate;
+                                                    %>
+                                                    <% if (sec.subType !== 'Existing') { %>
+                                                        <div style="margin-top: 12px; font-size: 0.75rem; color: #64748b; font-weight: 500; display: flex; gap: 12px; background: rgba(255,255,255,0.6); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.05);">
+                                                            <span><i class="ri-calendar-line"></i> Entry: <strong><%= new Date(new Date(sec.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></strong></span>
+                                                            <span style="color: var(--primary);"><i class="ri-flashlight-line"></i> Act: <strong><%= new Date(new Date(finalSecActDate).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></strong></span>
+                                                        </div>
+                                                    <% } %>
                                                 </div>
                                             <% }) %>
                                         <% } else { %>

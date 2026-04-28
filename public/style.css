@@ -98,20 +98,68 @@ a {
     margin: 0 auto; 
     padding: 20px;
 }
+
+/* 🔥 STYLISH SECTION TITLES 🔥 */
 .section-title { 
-    margin-bottom: 20px; 
+    margin-bottom: 25px; 
+    padding: 18px 20px;
+    background: rgba(255, 255, 255, 0.65);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 4px 15px -3px rgba(0,0,0,0.05);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    position: relative;
+    overflow: hidden;
 }
 .section-title h2 { 
     display: flex; 
     align-items: center;
-    gap: 8px; 
-    font-size: 1.4rem; 
-    color: var(--text-main); 
+    gap: 12px; 
+    font-size: 1.45rem; 
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--family) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+    margin: 0;
+}
+.section-title h2 i {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--family) 100%) !important;
+    -webkit-text-fill-color: white !important; 
+    color: white !important;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    font-size: 1.3rem;
+    box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 .subtitle { 
     font-size: 0.9rem; 
     color: var(--text-muted); 
-    margin-top: 4px;
+    margin-top: 8px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.section-title .subtitle::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+    animation: pulse-glow-success-dot 2s infinite;
+}
+@keyframes pulse-glow-success-dot {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+    70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
 
 /* Filter & Search */
@@ -229,9 +277,7 @@ gap: 15px; }
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* 🔵🟠🩷🔴🟣 PREMIUM MODERN UI COLORS (Tailwind Extracted)             */
-/* Blue, Orange, Pink, Light Red, Purple, Cyan                          */
-/* ==================================================================== */
+/* PREMIUM MODERN UI COLORS */
 .bg-tint-NC { --card-theme: #3b82f6;
 background-color: rgba(59, 130, 246, 0.12) !important; border: 1px solid var(--card-theme) !important; }
 .bg-tint-P2P { --card-theme: #f97316;
@@ -511,6 +557,22 @@ body.dark-theme .navbar {
 }
 body.dark-theme .card { background: var(--bg-card); border-color: var(--border); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5), 0 2px 4px -1px rgba(0,0,0,0.3);
 }
+
+body.dark-theme .section-title {
+    background: rgba(30, 41, 59, 0.65);
+}
+body.dark-theme .section-title h2 {
+    background: linear-gradient(135deg, #a5b4fc 0%, #fbcfe8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+body.dark-theme .section-title h2 i {
+    background: linear-gradient(135deg, #818cf8 0%, #f472b6 100%) !important;
+    -webkit-text-fill-color: #0f172a !important;
+    color: #0f172a !important;
+    box-shadow: 0 4px 10px rgba(129, 140, 248, 0.25);
+}
+
 body.dark-theme .filter-wrapper { background: var(--bg-card); border-color: var(--border); }
 body.dark-theme .search-box input { background: var(--bg-card); color: var(--text-main); border-color: var(--border);
 }
