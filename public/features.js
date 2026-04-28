@@ -102,9 +102,11 @@ window.addEventListener('scroll', async () => {
 });
 
 // =====================================================================
-// WA DP LIVE FETCH LOGIC (No localStorage, pure proxy)
+// WA DP LIVE FETCH LOGIC (WhatsApp Default Icon Fallback)
 // =====================================================================
 window.dpCache = window.dpCache || {};
+
+const WA_DEFAULT_DP = 'data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iI2RmZTVlNyIvPjxwYXRoIGQ9Ik01MCA0OGExNCAxNCAwIDEwMC0yOCAxNCAxNCAwIDAwMCAyOHptMCA3Yy0xNiAwLTMxIDEwLTM0IDIzYTUwIDUwIDAgMDA2OCAwYy0zLTEzLTE4LTIzLTM0LTIzeiIgZmlsbD0iI2ZmZiIvPjwvc3ZnPg==';
 
 window.loadWhatsAppDPs = async function() {
     const dpElements = document.querySelectorAll('.whatsapp-dp:not(.loaded)');
@@ -112,7 +114,7 @@ window.loadWhatsAppDPs = async function() {
     dpElements.forEach(img => {
         const number = img.getAttribute('data-number');
         if (!number) {
-            img.style.display = 'none';
+            img.src = WA_DEFAULT_DP;
             return;
         }
         
@@ -120,12 +122,7 @@ window.loadWhatsAppDPs = async function() {
         
         // Session memory cache to prevent spamming on rapid scroll
         if (window.dpCache[number]) {
-            if (window.dpCache[number] === 'none') {
-                img.style.display = 'none';
-            } else {
-                img.src = window.dpCache[number];
-                img.style.display = 'block';
-            }
+            img.src = window.dpCache[number];
             return;
         }
         
@@ -134,13 +131,14 @@ window.loadWhatsAppDPs = async function() {
         
         // Use native browser loading events
         img.onload = () => {
-            window.dpCache[number] = liveUrl;
-            img.style.display = 'block';
+            if(img.src !== WA_DEFAULT_DP) {
+                window.dpCache[number] = liveUrl;
+            }
         };
         
         img.onerror = () => {
-            window.dpCache[number] = 'none';
-            img.style.display = 'none'; // Fallback to background user icon
+            window.dpCache[number] = WA_DEFAULT_DP;
+            img.src = WA_DEFAULT_DP; 
         };
         
         // Set src to trigger network request
