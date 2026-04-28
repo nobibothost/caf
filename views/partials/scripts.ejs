@@ -116,7 +116,6 @@
     document.getElementById('agendaModal').addEventListener('click', function(e) {
         if(e.target === this) toggleAgendaModal();
     });
-    
     document.addEventListener('DOMContentLoaded', fetchAgenda);
 
     const originalSubmit = HTMLFormElement.prototype.submit;
@@ -140,6 +139,7 @@
                     origin: { x: 1, y: 0.6 },
                     colors: ['#10b981', '#3b82f6', '#f59e0b']
                 });
+    
                 if (Date.now() < end) {
                     requestAnimationFrame(frame);
                 }
@@ -153,7 +153,7 @@
     };
 
     // ==========================================
-    // 🔥 PREMIUM SUCCESS TOAST SYSTEM 🔥
+    // 🔥 GLOBAL AI TOAST SYSTEM 🔥
     // ==========================================
     function getCookie(name) {
         let matches = document.cookie.match(new RegExp("(?:^|; )" + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, '\\$1') + "=([^;]*)"));
@@ -163,44 +163,14 @@
     function eraseCookie(name) {
         document.cookie = name + '=; Max-Age=-99999999; path=/';
     }
-    
-    function showPremiumToast(message) {
-        let container = document.getElementById('hub-toast-container');
-        if(!container) {
-            container = document.createElement('div');
-            container.id = 'hub-toast-container';
-            container.style.cssText = 'position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 11500; display: flex; flex-direction: column; gap: 10px; align-items: center; pointer-events: none;';
-            document.body.appendChild(container);
-        }
-        
-        const toast = document.createElement('div');
-        toast.style.cssText = 'background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); color: #fff; padding: 12px 24px; border-radius: 50px; font-size: 0.95rem; font-family: "Inter", sans-serif; font-weight: 500; box-shadow: 0 10px 25px rgba(0,0,0,0.25); opacity: 0; transform: translateY(20px); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; align-items: center; gap: 8px; border: 1px solid rgba(255,255,255,0.15); pointer-events: auto;';
-        
-        // Pick icon based on message content
-        let iconHtml = '<i class="ri-checkbox-circle-fill" style="color: #10b981; font-size: 1.2rem;"></i>';
-        if (message.includes('Deleted')) iconHtml = '<i class="ri-delete-bin-fill" style="color: #ef4444; font-size: 1.2rem;"></i>';
-        else if (message.includes('Updated')) iconHtml = '<i class="ri-edit-circle-fill" style="color: #3b82f6; font-size: 1.2rem;"></i>';
-        
-        toast.innerHTML = `${iconHtml} <span>${message}</span>`;
-        container.appendChild(toast);
-        
-        setTimeout(() => {
-            toast.style.opacity = '1';
-            toast.style.transform = 'translateY(0)';
-        }, 10);
-        
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transform = 'translateY(-20px)';
-            setTimeout(() => toast.remove(), 400);
-        }, 3500);
-    }
 
-    // Check for cookie on load and trigger toast
+    // Check for cookie on load and trigger AI toast
     document.addEventListener('DOMContentLoaded', () => {
         const toastMsg = getCookie('hubToast');
         if (toastMsg) {
-            showPremiumToast(toastMsg);
+            if (typeof window.showAIToast === 'function') {
+                window.showAIToast(toastMsg, true);
+            }
             eraseCookie('hubToast');
         }
     });

@@ -100,8 +100,9 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
                 }
             }
 
+            // Restore cAct > now so already activated entries do not show up as pending
             if (c.status === 'pending' && cAct > now) {
-                if (monthOffset === 'all' || isActThisMonth) {
+                if (monthOffset === 'all' || isActThisMonth || isEntryThisMonth) {
                     c.dynamicActDate = cAct; pendingListRaw.push(c);
                 }
             }

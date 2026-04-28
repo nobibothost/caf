@@ -188,6 +188,13 @@ window.openConfirmModal = function(event, element, actionType) {
         msgEl.innerText = "Are you sure you want to end your session?"; iconEl.innerHTML = '<i class="ri-logout-circle-line" style="color: #ef4444;"></i>'; yesBtn.classList.add('btn-confirm-danger');
         yesBtn.innerText = "Yes, Logout"; 
     }
+    else if (actionType === 'activate') { 
+        titleEl.innerText = "Activate Record?";
+        msgEl.innerText = "Are you sure you want to activate this record right now?"; 
+        iconEl.innerHTML = '<i class="ri-rocket-fill" style="color: #10b981;"></i>'; 
+        yesBtn.classList.add('btn-confirm-success'); 
+        yesBtn.innerText = "Yes, Activate"; 
+    }
     
     m.style.display = 'flex'; setTimeout(() => m.classList.add('active'), 10);
 };

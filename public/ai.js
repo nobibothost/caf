@@ -42,7 +42,14 @@ document.body.appendChild(toastContainer);
 window.showAIToast = function(msg, isSuccess = true) {
     const toast = document.createElement('div');
     toast.className = `ai-toast-msg`;
-    toast.innerHTML = isSuccess ? `<i class="ri-check-line" style="font-size:1.1rem; color:#4ade80;"></i> ${msg}` : `<i class="ri-error-warning-line" style="font-size:1.1rem; color:#f87171;"></i> ${msg}`;
+    
+    let iconHtml = isSuccess ? `<i class="ri-check-line" style="font-size:1.1rem; color:#4ade80;"></i>` : `<i class="ri-error-warning-line" style="font-size:1.1rem; color:#f87171;"></i>`;
+    
+    if (msg.includes('Deleted')) iconHtml = `<i class="ri-delete-bin-line" style="font-size:1.1rem; color:#f87171;"></i>`;
+    else if (msg.includes('Updated')) iconHtml = `<i class="ri-edit-line" style="font-size:1.1rem; color:#60a5fa;"></i>`;
+    else if (msg.includes('AI chose')) iconHtml = `<i class="ri-sparkling-fill" style="font-size:1.1rem; color:#c084fc;"></i>`;
+
+    toast.innerHTML = `${iconHtml} ${msg}`;
     toastContainer.appendChild(toast);
     setTimeout(() => {
         toast.style.animation = 'popOutAi 0.3s ease-in forwards';

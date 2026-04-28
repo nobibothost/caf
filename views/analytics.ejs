@@ -180,7 +180,12 @@
                                 <h4 style="margin: 0 0 4px 0; font-size: 1.05rem; color: #0f172a;"><%= c.name %></h4>
                                 <p style="margin: 0; font-size: 0.9rem; color: #64748b; font-family: monospace;"><i class="ri-smartphone-line"></i> <%= c.mobile %></p>
                                 
-                                <div style="display: flex; gap: 8px; margin-top: 10px;">
+                                <div style="display: flex; gap: 8px; margin-top: 10px; align-items: center;">
+                                    <form action="/activate/<%= c._id %>" method="POST" onsubmit="openConfirmModal(event, this, 'activate')" style="margin: 0; flex: 1;">
+                                        <button type="submit" style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; box-shadow: 0 2px 4px rgba(16,185,129,0.2); width: 100%; transition: all 0.2s;">
+                                            <i class="ri-check-double-line"></i> Mark as Activate
+                                        </button>
+                                    </form>
                                     <button type="button" onclick="openWaModal('<%= c.mobile %>', '<%= c.name %>', 'verification', '<%= c.gender || '' %>')" class="icon-btn-round-wa"><i class="ri-whatsapp-line"></i></button>
                                     <a href="tel:8657973703,<%= c.mobile %>" class="icon-btn-round-call" onclick="handleCallClick(event, this)" data-id="<%= c._id %>" data-page="normal"><i class="ri-phone-fill"></i></a>
                                 </div>
@@ -191,10 +196,8 @@
                                 let cActFull = new Date(new Date(c.dynamicActDate || c.activationDate || c.createdAt).getTime() + 330*60000);
                                 let todayDateOnly = new Date(Date.UTC(realIstNow.getUTCFullYear(), realIstNow.getUTCMonth(), realIstNow.getUTCDate()));
                                 let actDateOnly = new Date(Date.UTC(cActFull.getUTCFullYear(), cActFull.getUTCMonth(), cActFull.getUTCDate()));
-                                
                                 let diffDays = Math.round((actDateOnly - todayDateOnly) / (1000 * 60 * 60 * 24));
                                 let daysText = "Waiting";
-                                
                                 if (diffDays === 0) {
                                     daysText = "Today";
                                 } else if (diffDays === 1) {

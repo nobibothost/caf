@@ -49,6 +49,7 @@ router.post('/add', isAuthenticated, async (req, res) => {
 
         const entryDate = parseISTDateString(rawDate);
         const bDate = billDateStr ? parseInt(billDateStr) : null;
+        let displayActDate = null;
 
         if (category === 'Family') {
             const p_type = getFirst(req.body.p_type) || 'NC';
@@ -68,6 +69,7 @@ router.post('/add', isAuthenticated, async (req, res) => {
 
             const pLogic = calculateLogic(entryDate, p_type);
             pLogic.realActivationDate = await getFinalActDate(entryDate, p_type, pLogic.realActivationDate);
+            displayActDate = pLogic.realActivationDate;
 
             let existingPrimary = await Customer.findOne({ mobile: p_mobile, familyRole: { $ne: 'Secondary' } }).sort({ createdAt: -1 });
             let finalGroupId = existingPrimary ? (existingPrimary.groupId || existingPrimary._id.toString()) : new mongoose.Types.ObjectId().toString();
@@ -115,7 +117,6 @@ router.post('/add', isAuthenticated, async (req, res) => {
                 const sMobile = cleanMobile(s_mobiles[i]);
                 const sDateInput = s_dates[i];
                 
-                // 🔥 FIX: If secondary date is blank, default strictly to TODAY (parseISTDateString(null)), NOT Primary Date (entryDate)
                 const sEntryDate = sDateInput ? parseISTDateString(sDateInput) : parseISTDateString(null);
 
                 let sGender = (s_genders[i] || 'KEEP').trim();
@@ -126,7 +127,6 @@ router.post('/add', isAuthenticated, async (req, res) => {
                 let finalActDate = await getFinalActDate(sEntryDate, sType, sLogic.realActivationDate);
                 let finalVerDate = sLogic.realVerificationDate;
 
-                // Sync with primary ONLY if dates are exactly matching already
                 if (p_type === 'NC' && sEntryDate.getTime() === entryDate.getTime() && pLogic.realVerificationDate > finalVerDate) {
                     finalActDate = pLogic.realActivationDate; finalVerDate = pLogic.realVerificationDate;
                 }
@@ -150,6 +150,7 @@ router.post('/add', isAuthenticated, async (req, res) => {
             
             const nLogic = calculateLogic(entryDate, category);
             nLogic.realActivationDate = await getFinalActDate(entryDate, category, nLogic.realActivationDate);
+            displayActDate = nLogic.realActivationDate;
             let nStatus = category === 'Existing' ? 'completed' : 'pending';
             
             const newGroupId = new mongoose.Types.ObjectId().toString();
@@ -162,8 +163,15 @@ router.post('/add', isAuthenticated, async (req, res) => {
             }).save();
         }
         
-        // 🔥 Trigger Success Toast
-        res.cookie('hubToast', 'New Record Added Successfully! 🎉', { maxAge: 5000, httpOnly: false });
+        let toastMsg = 'New Record Added Successfully! 🎉';
+        let mainTypeCheck = category === 'Family' ? getFirst(req.body.p_type) : category;
+        if ((mainTypeCheck === 'MNP' || mainTypeCheck === 'NMNP') && displayActDate) {
+            let d = new Date(displayActDate.getTime() + 330*60000);
+            let dStr = `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth()+1).padStart(2, '0')}/${d.getUTCFullYear()}`;
+            toastMsg = `AI chose ${dStr} as Activation Date 🤖📅`;
+        }
+        
+        res.cookie('hubToast', toastMsg, { maxAge: 8000, httpOnly: false });
         safeRedirect(req, res);
     } catch (err) { safeRedirect(req, res); }
 });
@@ -198,6 +206,7 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
         const isEditingSecondary = existingDoc.familyRole === 'Secondary';
         const newEntryDate = parseISTDateString(rawDate, existingDoc.createdAt);
         const bDate = billDateStr ? parseInt(billDateStr) : null;
+        let displayActDate = null;
 
         if (category === 'Family') {
             const p_type = getFirst(req.body.p_type);
@@ -236,6 +245,7 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
                 pLogic = calculateLogic(newEntryDate, p_type);
                 finalAct = await getFinalActDate(newEntryDate, p_type, pLogic.realActivationDate);
                 finalVer = pLogic.realVerificationDate;
+                displayActDate = finalAct;
             } else {
                 pLogic = calculateLogic(existingPrimary.createdAt, existingPrimary.subType);
                 finalAct = existingPrimary.activationDate;
@@ -299,7 +309,6 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
                 let existingSec = null;
                 if (cId && cId.length > 5 && cId !== 'undefined') existingSec = await Customer.findById(cId);
                 
-                // 🔥 FIX: Similar fallback rule for edit mode. If blank, default to existing date. If no existing date (brand new secondary), fallback to TODAY, not primary date.
                 const secEntryDate = cDateStr 
                     ? parseISTDateString(cDateStr, existingSec ? existingSec.createdAt : null) 
                     : (existingSec ? existingSec.createdAt : parseISTDateString(null));
@@ -359,13 +368,21 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
             const nLogic = calculateLogic(newEntryDate, category);
             updateData.createdAt = newEntryDate; 
             updateData.activationDate = await getFinalActDate(newEntryDate, category, nLogic.realActivationDate); 
+            displayActDate = updateData.activationDate;
             updateData.verificationDate = nLogic.realVerificationDate;
             
             await Customer.findByIdAndUpdate(existingDoc._id, updateData);
         }
         
-        // 🔥 Trigger Success Toast
-        res.cookie('hubToast', 'Record Updated Successfully! ✏️', { maxAge: 5000, httpOnly: false });
+        let toastMsg = 'Record Updated Successfully! ✏️';
+        let mainTypeCheck = category === 'Family' ? getFirst(req.body.p_type) : category;
+        if ((mainTypeCheck === 'MNP' || mainTypeCheck === 'NMNP') && displayActDate) {
+            let d = new Date(displayActDate.getTime() + 330*60000);
+            let dStr = `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth()+1).padStart(2, '0')}/${d.getUTCFullYear()}`;
+            toastMsg = `AI chose ${dStr} as Activation Date 🤖📅`;
+        }
+
+        res.cookie('hubToast', toastMsg, { maxAge: 8000, httpOnly: false });
         safeRedirect(req, res);
     } catch (err) { safeRedirect(req, res); }
 });
@@ -416,6 +433,32 @@ router.post('/complete/:id', isAuthenticated, async (req, res) => {
         
         // 🔥 Trigger Done Toast
         res.cookie('hubToast', 'Verification Marked as Done! ✅', { maxAge: 5000, httpOnly: false });
+        safeRedirect(req, res);
+    } catch (err) { safeRedirect(req, res); } 
+});
+
+router.post('/activate/:id', isAuthenticated, async (req, res) => { 
+    try { 
+        let docId = req.params.id;
+        if (docId.startsWith('fam_')) {
+            const pNum = docId.replace('fam_', '');
+            const pDoc = await Customer.findOne({ category: 'Family', familyRole: 'Primary', mobile: pNum });
+            if(pDoc) docId = pDoc._id;
+        }
+        
+        if (mongoose.Types.ObjectId.isValid(docId)) {
+            const doc = await Customer.findById(docId);
+            if (doc) {
+                // 🔥 FORCE ACTIVATION DATE TO CURRENT TIMESTAMP (NOW)
+                await Customer.findByIdAndUpdate(docId, { 
+                    status: 'completed',
+                    activationDate: new Date() // Sets to exact current time of click
+                });
+            }
+        }
+        
+        // 🔥 Trigger Activated Toast
+        res.cookie('hubToast', 'Activated Successfully! 🚀', { maxAge: 5000, httpOnly: false });
         safeRedirect(req, res);
     } catch (err) { safeRedirect(req, res); } 
 });

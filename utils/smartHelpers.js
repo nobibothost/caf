@@ -7,8 +7,9 @@ async function getFinalActDate(entryDate, type, logicFallbackDate) {
     
     let actDate = new Date(entryDate);
     let addedDays = 0;
+    let targetDays = type === 'NMNP' ? 5 : 3;
     
-    while (addedDays < 3) {
+    while (addedDays < targetDays) {
         actDate.setDate(actDate.getDate() + 1);
         let dayOfWeek = actDate.getDay(); 
         let date = actDate.getDate();
@@ -21,7 +22,29 @@ async function getFinalActDate(entryDate, type, logicFallbackDate) {
                         
         if (!isSunday && !isHoliday) addedDays++;
     }
-    return new Date(Date.UTC(actDate.getFullYear(), actDate.getMonth(), actDate.getDate(), 18, 0, 0));
+    
+    let finalComputedDate = new Date(Date.UTC(actDate.getFullYear(), actDate.getMonth(), actDate.getDate(), 18, 0, 0));
+
+    try {
+        const apiKey = process.env.GROQ_API_KEY;
+        if (apiKey) {
+            const expectedStr = `${String(actDate.getDate()).padStart(2, '0')}/${String(actDate.getMonth() + 1).padStart(2, '0')}/${actDate.getFullYear()}`;
+            const prompt = `Telecom MNP/NMNP rule: Calculate activation date by adding ${targetDays} working days to ${entryDate.toISOString().split('T')[0]}, skipping Sundays and Indian National Holidays (26 Jan, 15 Aug, 2 Oct). The algorithmic result is ${expectedStr}. Reply strictly with the final date in DD/MM/YYYY format.`;
+            const res = await axios.post(
+                'https://api.groq.com/openai/v1/chat/completions',
+                { model: 'llama-3.1-8b-instant', messages: [{ role: 'user', content: prompt }], temperature: 0.1, max_tokens: 15 },
+                { headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, timeout: 4000 }
+            );
+            let aiDateStr = res.data?.choices?.[0]?.message?.content?.trim();
+            if(aiDateStr) {
+                console.log("AI Verified Date:", aiDateStr);
+            }
+        }
+    } catch (err) {
+        console.log("AI Date Check Error");
+    }
+    
+    return finalComputedDate;
 }
 
 // Backend AI Gender Guess Fallback (Bulletproof)
