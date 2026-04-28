@@ -79,10 +79,10 @@
                         </div>
 
                         <% if (customer.category === 'Family') { %>
-                            <% 
+                             <% 
                                 let pBadge = 'Existing';
                                 if (customer.subType && customer.subType !== 'Existing') pBadge = customer.subType;
-                            %>
+                             %>
                             <div class="family-section primary-sec bg-tint-<%= pBadge === 'Existing' ? 'default' : pBadge %>" style="margin-bottom: 0; padding: 12px; border-radius: 12px; border-bottom: none; display: flex; flex-direction: column; gap: 10px;">
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
                                     <span class="fs-label" style="color: #dc2626; margin: 0; font-weight: 700;">
@@ -94,19 +94,31 @@
                                     </span>
                                 </div>
                                 <div class="fs-info" style="display: flex; justify-content: space-between; align-items: center;">
-                                    <div>
-                                        <h4 style="margin: 0; font-size: 1.05rem; color: #0f172a;"><%= customer.name %></h4>
-                                        <p style="margin: 0; font-family: monospace; font-size: 0.85rem; color: #64748b;"><%= customer.mobile %></p>
+                                    <div style="display:flex; align-items:center; gap:10px;">
+                                        <div style="width:40px; height:40px; border-radius:50%; overflow:hidden; border:2px solid rgba(0,255,136,0.3); background:#f8fafc; display: flex; align-items: center; justify-content: center; flex-shrink:0; position:relative;">
+                                            <i class="ri-user-smile-line" style="position: absolute; color: #cbd5e1; font-size: 1.5rem; z-index: 0;"></i>
+                                            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" class="whatsapp-dp" data-number="<%= customer.mobile %>" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover; z-index: 1; position: relative;">
+                                        </div>
+                                        <div>
+                                            <h4 style="margin: 0; font-size: 1.05rem; color: #0f172a;"><%= customer.name %></h4>
+                                            <p style="margin: 0; font-family: monospace; font-size: 0.85rem; color: #64748b;"><%= customer.mobile %></p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         <% } else { %>
-                            <div class="card-body">
-                                <h3 class="customer-name"><%= customer.name %></h3>
-                                <p class="meta-info mobile-txt" style="margin-bottom: 10px;"><i class="ri-smartphone-line"></i> <%= customer.mobile %></p>
+                            <div class="card-body" style="display:flex; align-items:center; gap:12px; margin-bottom: 15px;">
+                                <div style="width:50px; height:50px; border-radius:50%; overflow:hidden; border:2px solid rgba(0,255,136,0.3); background:#f8fafc; display: flex; align-items: center; justify-content: center; flex-shrink:0; position:relative;">
+                                    <i class="ri-user-smile-line" style="position: absolute; color: #cbd5e1; font-size: 1.5rem; z-index: 0;"></i>
+                                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" class="whatsapp-dp" data-number="<%= customer.mobile %>" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover; z-index: 1; position: relative;">
+                                </div>
+                                <div>
+                                    <h3 class="customer-name" style="margin:0;"><%= customer.name %></h3>
+                                    <p class="meta-info mobile-txt" style="margin:0;"><i class="ri-smartphone-line"></i> <%= customer.mobile %></p>
+                                </div>
                             </div>
                         <% } %>
-                        
+                         
                         <div class="bill-details-grid">
                             <div class="bd-row">
                                 <div>
@@ -140,24 +152,20 @@
                         <% } %>
 
                         <div class="card-actions" style="margin-top: 15px; margin-bottom: 15px;">
-                            <button type="button" class="btn-whatsapp" style="flex: 1;"
-                                onclick="openWaModal('<%= customer.mobile %>', '<%= customer.name %>', 'pdd', '<%= customer.gender || '' %>', '<%= customer.billDate || '' %>')"><i class="ri-whatsapp-line"></i> Remind on WA</button>
-                            <a href="tel:8657973703,<%= customer.mobile %>" class="btn-call" style="flex: 1; background: rgba(255,255,255,0.7);"
-                                data-id="<%= customer._id %>" data-page="pdd" onclick="handleCallClick(event, this)"><i class="ri-phone-fill"></i> Call</a>
+                            <button type="button" class="btn-whatsapp" style="flex: 1;" onclick="openWaModal('<%= customer.mobile %>', '<%= customer.name %>', 'pdd', '<%= customer.gender || '' %>', '<%= customer.billDate || '' %>')"><i class="ri-whatsapp-line"></i> Remind on WA</button>
+                            <a href="tel:8657973703,<%= customer.mobile %>" class="btn-call" style="flex: 1; background: rgba(255,255,255,0.7);" data-id="<%= customer._id %>" data-page="pdd" onclick="handleCallClick(event, this)"><i class="ri-phone-fill"></i> Call</a>
                         </div>
                         
                         <div class="card-actions" style="margin-top: 0; display: flex; gap: 8px;">
                             <% if (customer.remarks && customer.remarks.trim() !== "") { %>
-                                <button type="button" class="btn-note" style="padding: 10px; flex: 0.3;"
-                                    data-name="<%= customer.name %>" data-remarks="<%= customer.remarks %>" onclick="openRemarksModal(this)"><i class="ri-sticky-note-fill"></i></button> 
+                                <button type="button" class="btn-note" style="padding: 10px; flex: 0.3;" data-name="<%= customer.name %>" data-remarks="<%= customer.remarks %>" onclick="openRemarksModal(this)"><i class="ri-sticky-note-fill"></i></button> 
                             <% } %>
                             <% if (customer.category === 'Family') { %>
                                 <button type="button" class="btn-theme btn-view-tree" data-tree-id="<%= customer._id.toString() %>" style="flex: 1;">
                                     <i class="ri-team-fill" style="font-size: 1.1rem;"></i> View Tree
                                 </button>
                             <% } %>
-                            <form action="/pay-bill/<%= customer._id %>" method="POST" style="flex: 1; margin: 0;"
-                                onsubmit="openConfirmModal(event, this, 'pay')">
+                            <form action="/pay-bill/<%= customer._id %>" method="POST" style="flex: 1; margin: 0;" onsubmit="openConfirmModal(event, this, 'pay')">
                                 <input type="hidden" name="cycleKey" value="<%= customer.cycleKey %>">
                                 <button type="submit" class="btn-done" style="margin: 0; width: 100%; padding: 10px; background: #ffffff; border: 1px dashed #ef4444; color: #dc2626; border-radius: 8px; font-weight: 600; box-shadow: 0 3px 5px rgba(0,0,0,0.06);"><i class="ri-money-rupee-circle-line"></i> Mark as Paid</button>
                             </form>
@@ -173,9 +181,15 @@
                                         <span style="font-size: 0.65rem; font-weight: 600; color: var(--success); padding: 2px 0;">Status: <%= customer.status.toUpperCase() %></span>
                                     </div>
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
-                                        <div>
-                                            <h4 style="margin: 0; font-size: 1.1rem; color: #0f172a;"><%= customer.name %></h4>
-                                            <p style="margin: 0; font-family: monospace; font-size: 0.9rem; color: #64748b;"><%= customer.mobile %></p>
+                                        <div style="display:flex; align-items:center; gap:10px;">
+                                            <div style="width:40px; height:40px; border-radius:50%; overflow:hidden; border:2px solid rgba(0,255,136,0.3); background:#f8fafc; display: flex; align-items: center; justify-content: center; flex-shrink:0; position:relative;">
+                                                <i class="ri-user-smile-line" style="position: absolute; color: #cbd5e1; font-size: 1.5rem; z-index: 0;"></i>
+                                                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" class="whatsapp-dp" data-number="<%= customer.mobile %>" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover; z-index: 1; position: relative;">
+                                            </div>
+                                            <div>
+                                                <h4 style="margin: 0; font-size: 1.1rem; color: #0f172a;"><%= customer.name %></h4>
+                                                <p style="margin: 0; font-family: monospace; font-size: 0.9rem; color: #64748b;"><%= customer.mobile %></p>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

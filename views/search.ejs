@@ -102,9 +102,15 @@
                                             </div>
 
                                             <div class="fs-info" style="display: flex; justify-content: space-between; align-items: center;">
-                                                <div>
-                                                    <h4 style="margin: 0; font-size: 1.05rem; color: #0f172a;"><%= customer.triggerDoc ? customer.triggerDoc.name : (customer.linkedPrimaryName || 'Existing Connection') %></h4>
-                                                    <p style="margin: 0; font-family: monospace; font-size: 0.85rem; color: #64748b;"><%= customer.triggerDoc ? customer.triggerDoc.mobile : customer.linkedPrimaryNumber %></p>
+                                                <div style="display:flex; align-items:center; gap:10px;">
+                                                    <div style="width:40px; height:40px; border-radius:50%; overflow:hidden; border:2px solid rgba(0,255,136,0.3); background:#f8fafc; display: flex; align-items: center; justify-content: center; flex-shrink:0; position:relative;">
+                                                        <i class="ri-user-smile-line" style="position: absolute; color: #cbd5e1; font-size: 1.5rem; z-index: 0;"></i>
+                                                        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" class="whatsapp-dp" data-number="<%= customer.triggerDoc ? customer.triggerDoc.mobile : customer.linkedPrimaryNumber %>" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover; z-index: 1; position: relative;">
+                                                    </div>
+                                                    <div>
+                                                        <h4 style="margin: 0; font-size: 1.05rem; color: #0f172a;"><%= customer.triggerDoc ? customer.triggerDoc.name : (customer.linkedPrimaryName || 'Existing Connection') %></h4>
+                                                        <p style="margin: 0; font-family: monospace; font-size: 0.85rem; color: #64748b;"><%= customer.triggerDoc ? customer.triggerDoc.mobile : customer.linkedPrimaryNumber %></p>
+                                                    </div>
                                                 </div>
                                                 <div style="display: flex; gap: 8px;">
                                                     <button type="button" onclick="openWaModal('<%= customer.triggerDoc ? customer.triggerDoc.mobile : customer.linkedPrimaryNumber %>', '<%= customer.triggerDoc ? customer.triggerDoc.name : (customer.linkedPrimaryName || 'Existing Connection') %>', 'normal', '<%= customer.triggerDoc ? customer.triggerDoc.gender : (customer.gender || '') %>')" style="border:none; width: 32px; height: 32px; background: #d1fae5; color: #059669; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;"><i class="ri-whatsapp-line"></i></button>
@@ -150,9 +156,15 @@
                                                     <span style="font-size: 0.65rem; font-weight: 600; color: #4f46e5; padding: 2px 0;">Status: <%= customer.primary ? customer.primary.status.toUpperCase() : 'ACTIVE' %></span>
                                                 </div>
                                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
-                                                    <div>
-                                                        <h4 style="margin: 0; font-size: 1.1rem; color: #0f172a;"><%= customer.primary ? customer.primary.name : (customer.linkedPrimaryName && customer.linkedPrimaryName.trim() !== '' ? customer.linkedPrimaryName : 'Existing Connection') %></h4>
-                                                        <p style="margin: 0; font-family: monospace; font-size: 0.9rem; color: #64748b;"><%= customer.linkedPrimaryNumber %></p>
+                                                    <div style="display:flex; align-items:center; gap:10px;">
+                                                        <div style="width:40px; height:40px; border-radius:50%; overflow:hidden; border:2px solid rgba(0,255,136,0.3); background:#f8fafc; display: flex; align-items: center; justify-content: center; flex-shrink:0; position:relative;">
+                                                            <i class="ri-user-smile-line" style="position: absolute; color: #cbd5e1; font-size: 1.5rem; z-index: 0;"></i>
+                                                            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" class="whatsapp-dp" data-number="<%= customer.linkedPrimaryNumber %>" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover; z-index: 1; position: relative;">
+                                                        </div>
+                                                        <div>
+                                                            <h4 style="margin: 0; font-size: 1.1rem; color: #0f172a;"><%= customer.primary ? customer.primary.name : (customer.linkedPrimaryName && customer.linkedPrimaryName.trim() !== '' ? customer.linkedPrimaryName : 'Existing Connection') %></h4>
+                                                            <p style="margin: 0; font-family: monospace; font-size: 0.9rem; color: #64748b;"><%= customer.linkedPrimaryNumber %></p>
+                                                        </div>
                                                     </div>
                                                     <div style="display: flex; gap: 8px;">
                                                         <button type="button" onclick="openWaModal('<%= customer.linkedPrimaryNumber %>', '<%= customer.primary ? customer.primary.name : (customer.linkedPrimaryName || 'Existing Connection') %>', 'normal', '<%= customer.primary ? customer.primary.gender : '' %>')" style="border:none; width: 38px; height: 38px; background: #d1fae5; color: #059669; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.2rem;"><i class="ri-whatsapp-line"></i></button>
@@ -172,9 +184,15 @@
                                                             <span style="font-size: 0.65rem; font-weight: 600; color: #4f46e5; padding: 2px 0;">Status: <%= sec.status.toUpperCase() %></span>
                                                         </div>
                                                         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-                                                            <div>
-                                                                <h4 style="margin: 0; font-size: 1rem; color: #0f172a;"><%= sec.name %></h4>
-                                                                <p style="margin: 0; font-family: monospace; font-size: 0.85rem; color: #64748b;"><%= sec.mobile %></p>
+                                                            <div style="display:flex; align-items:center; gap:10px;">
+                                                                <div style="width:40px; height:40px; border-radius:50%; overflow:hidden; border:2px solid rgba(0,255,136,0.3); background:#f8fafc; display: flex; align-items: center; justify-content: center; flex-shrink:0; position:relative;">
+                                                                    <i class="ri-user-smile-line" style="position: absolute; color: #cbd5e1; font-size: 1.5rem; z-index: 0;"></i>
+                                                                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" class="whatsapp-dp" data-number="<%= sec.mobile %>" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover; z-index: 1; position: relative;">
+                                                                </div>
+                                                                <div>
+                                                                    <h4 style="margin: 0; font-size: 1rem; color: #0f172a;"><%= sec.name %></h4>
+                                                                    <p style="margin: 0; font-family: monospace; font-size: 0.85rem; color: #64748b;"><%= sec.mobile %></p>
+                                                                </div>
                                                             </div>
                                                             <div style="display: flex; gap: 8px;">
                                                                 <button type="button" onclick="openWaModal('<%= sec.mobile %>', '<%= sec.name %>', 'normal', '<%= sec.gender || '' %>')" style="border:none; width: 32px; height: 32px; background: #d1fae5; color: #059669; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;"><i class="ri-whatsapp-line"></i></button>
@@ -192,9 +210,15 @@
                                         </div>
                                     </div>
                                 <% } else { %>
-                                    <div class="card-body">
-                                        <h3 class="customer-name"><%= customer.name %></h3>
-                                        <p class="meta-info mobile-txt"><i class="ri-smartphone-line"></i> <%= customer.mobile %></p>
+                                    <div class="card-body" style="display:flex; align-items:center; gap:12px; margin-bottom: 10px;">
+                                        <div style="width:50px; height:50px; border-radius:50%; overflow:hidden; border:2px solid rgba(0,255,136,0.3); background:#f8fafc; display: flex; align-items: center; justify-content: center; flex-shrink:0; position:relative;">
+                                            <i class="ri-user-smile-line" style="position: absolute; color: #cbd5e1; font-size: 1.5rem; z-index: 0;"></i>
+                                            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" class="whatsapp-dp" data-number="<%= customer.mobile %>" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover; z-index: 1; position: relative;">
+                                        </div>
+                                        <div>
+                                            <h3 class="customer-name" style="margin:0;"><%= customer.name %></h3>
+                                            <p class="meta-info mobile-txt" style="margin:0;"><i class="ri-smartphone-line"></i> <%= customer.mobile %></p>
+                                        </div>
                                     </div>
                                     <div class="card-actions" style="margin-bottom: 8px;">
                                         <button type="button" class="btn-whatsapp" style="flex: 1;" onclick="openWaModal('<%= customer.mobile %>', '<%= customer.name %>', 'normal', '<%= customer.gender || '' %>')"><i class="ri-whatsapp-line"></i> WhatsApp</button>

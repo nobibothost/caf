@@ -7,19 +7,19 @@ let sock;
 let currentQr = null;     
 let isConnected = false;  
 
-// 🔥 Web server ko status batane ke liye function
+// Web server ko status batane ke liye function
 function getWaState() {
     return { isConnected, qr: currentQr };
 }
 
 // =====================================================================
-// 🔥 THE JUGAAD: CUSTOM MONGODB AUTH ENGINE & SMART CLEANER
+// THE JUGAAD: CUSTOM MONGODB AUTH ENGINE & SMART CLEANER
 // =====================================================================
 
 // 1. Mongoose Schema for WA Session
 const waAuthSchema = new mongoose.Schema({
     _id: { type: String, required: true },
-    data: { type: String, required: true }, // Store as Stringified JSON to prevent Buffer issues
+    data: { type: String, required: true }, 
     updatedAt: { type: Date, default: Date.now }
 });
 
@@ -84,7 +84,7 @@ const useMongoDBAuthState = async () => {
     };
 };
 
-// 3. Manual Backup Cleaner (In case MongoDB Free Tier TTL is delayed)
+// 3. Manual Backup Cleaner 
 async function cleanMongoSessionData() {
     try {
         const SEVEN_DAYS_AGO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -106,7 +106,6 @@ async function cleanMongoSessionData() {
 
 async function connectToWhatsApp() {
     try {
-        // Startup par ek baar safai karo
         await cleanMongoSessionData();
 
         const { state, saveCreds } = await useMongoDBAuthState();
@@ -155,7 +154,6 @@ async function connectToWhatsApp() {
                 } else {
                     console.log('🚫 Logged out. Automatically wiping DB session data...');
                     try {
-                        // Nuke all DB session keys to generate fresh QR
                         await WaAuth.deleteMany({});
                         console.log('✅ Old DB session wiped successfully. Generating fresh QR code...');
                     } catch (err) {
@@ -173,7 +171,7 @@ async function connectToWhatsApp() {
                 console.log('✅ ===========================================\n');
                 
                 if (!global.storageManagerInterval) {
-                    global.storageManagerInterval = setInterval(cleanMongoSessionData, 24 * 60 * 60 * 1000); // 24 Hours
+                    global.storageManagerInterval = setInterval(cleanMongoSessionData, 24 * 60 * 60 * 1000);
                 }
             }
         });
@@ -191,7 +189,10 @@ async function sendAutoWaMessage(phone, text) {
         return false;
     }
     try {
-        const jid = `91${phone}@s.whatsapp.net`;
+        let clean = String(phone).replace(/\D/g, '');
+        if (clean.length === 10) clean = '91' + clean;
+        const jid = `${clean}@s.whatsapp.net`;
+        
         await sock.sendMessage(jid, { text: text });
         console.log(`🚀 Message sent to: ${phone}`);
         return true;
@@ -201,7 +202,25 @@ async function sendAutoWaMessage(phone, text) {
     }
 }
 
-// 🔥 ADVANCED GRACEFUL SHUTDOWN LOGIC
+async function getProfilePicUrl(phone) {
+    if (!sock) return null;
+    try {
+        let clean = String(phone).replace(/\D/g, '');
+        if (clean.length === 10) clean = '91' + clean;
+        const jid = `${clean}@s.whatsapp.net`;
+        
+        // Timeout protection for live fetch
+        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000));
+        const fetchPic = sock.profilePictureUrl(jid, 'image');
+        
+        const url = await Promise.race([fetchPic, timeout]);
+        return url;
+    } catch (err) {
+        return null;
+    }
+}
+
+// ADVANCED GRACEFUL SHUTDOWN LOGIC
 async function gracefulShutdown(reason) {
     console.log(`\n🛑 Server band ho raha hai. Reason: ${reason}`);
     try {
@@ -233,4 +252,4 @@ process.on('unhandledRejection', (reason, promise) => {
     gracefulShutdown('Crash');
 });
 
-module.exports = { connectToWhatsApp, sendAutoWaMessage, getWaState };
+module.exports = { connectToWhatsApp, sendAutoWaMessage, getWaState, getProfilePicUrl };

@@ -1,6 +1,6 @@
 // public/features.js
 // =====================================================================
-// UI FEATURES: CHARTS, FILTERS, SEARCH & SCROLL
+// UI FEATURES: CHARTS, FILTERS, SEARCH, SCROLL & LIVE WA DP
 // =====================================================================
 
 window.renderChart = function(chartCanvas) {
@@ -68,7 +68,10 @@ window.performLiveSearch = async function(query) {
         const response = await fetch(targetUrl); const html = await response.text(); 
         const parser = new DOMParser(); const doc = parser.parseFromString(html, 'text/html'); 
         const newResults = doc.getElementById('searchResultsArea'); const currentResults = document.getElementById('searchResultsArea'); 
-        if (newResults && currentResults) { currentResults.innerHTML = newResults.innerHTML; } 
+        if (newResults && currentResults) { 
+            currentResults.innerHTML = newResults.innerHTML; 
+            if (window.loadWhatsAppDPs) window.loadWhatsAppDPs();
+        } 
     } catch (err) {} 
     finally { 
         const sIcon = document.getElementById('searchIcon'); const lIcon = document.getElementById('loadingIcon'); 
@@ -88,8 +91,63 @@ window.addEventListener('scroll', async () => {
         try {
             const response = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } }); 
             const html = await response.text(); const parser = new DOMParser(); const doc = parser.parseFromString(html, 'text/html'); 
-            const newCards = doc.querySelectorAll('.grid-layout .card'); newCards.forEach(card => grid.appendChild(card)); grid.setAttribute('data-current-page', current); 
-            const mainApp = document.getElementById('app-main'); if(mainApp) window.appCache[window.location.pathname + window.location.search] = mainApp.innerHTML;
+            const newCards = doc.querySelectorAll('.grid-layout .card'); 
+            newCards.forEach(card => grid.appendChild(card)); 
+            grid.setAttribute('data-current-page', current); 
+            const mainApp = document.getElementById('app-main'); 
+            if(mainApp) window.appCache[window.location.pathname + window.location.search] = mainApp.innerHTML;
+            if (window.loadWhatsAppDPs) window.loadWhatsAppDPs();
         } catch (e) { } finally { window.isFetching = false; if(spinner) spinner.style.display = 'none'; }
     }
+});
+
+// =====================================================================
+// WA DP LIVE FETCH LOGIC (No localStorage, pure proxy)
+// =====================================================================
+window.dpCache = window.dpCache || {};
+
+window.loadWhatsAppDPs = async function() {
+    const dpElements = document.querySelectorAll('.whatsapp-dp:not(.loaded)');
+    
+    dpElements.forEach(img => {
+        const number = img.getAttribute('data-number');
+        if (!number) {
+            img.style.display = 'none';
+            return;
+        }
+        
+        img.classList.add('loaded'); // Mark to avoid duplicate calls
+        
+        // Session memory cache to prevent spamming on rapid scroll
+        if (window.dpCache[number]) {
+            if (window.dpCache[number] === 'none') {
+                img.style.display = 'none';
+            } else {
+                img.src = window.dpCache[number];
+                img.style.display = 'block';
+            }
+            return;
+        }
+        
+        // Live Fetch URL
+        const liveUrl = `/api/get-wa-dp/${number}`;
+        
+        // Use native browser loading events
+        img.onload = () => {
+            window.dpCache[number] = liveUrl;
+            img.style.display = 'block';
+        };
+        
+        img.onerror = () => {
+            window.dpCache[number] = 'none';
+            img.style.display = 'none'; // Fallback to background user icon
+        };
+        
+        // Set src to trigger network request
+        img.src = liveUrl;
+    });
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.loadWhatsAppDPs) window.loadWhatsAppDPs();
 });

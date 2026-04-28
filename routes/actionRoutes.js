@@ -5,7 +5,7 @@ const Customer = require('../models/Customer');
 const { isAuthenticated } = require('../middleware/auth');
 const { parseISTDateString, calculateLogic, safeRedirect } = require('../utils/helpers');
 const { getFinalActDate, guessGenderAI } = require('../utils/smartHelpers');
-const { sendAutoWaMessage } = require('../utils/whatsapp'); 
+const { sendAutoWaMessage, getProfilePicUrl } = require('../utils/whatsapp'); 
 
 // ==========================================
 // BACKGROUND AUTOMATED WHATSAPP ROUTE
@@ -27,6 +27,26 @@ router.post('/send-wa/:phone', isAuthenticated, async (req, res) => {
         }
     } catch (err) {
         res.status(500).json({ success: false, msg: "Internal Server Error" });
+    }
+});
+
+// ==========================================
+// WHATSAPP DP ROUTE (LIVE PROXY REDIRECT)
+// ==========================================
+router.get('/api/get-wa-dp/:phone', isAuthenticated, async (req, res) => {
+    try {
+        const phone = req.params.phone;
+        if (!phone) return res.status(404).send('No phone provided');
+        
+        const url = await getProfilePicUrl(phone);
+        if (url) {
+            // Natively redirecting prevents expired URL issues
+            return res.redirect(url);
+        } else {
+            return res.status(404).send('DP not found or hidden');
+        }
+    } catch (err) {
+        return res.status(404).send('Error fetching DP');
     }
 });
 
@@ -449,10 +469,9 @@ router.post('/activate/:id', isAuthenticated, async (req, res) => {
         if (mongoose.Types.ObjectId.isValid(docId)) {
             const doc = await Customer.findById(docId);
             if (doc) {
-                // 🔥 FORCE ACTIVATION DATE TO CURRENT TIMESTAMP (NOW)
                 await Customer.findByIdAndUpdate(docId, { 
                     status: 'completed',
-                    activationDate: new Date() // Sets to exact current time of click
+                    activationDate: new Date() 
                 });
             }
         }

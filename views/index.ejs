@@ -67,7 +67,7 @@
                         else if (mainType === 'NMNP') tintClass = 'bg-tint-NMNP';
                         else if (mainType === 'PDR') tintClass = 'bg-tint-PDR';
                         else if (mainType === 'Family' || mainType === 'Existing') tintClass = 'bg-tint-Family';
-                    %>
+                        %>
                         <div class="card search-item <%= customer.isFamilyGroup ? 'bg-tint-Family' : tintClass %>" <%= customer.isFamilyGroup ? 'style="border-left: 4px solid #06b6d4 !important;"' : '' %>>
                             
                             <div class="card-top">
@@ -128,7 +128,7 @@
                                     %>
 
                                     <div class="family-section primary-sec bg-tint-<%= pBadge === 'Existing' ? 'default' : pBadge %>" style="margin-bottom: 0; padding: 12px; border-radius: 12px; border-bottom: none; display: flex; flex-direction: column; gap: 10px;">
-                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                       <div style="display: flex; justify-content: space-between; align-items: center;">
                                             <span class="fs-label primary-label" style="color: var(--primary); margin: 0;">
                                                 <% if (customer.triggerDoc && customer.triggerDoc.familyRole === 'Secondary') { %>
                                                     <i class="ri-user-add-line"></i> Add-on Connection <span class="badge badge-<%= customer.triggerDoc.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= customer.triggerDoc.subType %></span>
@@ -139,9 +139,15 @@
                                         </div>
 
                                         <div class="fs-info" style="display: flex; justify-content: space-between; align-items: center;">
-                                            <div>
-                                                <h4 style="margin: 0; font-size: 1.05rem; color: #0f172a;"><%= customer.triggerDoc ? customer.triggerDoc.name : (customer.linkedPrimaryName || 'Existing Connection') %></h4>
-                                                <p style="margin: 0; font-family: monospace; font-size: 0.85rem; color: #64748b;"><%= customer.triggerDoc ? customer.triggerDoc.mobile : customer.linkedPrimaryNumber %></p>
+                                            <div style="display:flex; align-items:center; gap:10px;">
+                                                <div style="width:40px; height:40px; border-radius:50%; overflow:hidden; border:2px solid rgba(0,255,136,0.3); background:#f8fafc; display: flex; align-items: center; justify-content: center; flex-shrink:0; position:relative;">
+                                                    <i class="ri-user-smile-line" style="position: absolute; color: #cbd5e1; font-size: 1.5rem; z-index: 0;"></i>
+                                                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" class="whatsapp-dp" data-number="<%= customer.triggerDoc ? customer.triggerDoc.mobile : customer.linkedPrimaryNumber %>" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover; z-index: 1; position: relative;">
+                                                </div>
+                                                <div>
+                                                    <h4 style="margin: 0; font-size: 1.05rem; color: #0f172a;"><%= customer.triggerDoc ? customer.triggerDoc.name : (customer.linkedPrimaryName || 'Existing Connection') %></h4>
+                                                    <p style="margin: 0; font-family: monospace; font-size: 0.85rem; color: #64748b;"><%= customer.triggerDoc ? customer.triggerDoc.mobile : customer.linkedPrimaryNumber %></p>
+                                                </div>
                                             </div>
                                             <div style="display: flex; gap: 8px;">
                                                 <button type="button" onclick="openWaModal('<%= customer.triggerDoc ? customer.triggerDoc.mobile : customer.linkedPrimaryNumber %>', '<%= customer.triggerDoc ? customer.triggerDoc.name : (customer.linkedPrimaryName || 'Existing Connection') %>', 'verification', '<%= customer.triggerDoc ? customer.triggerDoc.gender : (customer.gender || '') %>')" class="icon-btn-round-wa"><i class="ri-whatsapp-line"></i></button>
@@ -193,10 +199,16 @@
                                                 </span>
                                                 <span style="font-size: 0.65rem; font-weight: 600; color: var(--success); padding: 2px 0;">Status: <%= customer.primary ? customer.primary.status.toUpperCase() : 'ACTIVE' %></span>
                                             </div>
-                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
-                                                <div>
-                                                    <h4 style="margin: 0; font-size: 1.1rem; color: #0f172a;"><%= customer.primary ? customer.primary.name : (customer.linkedPrimaryName && customer.linkedPrimaryName.trim() !== '' ? customer.linkedPrimaryName : 'Existing Connection') %></h4>
-                                                    <p style="margin: 0; font-family: monospace; font-size: 0.9rem; color: #64748b;"><%= customer.linkedPrimaryNumber %></p>
+                                           <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                                                <div style="display:flex; align-items:center; gap:10px;">
+                                                    <div style="width:40px; height:40px; border-radius:50%; overflow:hidden; border:2px solid rgba(0,255,136,0.3); background:#f8fafc; display: flex; align-items: center; justify-content: center; flex-shrink:0; position:relative;">
+                                                        <i class="ri-user-smile-line" style="position: absolute; color: #cbd5e1; font-size: 1.5rem; z-index: 0;"></i>
+                                                        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" class="whatsapp-dp" data-number="<%= customer.linkedPrimaryNumber %>" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover; z-index: 1; position: relative;">
+                                                    </div>
+                                                    <div>
+                                                        <h4 style="margin: 0; font-size: 1.1rem; color: #0f172a;"><%= customer.primary ? customer.primary.name : (customer.linkedPrimaryName && customer.linkedPrimaryName.trim() !== '' ? customer.linkedPrimaryName : 'Existing Connection') %></h4>
+                                                        <p style="margin: 0; font-family: monospace; font-size: 0.9rem; color: #64748b;"><%= customer.linkedPrimaryNumber %></p>
+                                                    </div>
                                                 </div>
                                                 <div style="display: flex; gap: 8px;">
                                                     <button type="button" onclick="openWaModal('<%= customer.linkedPrimaryNumber %>', '<%= customer.primary ? customer.primary.name : (customer.linkedPrimaryName || 'Existing Connection') %>', 'verification', '<%= customer.primary ? customer.primary.gender : '' %>')" class="icon-btn-round-wa large"><i class="ri-whatsapp-line"></i></button>
@@ -222,9 +234,15 @@
                                                         <span style="font-size: 0.65rem; font-weight: 600; color: var(--success); padding: 2px 0;">Status: <%= sec.status.toUpperCase() %></span>
                                                     </div>
                                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
-                                                        <div>
-                                                            <h4 style="margin: 0; font-size: 1.1rem; color: #0f172a;"><%= sec.name %></h4>
-                                                            <p style="margin: 0; font-family: monospace; font-size: 0.9rem; color: #64748b;"><%= sec.mobile %></p>
+                                                        <div style="display:flex; align-items:center; gap:10px;">
+                                                            <div style="width:40px; height:40px; border-radius:50%; overflow:hidden; border:2px solid rgba(0,255,136,0.3); background:#f8fafc; display: flex; align-items: center; justify-content: center; flex-shrink:0; position:relative;">
+                                                                <i class="ri-user-smile-line" style="position: absolute; color: #cbd5e1; font-size: 1.5rem; z-index: 0;"></i>
+                                                                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" class="whatsapp-dp" data-number="<%= sec.mobile %>" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover; z-index: 1; position: relative;">
+                                                            </div>
+                                                            <div>
+                                                                <h4 style="margin: 0; font-size: 1.1rem; color: #0f172a;"><%= sec.name %></h4>
+                                                                <p style="margin: 0; font-family: monospace; font-size: 0.9rem; color: #64748b;"><%= sec.mobile %></p>
+                                                            </div>
                                                         </div>
                                                         <div style="display: flex; gap: 8px;">
                                                             <button type="button" onclick="openWaModal('<%= sec.mobile %>', '<%= sec.name %>', 'verification', '<%= sec.gender || '' %>')" class="icon-btn-round-wa large"><i class="ri-whatsapp-line"></i></button>
@@ -249,10 +267,16 @@
                                     </div>
                                 </div>
                             <% } else { %>
-                                <div class="card-body">
-                                    <h3 class="customer-name"><%= customer.name %></h3>
-                                    <p class="meta-info mobile-txt"><i class="ri-smartphone-line"></i> <%= customer.mobile %></p>
-                                    <p class="date-tag" style="margin-top:4px;"><i class="ri-calendar-line"></i> Entry: <%= new Date(new Date(customer.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></p>
+                                <div class="card-body" style="display:flex; align-items:center; gap:12px;">
+                                    <div style="width:50px; height:50px; border-radius:50%; overflow:hidden; border:2px solid rgba(0,255,136,0.3); background:#f8fafc; display: flex; align-items: center; justify-content: center; flex-shrink:0; position:relative;">
+                                        <i class="ri-user-smile-line" style="position: absolute; color: #cbd5e1; font-size: 1.5rem; z-index: 0;"></i>
+                                        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" class="whatsapp-dp" data-number="<%= customer.mobile %>" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover; z-index: 1; position: relative;">
+                                    </div>
+                                    <div>
+                                        <h3 class="customer-name" style="margin:0;"><%= customer.name %></h3>
+                                        <p class="meta-info mobile-txt" style="margin:0;"><i class="ri-smartphone-line"></i> <%= customer.mobile %></p>
+                                        <p class="date-tag" style="margin-top:4px;"><i class="ri-calendar-line"></i> Entry: <%= new Date(new Date(customer.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></p>
+                                    </div>
                                 </div>
 
                                 <% if (customer.callLogs && customer.callLogs.length > 0) { %>
