@@ -7,6 +7,10 @@ let sock;
 let currentQr = null;     
 let isConnected = false;  
 
+// 🔥 BACKEND IN-MEMORY CACHE FOR DPs
+const backendDpCache = new Map();
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 Hours Cache
+
 // Web server ko status batane ke liye function
 function getWaState() {
     return { isConnected, qr: currentQr };
@@ -16,14 +20,12 @@ function getWaState() {
 // THE JUGAAD: CUSTOM MONGODB AUTH ENGINE & SMART CLEANER
 // =====================================================================
 
-// 1. Mongoose Schema for WA Session
 const waAuthSchema = new mongoose.Schema({
     _id: { type: String, required: true },
     data: { type: String, required: true }, 
     updatedAt: { type: Date, default: Date.now }
 });
 
-// TTL Index: Auto-delete keys older than 7 days, EXCEPT the main 'creds' file!
 waAuthSchema.index(
     { updatedAt: 1 }, 
     { expireAfterSeconds: 7 * 24 * 60 * 60, partialFilterExpression: { _id: { $ne: 'creds' } } }
@@ -31,7 +33,6 @@ waAuthSchema.index(
 
 const WaAuth = mongoose.models.WaAuth || mongoose.model('WaAuth', waAuthSchema);
 
-// 2. Custom MongoDB Adapter
 const useMongoDBAuthState = async () => {
     const readData = async (id) => {
         try {
@@ -84,7 +85,6 @@ const useMongoDBAuthState = async () => {
     };
 };
 
-// 3. Manual Backup Cleaner 
 async function cleanMongoSessionData() {
     try {
         const SEVEN_DAYS_AGO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -132,7 +132,7 @@ async function connectToWhatsApp() {
                 currentQr = qr;      
                 isConnected = false; 
                 
-                console.clear(); 
+                // console.clear() REMOVED so old logs stay visible
                 console.log('\n=================================================');
                 console.log('📱 SCAN THIS QR CODE WITH YOUR WHATSAPP');
                 console.log('=================================================\n');
@@ -165,8 +165,8 @@ async function connectToWhatsApp() {
                 isConnected = true;  
                 currentQr = null;    
                 
-                console.clear();
-                console.log('✅ ===========================================');
+                // console.clear() REMOVED so old logs stay visible
+                console.log('\n✅ ===========================================');
                 console.log('✅ Cloud WhatsApp Connected Successfully!');
                 console.log('✅ ===========================================\n');
                 
@@ -207,20 +207,33 @@ async function getProfilePicUrl(phone) {
     try {
         let clean = String(phone).replace(/\D/g, '');
         if (clean.length === 10) clean = '91' + clean;
-        const jid = `${clean}@s.whatsapp.net`;
         
-        // Timeout protection for live fetch
+        if (backendDpCache.has(clean)) {
+            const cached = backendDpCache.get(clean);
+            if (Date.now() - cached.timestamp < CACHE_TTL) {
+                return cached.url; 
+            } else {
+                backendDpCache.delete(clean); 
+            }
+        }
+
+        const jid = `${clean}@s.whatsapp.net`;
         const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000));
         const fetchPic = sock.profilePictureUrl(jid, 'image');
         
         const url = await Promise.race([fetchPic, timeout]);
+        
+        backendDpCache.set(clean, { url: url, timestamp: Date.now() });
+
         return url;
     } catch (err) {
+        let clean = String(phone).replace(/\D/g, '');
+        if (clean.length === 10) clean = '91' + clean;
+        backendDpCache.set(clean, { url: null, timestamp: Date.now() });
         return null;
     }
 }
 
-// ADVANCED GRACEFUL SHUTDOWN LOGIC
 async function gracefulShutdown(reason) {
     console.log(`\n🛑 Server band ho raha hai. Reason: ${reason}`);
     try {

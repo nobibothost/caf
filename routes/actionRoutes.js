@@ -31,27 +31,25 @@ router.post('/send-wa/:phone', isAuthenticated, async (req, res) => {
 });
 
 // ==========================================
-// WHATSAPP DP ROUTE (LIVE PROXY REDIRECT)
+// WHATSAPP DP ROUTE (JSON for Global Cache)
 // ==========================================
 router.get('/api/get-wa-dp/:phone', isAuthenticated, async (req, res) => {
     try {
         const phone = req.params.phone;
-        if (!phone) return res.status(404).send('No phone provided');
+        if (!phone) return res.json({ success: false, url: null });
         
         const url = await getProfilePicUrl(phone);
         if (url) {
-            // Natively redirecting prevents expired URL issues
-            return res.redirect(url);
+            res.json({ success: true, url });
         } else {
-            return res.status(404).send('DP not found or hidden');
+            res.json({ success: false, url: null });
         }
     } catch (err) {
-        return res.status(404).send('Error fetching DP');
+        res.json({ success: false, url: null });
     }
 });
 
 const getArray = (val) => { if (val === undefined || val === null) return []; return Array.isArray(val) ? val : [val]; };
-// Helper to aggressively strip spaces to prevent matching errors
 const cleanMobile = (str) => (str || '').toString().trim().replace(/\s+/g, '');
 
 // ==========================================

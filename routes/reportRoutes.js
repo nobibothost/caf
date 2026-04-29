@@ -53,24 +53,32 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
             if (isActThisMonth) {
                 let isCarry = false; if (monthOffset !== 'all') { isCarry = (cEntry < start); }
 
-                if (c.subType === 'NC') { stats.nc++; if (isCarry) stats.carry_nc++; }
-                else if (c.subType === 'P2P') { stats.p2p++; if (isCarry) stats.carry_p2p++; }
-                else if (c.subType === 'MNP') { stats.mnp++; if (isCarry) stats.carry_mnp++; }
-                else if (c.subType === 'NMNP') { stats.nmnp++; if (isCarry) stats.carry_nmnp++; }
-                else if (c.subType === 'PDR') { stats.pdr++; if (isCarry) stats.carry_pdr++; }
-                if (c.category === 'Family') { stats.family++; if (isCarry) stats.carry_family++; }
-
-                let isActuallyActivated = (cAct <= now) || (c.status === 'completed');
+                const istNow = new Date(new Date().getTime() + (330 * 60000));
+                let isActuallyActivated = (cAct <= istNow) || (c.status === 'completed');
                 
+                // 🔥 FIX 1: Strictly Mutually Exclusive Buckets (No Double Counting!)
                 if (isActuallyActivated) {
+                    if (c.category === 'Family') { 
+                        stats.family++; if (isCarry) stats.carry_family++; 
+                    } else {
+                        let sub = c.subType || c.category;
+                        if (sub === 'NC') { stats.nc++; if (isCarry) stats.carry_nc++; }
+                        else if (sub === 'P2P') { stats.p2p++; if (isCarry) stats.carry_p2p++; }
+                        else if (sub === 'MNP') { stats.mnp++; if (isCarry) stats.carry_mnp++; }
+                        else if (sub === 'NMNP') { stats.nmnp++; if (isCarry) stats.carry_nmnp++; }
+                        else if (sub === 'PDR') { stats.pdr++; if (isCarry) stats.carry_pdr++; }
+                    }
+
                     stats.activated++; if (isCarry) stats.carry_activated++;
-                    let earned = getPayout(c.category, c.subType, c.plan);
+                    let earned = 0;
+                    try { earned = getPayout(c.category, c.subType, c.plan) || 0; } catch(e) {}
                     stats.revenue += earned; if (isCarry) stats.carry_revenue += earned;
                 }
 
                 stats.runs += getRuns(c.category, c.subType);
                 if (c.status === 'completed') stats.completed++; else stats.pending++;
 
+                // 🔥 FIX 2: Ghost entries also strictly scoped inside isActuallyActivated without cross-contamination
                 if (c.category === 'Family' && c.familyRole === 'Secondary') {
                     const pStatus = c.linkedPrimaryStatus || '';
                     if (!pStatus.includes('Existing') && !pStatus.includes('Active')) {
@@ -84,24 +92,24 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
 
                             if (isActuallyActivated) {
                                 stats.activated++; if (isCarry) stats.carry_activated++;
-                                let ghostEarned = getPayout('Family', ghostType, c.plan);
+                                let ghostEarned = 0;
+                                try { ghostEarned = getPayout('Family', ghostType, c.plan) || 0; } catch(e){}
                                 stats.revenue += ghostEarned; if (isCarry) stats.carry_revenue += ghostEarned;
+                                
+                                // Ghost counts only as family, NOT mixed with NC/MNP
+                                stats.family++; if (isCarry) stats.carry_family++;
                             }
                             
-                            stats.runs += getRuns('Family', ghostType); stats.family++; if (isCarry) stats.carry_family++;
+                            stats.runs += getRuns('Family', ghostType); 
                             if (c.status === 'completed') stats.completed++; else stats.pending++;
-                            if (ghostType === 'NC') { stats.nc++; if (isCarry) stats.carry_nc++; }
-                            else if (ghostType === 'P2P') { stats.p2p++; if (isCarry) stats.carry_p2p++; }
-                            else if (ghostType === 'MNP') { stats.mnp++; if (isCarry) stats.carry_mnp++; }
-                            else if (ghostType === 'NMNP') { stats.nmnp++; if (isCarry) stats.carry_nmnp++; }
-                            else if (ghostType === 'PDR') { stats.pdr++; if (isCarry) stats.carry_pdr++; }
                         }
                     }
                 }
             }
 
             // Restore cAct > now so already activated entries do not show up as pending
-            if (c.status === 'pending' && cAct > now) {
+            const istNowForPending = new Date(new Date().getTime() + (330 * 60000));
+            if (c.status === 'pending' && cAct > istNowForPending) {
                 if (monthOffset === 'all' || isActThisMonth || isEntryThisMonth) {
                     c.dynamicActDate = cAct; pendingListRaw.push(c);
                 }
