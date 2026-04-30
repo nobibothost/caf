@@ -74,48 +74,27 @@
             </div>
 
             <h3 class="section-label" style="margin-bottom: 15px; display: flex; align-items: center; gap: 8px;"><i class="ri-layout-grid-line"></i> Category Details</h3>
-            <div class="breakdown-grid" style="margin-bottom: 25px;">
-                <div class="mini-stat bd-nc">
-                    <span class="mini-num"><%= stats.nc %></span>
-                    <span class="mini-lbl">NC</span>
-                    <% if(stats.carry_nc > 0) { %>
-                        <span style="font-size: 0.6rem; display: block; margin-top: 2px;">(<%= stats.carry_nc %> from past)</span>
-                    <% } %>
+            
+            <div class="breakdown-grid" style="margin-bottom: 25px; grid-template-columns: repeat(2, 1fr);">
+                <div class="mini-stat bd-mnp" style="border-color: #fbcfe8;">
+                    <span class="mini-num" style="color: #ec4899;"><%= stats.mnpFamily.count %></span>
+                    <span class="mini-lbl">MNP Family</span>
                 </div>
-                <div class="mini-stat bd-p2p">
-                    <span class="mini-num"><%= stats.p2p %></span>
-                    <span class="mini-lbl">P2P</span>
-                    <% if(stats.carry_p2p > 0) { %>
-                        <span style="font-size: 0.6rem; display: block; margin-top: 2px;">(<%= stats.carry_p2p %> from past)</span>
-                    <% } %>
+                <div class="mini-stat bd-fam" style="border-color: #a7f3d0;">
+                    <span class="mini-num" style="color: #10b981;"><%= stats.otherFamily.count %></span>
+                    <span class="mini-lbl">Other Family</span>
                 </div>
-                <div class="mini-stat bd-mnp">
-                    <span class="mini-num"><%= stats.mnp %></span>
-                    <span class="mini-lbl">MNP</span>
-                    <% if(stats.carry_mnp > 0) { %>
-                        <span style="font-size: 0.6rem; display: block; margin-top: 2px;">(<%= stats.carry_mnp %> from past)</span>
-                    <% } %>
+                <div class="mini-stat bd-mnp" style="border-color: #fca5a5;">
+                    <span class="mini-num" style="color: #ef4444;"><%= stats.mnpNonFamily.count %></span>
+                    <span class="mini-lbl">MNP Non-Family</span>
                 </div>
-                <div class="mini-stat bd-nmnp">
-                    <span class="mini-num"><%= stats.nmnp %></span>
-                    <span class="mini-lbl">NMNP</span>
-                    <% if(stats.carry_nmnp > 0) { %>
-                        <span style="font-size: 0.6rem; display: block; margin-top: 2px;">(<%= stats.carry_nmnp %> from past)</span>
-                    <% } %>
+                <div class="mini-stat bd-nc" style="border-color: #93c5fd;">
+                    <span class="mini-num" style="color: #3b82f6;"><%= stats.freshNonFamily.count %></span>
+                    <span class="mini-lbl">Fresh Non-Family</span>
                 </div>
-                <div class="mini-stat bd-pdr">
-                    <span class="mini-num"><%= stats.pdr %></span>
-                    <span class="mini-lbl">PDR</span>
-                    <% if(stats.carry_pdr > 0) { %>
-                        <span style="font-size: 0.6rem; display: block; margin-top: 2px;">(<%= stats.carry_pdr %> from past)</span>
-                    <% } %>
-                </div>
-                <div class="mini-stat bd-fam">
-                    <span class="mini-num"><%= stats.family %></span>
-                    <span class="mini-lbl">Family SIMs</span>
-                    <% if(stats.carry_family > 0) { %>
-                        <span style="font-size: 0.65rem; display: block; margin-top: 2px;">(Includes <%= stats.carry_family %> past)</span>
-                    <% } %>
+                <div class="mini-stat" style="border-color: #c4b5fd;">
+                    <span class="mini-num" style="color: #8b5cf6;"><%= stats.p2pNonFamily.count %></span>
+                    <span class="mini-lbl">P2P Non-Family</span>
                 </div>
             </div>
 
@@ -123,12 +102,11 @@
                 <h3 class="section-label" style="align-self: flex-start; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;"><i class="ri-pie-chart-2-fill"></i> Visual Breakdown</h3>
                 <div style="position: relative; height: 220px; width: 100%; max-width: 320px;">
                     <canvas id="categoryChart" 
-                        data-nc="<%= stats.nc %>" 
-                        data-p2p="<%= stats.p2p %>" 
-                        data-mnp="<%= stats.mnp %>" 
-                        data-nmnp="<%= stats.nmnp %>" 
-                        data-pdr="<%= stats.pdr %>" 
-                        data-family="<%= stats.family %>">
+                        data-mf="<%= stats.mnpFamily.count %>" 
+                        data-of="<%= stats.otherFamily.count %>" 
+                        data-mnf="<%= stats.mnpNonFamily.count %>" 
+                        data-fnf="<%= stats.freshNonFamily.count %>"
+                        data-pnf="<%= stats.p2pNonFamily.count %>">
                     </canvas>
                 </div>
             </div>

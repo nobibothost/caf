@@ -5,13 +5,14 @@
 
 window.renderChart = function(chartCanvas) {
     if (window.myPieChart) window.myPieChart.destroy(); 
+    
+    // 🔥 PRECISE 5 METRICS MAPPING
     const dataValues = [
-        parseInt(chartCanvas.getAttribute('data-nc')) || 0,
-        parseInt(chartCanvas.getAttribute('data-p2p')) || 0,
-        parseInt(chartCanvas.getAttribute('data-mnp')) || 0, 
-        parseInt(chartCanvas.getAttribute('data-nmnp')) || 0,
-        parseInt(chartCanvas.getAttribute('data-pdr')) || 0,
-        parseInt(chartCanvas.getAttribute('data-family')) || 0
+        parseInt(chartCanvas.getAttribute('data-mf')) || 0,
+        parseInt(chartCanvas.getAttribute('data-of')) || 0,
+        parseInt(chartCanvas.getAttribute('data-mnf')) || 0, 
+        parseInt(chartCanvas.getAttribute('data-fnf')) || 0,
+        parseInt(chartCanvas.getAttribute('data-pnf')) || 0
     ];
     
     if (dataValues.reduce((a, b) => a + b, 0) > 0) {
@@ -19,10 +20,10 @@ window.renderChart = function(chartCanvas) {
         window.myPieChart = new Chart(ctx, {
             type: 'doughnut',
             data: { 
-                labels: ['NC', 'P2P', 'MNP', 'NMNP', 'PDR', 'Family'], 
+                labels: ['MNP Family', 'Other Family', 'MNP Non-Family', 'Fresh Non-Family', 'P2P Non-Family'], 
                 datasets: [{ 
                     data: dataValues, 
-                    backgroundColor: ['#00ABC0', '#F28C48', '#0F4C81', '#964F4C', '#E88C96', '#54B2A1'], 
+                    backgroundColor: ['#ec4899', '#10b981', '#ef4444', '#3b82f6', '#8b5cf6'], 
                     borderWidth: 0, 
                     hoverOffset: 4 
                 }] 
@@ -109,7 +110,6 @@ const WA_DEFAULT_DP = 'data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDE
 const CACHE_PREFIX = 'wadp_v6_';
 const CACHE_TIME = 7 * 24 * 60 * 60 * 1000; // 7 Days Persistent Cache
 
-// Inject Dynamic Glassmorphism Full DP Modal on Boot
 document.addEventListener('DOMContentLoaded', () => {
     if (!document.getElementById('fullDpModal')) {
         const modalHtml = `
@@ -218,8 +218,6 @@ window.loadWhatsAppDPs = async function() {
     });
 };
 
-// 🔥 FIX FOR PWA / SPA PAGE SWITCHING (e.g. HTMX, PJAX)
-// If the DOM mutates (new page content loaded without full refresh), instantly trigger loadWhatsAppDPs
 const domObserver = new MutationObserver((mutations) => {
     let shouldRun = false;
     mutations.forEach(mutation => {
@@ -238,7 +236,6 @@ const domObserver = new MutationObserver((mutations) => {
     }
 });
 
-// Start watching the main content area for page switches
 document.addEventListener('DOMContentLoaded', () => {
     const mainApp = document.getElementById('app-main') || document.body;
     domObserver.observe(mainApp, { childList: true, subtree: true });

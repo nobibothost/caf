@@ -1,4 +1,3 @@
-// routes/reportRoutes.js
 const express = require('express');
 const router = express.Router();
 const Customer = require('../models/Customer');
@@ -29,7 +28,18 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
         }
 
         const allCustomers = await Customer.find().lean();
-        const stats = { total: 0, activated: 0, runs: 0, revenue: 0, nc: 0, p2p: 0, mnp: 0, nmnp: 0, pdr: 0, family: 0, completed: 0, pending: 0, carry_activated: 0, carry_nc: 0, carry_p2p: 0, carry_mnp: 0, carry_nmnp: 0, carry_pdr: 0, carry_family: 0, carry_revenue: 0 };
+        
+        const stats = { 
+            total: 0, activated: 0, runs: 0, revenue: 0, 
+            mnpFamily: { count: 0, rev: 0 },
+            otherFamily: { count: 0, rev: 0 },
+            mnpNonFamily: { count: 0, rev: 0 },
+            freshNonFamily: { count: 0, rev: 0 },
+            p2pNonFamily: { count: 0, rev: 0 },
+            completed: 0, pending: 0, 
+            carry_activated: 0, carry_revenue: 0 
+        };
+        
         const pendingListRaw = [];
 
         allCustomers.forEach(c => {
@@ -39,15 +49,12 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
             if (monthOffset === 'all') { isEntryThisMonth = true; isActThisMonth = true; } 
             else { if (cEntry >= start && cEntry < end) isEntryThisMonth = true; if (cAct >= start && cAct < end) isActThisMonth = true; }
 
-            if (isEntryThisMonth) {
-                stats.total++;
-                if (c.category === 'Family' && c.familyRole === 'Secondary') {
-                    const pStatus = c.linkedPrimaryStatus || '';
-                    if (!pStatus.includes('Existing') && !pStatus.includes('Active')) {
-                        const primaryDoc = allCustomers.find(p => p.category === 'Family' && p.familyRole === 'Primary' && p.mobile === c.linkedPrimaryNumber);
-                        if (!primaryDoc) stats.total++;
-                    }
-                }
+            // 🔥 STRICT FIX: Reject "Existing" status completely from being treated as a new entry
+            let isExisting = (c.subType === 'Existing' || c.category === 'Existing');
+
+            // Total entries mein bhi isExisting ko filter kar diya
+            if (isEntryThisMonth && !isExisting) { 
+                stats.total++; 
             }
 
             if (isActThisMonth) {
@@ -56,58 +63,44 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
                 const istNow = new Date(new Date().getTime() + (330 * 60000));
                 let isActuallyActivated = (cAct <= istNow) || (c.status === 'completed');
                 
-                // 🔥 FIX 1: Strictly Mutually Exclusive Buckets (No Double Counting!)
                 if (isActuallyActivated) {
-                    if (c.category === 'Family') { 
-                        stats.family++; if (isCarry) stats.carry_family++; 
-                    } else {
-                        let sub = c.subType || c.category;
-                        if (sub === 'NC') { stats.nc++; if (isCarry) stats.carry_nc++; }
-                        else if (sub === 'P2P') { stats.p2p++; if (isCarry) stats.carry_p2p++; }
-                        else if (sub === 'MNP') { stats.mnp++; if (isCarry) stats.carry_mnp++; }
-                        else if (sub === 'NMNP') { stats.nmnp++; if (isCarry) stats.carry_nmnp++; }
-                        else if (sub === 'PDR') { stats.pdr++; if (isCarry) stats.carry_pdr++; }
-                    }
-
-                    stats.activated++; if (isCarry) stats.carry_activated++;
-                    let earned = 0;
-                    try { earned = getPayout(c.category, c.subType, c.plan) || 0; } catch(e) {}
-                    stats.revenue += earned; if (isCarry) stats.carry_revenue += earned;
-                }
-
-                stats.runs += getRuns(c.category, c.subType);
-                if (c.status === 'completed') stats.completed++; else stats.pending++;
-
-                // 🔥 FIX 2: Ghost entries also strictly scoped inside isActuallyActivated without cross-contamination
-                if (c.category === 'Family' && c.familyRole === 'Secondary') {
-                    const pStatus = c.linkedPrimaryStatus || '';
-                    if (!pStatus.includes('Existing') && !pStatus.includes('Active')) {
-                        const primaryDoc = allCustomers.find(p => p.category === 'Family' && p.familyRole === 'Primary' && p.mobile === c.linkedPrimaryNumber);
-                        if (!primaryDoc) {
-                            let ghostType = 'NC';
-                            if (pStatus.includes('NMNP')) ghostType = 'NMNP'; 
-                            else if (pStatus.includes('MNP')) ghostType = 'MNP';
-                            else if (pStatus.includes('P2P')) ghostType = 'P2P';
-                            else if (pStatus.includes('PDR')) ghostType = 'PDR';
-
-                            if (isActuallyActivated) {
-                                stats.activated++; if (isCarry) stats.carry_activated++;
-                                let ghostEarned = 0;
-                                try { ghostEarned = getPayout('Family', ghostType, c.plan) || 0; } catch(e){}
-                                stats.revenue += ghostEarned; if (isCarry) stats.carry_revenue += ghostEarned;
-                                
-                                // Ghost counts only as family, NOT mixed with NC/MNP
-                                stats.family++; if (isCarry) stats.carry_family++;
+                    if (!isExisting) {
+                        let isMnp = (c.subType === 'MNP' || c.subType === 'NMNP' || c.category === 'MNP' || c.category === 'NMNP');
+                        let isP2p = (c.subType === 'P2P' || c.category === 'P2P');
+                        let isFamily = (c.category === 'Family');
+                        
+                        let earned = 0;
+                        try { earned = getPayout(c.category, c.subType, c.plan) || 0; } catch(e) {}
+                        
+                        if (isFamily) {
+                            if (isMnp) { 
+                                stats.mnpFamily.count++; stats.mnpFamily.rev += earned; 
+                            } else { 
+                                stats.otherFamily.count++; stats.otherFamily.rev += earned; 
                             }
-                            
-                            stats.runs += getRuns('Family', ghostType); 
-                            if (c.status === 'completed') stats.completed++; else stats.pending++;
+                        } else {
+                            if (isMnp) { 
+                                stats.mnpNonFamily.count++; stats.mnpNonFamily.rev += earned; 
+                            } else if (isP2p) { 
+                                stats.p2pNonFamily.count++; stats.p2pNonFamily.rev += earned; 
+                            } else { 
+                                stats.freshNonFamily.count++; stats.freshNonFamily.rev += earned; 
+                            }
                         }
+
+                        stats.activated++;
+                        stats.revenue += earned;
+                        if (isCarry) { stats.carry_activated++; stats.carry_revenue += earned; }
                     }
                 }
+
+                if (!isExisting) {
+                    stats.runs += getRuns(c.category, c.subType);
+                }
+                
+                if (c.status === 'completed') stats.completed++; else stats.pending++;
             }
 
-            // Restore cAct > now so already activated entries do not show up as pending
             const istNowForPending = new Date(new Date().getTime() + (330 * 60000));
             if (c.status === 'pending' && cAct > istNowForPending) {
                 if (monthOffset === 'all' || isActThisMonth || isEntryThisMonth) {

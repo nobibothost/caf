@@ -82,20 +82,21 @@ window.openEditModal = function(btn) {
     const baseMobile = btn.getAttribute('data-mobile') || '';
     const baseGender = btn.getAttribute('data-gender') || 'KEEP';
     
-    document.getElementById('editNName').value = baseName;
-    document.getElementById('editNMobile').value = baseMobile; 
+    if(document.getElementById('editNName')) document.getElementById('editNName').value = baseName;
+    if(document.getElementById('editNMobile')) document.getElementById('editNMobile').value = baseMobile; 
     if(document.getElementById('editNGender')) document.getElementById('editNGender').value = baseGender;
     
-    document.getElementById('editOldPMobile').value = baseMobile;
-    document.getElementById('editPName').value = baseName;
-    document.getElementById('editPMobile').value = baseMobile;
+    if(document.getElementById('editOldPMobile')) document.getElementById('editOldPMobile').value = baseMobile;
+    if(document.getElementById('editPName')) document.getElementById('editPName').value = baseName;
+    if(document.getElementById('editPMobile')) document.getElementById('editPMobile').value = baseMobile;
     if(document.getElementById('editPGender')) document.getElementById('editPGender').value = baseGender;
-    document.getElementById('editPType').value = (cat === 'Family' || cat === 'Existing') ? 'Existing' : cat;
+    if(document.getElementById('editPType')) document.getElementById('editPType').value = (cat === 'Family' || cat === 'Existing') ? 'Existing' : cat;
 
-    document.getElementById('editSType').value = 'NC';
-    document.getElementById('editSName').value = ''; 
-    document.getElementById('editSMobile').value = ''; 
-    document.getElementById('editSId').value = '';
+    if(document.getElementById('editSType')) document.getElementById('editSType').value = 'NC';
+    if(document.getElementById('editSName')) document.getElementById('editSName').value = ''; 
+    if(document.getElementById('editSMobile')) document.getElementById('editSMobile').value = ''; 
+    if(document.getElementById('editSId')) document.getElementById('editSId').value = '';
+    
     if(document.getElementById('editSDate')) {
         const sDateEl = document.getElementById('editSDate');
         if (sDateEl._flatpickr) sDateEl._flatpickr.clear();
@@ -103,6 +104,7 @@ window.openEditModal = function(btn) {
     }
     if(document.getElementById('editSGender')) document.getElementById('editSGender').value = 'KEEP';
     
+    // 🔥 ROBUST FAMILY BINDING LOGIC
     if (cat === 'Family') { 
         let pMobileFallback = btn.getAttribute('data-p-mobile');
         if (!pMobileFallback || pMobileFallback.trim() === '') pMobileFallback = baseMobile;
@@ -115,7 +117,7 @@ window.openEditModal = function(btn) {
         let pNameFallback = btn.getAttribute('data-p-name');
         if (!pNameFallback || pNameFallback.trim() === 'Self' || pNameFallback.trim() === '') pNameFallback = baseName;
         document.getElementById('editPName').value = pNameFallback || '';
-        document.getElementById('editPMobile').value = pMobileFallback; 
+        document.getElementById('editPMobile').value = pMobileFallback || ''; 
         
         if(document.getElementById('editPGender')) {
             const pg = btn.getAttribute('data-p-gender');
@@ -126,29 +128,33 @@ window.openEditModal = function(btn) {
         if(secContainer) secContainer.innerHTML = '';
         
         const secDataStr = btn.getAttribute('data-secondaries');
-        if(secDataStr) {
-            const secondaries = JSON.parse(decodeURIComponent(secDataStr));
-            if(secondaries.length > 0) {
-                document.getElementById('editSType').value = secondaries[0].subType || 'NC';
-                document.getElementById('editSName').value = secondaries[0].name || '';
-                document.getElementById('editSMobile').value = secondaries[0].mobile || '';
-                document.getElementById('editSId').value = secondaries[0]._id || '';
-                
-                if(document.getElementById('editSDate')) {
-                    const sDateEl = document.getElementById('editSDate');
-                    if (sDateEl._flatpickr) {
-                        sDateEl._flatpickr.setDate(secondaries[0].createdAt ? new Date(secondaries[0].createdAt) : null);
-                    } else {
-                        sDateEl.value = '';
+        if(secDataStr && secDataStr !== 'undefined' && secDataStr !== 'null') {
+            try {
+                const secondaries = JSON.parse(decodeURIComponent(secDataStr));
+                if(secondaries && secondaries.length > 0) {
+                    document.getElementById('editSType').value = secondaries[0].subType || 'NC';
+                    document.getElementById('editSName').value = secondaries[0].name || '';
+                    document.getElementById('editSMobile').value = secondaries[0].mobile || '';
+                    document.getElementById('editSId').value = secondaries[0]._id || '';
+                    
+                    if(document.getElementById('editSDate')) {
+                        const sDateEl = document.getElementById('editSDate');
+                        if (sDateEl._flatpickr) {
+                            sDateEl._flatpickr.setDate(secondaries[0].createdAt ? new Date(secondaries[0].createdAt) : null);
+                        } else {
+                            sDateEl.value = '';
+                        }
+                    }
+
+                    if(document.getElementById('editSGender')) {
+                        document.getElementById('editSGender').value = (secondaries[0].gender && secondaries[0].gender !== '') ? secondaries[0].gender : 'KEEP';
+                    }
+                    for(let i = 1; i < secondaries.length; i++) { 
+                        if(typeof window.addSecondaryRow === 'function') window.addSecondaryRow(true, secondaries[i]);
                     }
                 }
-
-                if(document.getElementById('editSGender')) {
-                    document.getElementById('editSGender').value = (secondaries[0].gender && secondaries[0].gender !== '') ? secondaries[0].gender : 'KEEP';
-                }
-                for(let i = 1; i < secondaries.length; i++) { 
-                    if(typeof window.addSecondaryRow === 'function') window.addSecondaryRow(true, secondaries[i]);
-                }
+            } catch(e) {
+                console.error("Failed to parse secondary contacts payload", e);
             }
         }
     }
@@ -219,7 +225,6 @@ window.closeRemarksModal = function() {
     if(m) { m.classList.remove('active'); setTimeout(() => m.style.display = 'none', 300); } 
 };
 
-// --- WHATSAPP TEMPLATES SMART LOGIC ---
 window.openWaModal = function(phone, name, type, gender = '', billDate = '') {
     const m = document.getElementById('waTemplateModal');
     if(!m) return;
@@ -239,11 +244,10 @@ window.openWaModal = function(phone, name, type, gender = '', billDate = '') {
     gInput.value = gender || '';
     bInput.value = billDate || '';
 
-    // Clear Custom Message Input when modal opens
     const waCustomInput = document.getElementById('waCustomMessage');
     if(waCustomInput) {
         waCustomInput.value = '';
-        waCustomInput.style.height = 'auto'; // Reset auto-expand
+        waCustomInput.style.height = 'auto'; 
     }
 
     const waButtons = m.querySelectorAll('button[data-text], a[data-text]');
@@ -394,7 +398,6 @@ window.sendWaTemplate = async function(element) {
     }, 5000);
 };
 
-// --- WHATSAPP CUSTOM MESSAGE DYNAMIC BUTTON LOGIC ---
 window.sendWaCustom = async function(element) {
     const textArea = document.getElementById('waCustomMessage');
     let customText = textArea.value.trim();
@@ -414,7 +417,6 @@ window.sendWaCustom = async function(element) {
         clearInterval(element.countdownInterval);
         clearTimeout(element.sendTimeout);
         
-        // Restore to small icon button
         element.innerHTML = element.dataset.origBtnHtml;
         element.style.background = 'var(--primary)'; 
         element.style.color = 'white';
@@ -438,7 +440,6 @@ window.sendWaCustom = async function(element) {
     
     let timeLeft = 5;
     
-    // Expand to Pill Shape for Undo Action
     element.innerHTML = `<i class="ri-arrow-go-back-line"></i> <span style="font-size: 0.85rem; font-weight: 600;">Undo (${timeLeft}s)</span>`;
     element.style.background = '#fee2e2'; 
     element.style.color = '#dc2626';
@@ -458,7 +459,6 @@ window.sendWaCustom = async function(element) {
         clearInterval(element.countdownInterval);
         element.dataset.sendingState = 'sending';
         
-        // Shrink back for Loading Spinner
         element.innerHTML = '<i class="ri-loader-4-line spin-loader"></i>';
         element.style.width = '38px';
         element.style.padding = '0';
@@ -480,7 +480,7 @@ window.sendWaCustom = async function(element) {
                     window.showAIToast("Custom message sent!", true);
                 }
                 textArea.value = ''; 
-                textArea.style.height = 'auto'; // Reset height
+                textArea.style.height = 'auto';
                 window.closeWaModal();
             } else {
                 if(typeof window.showAIToast === 'function') {
@@ -497,7 +497,6 @@ window.sendWaCustom = async function(element) {
                 alert("Network error occurred");
             }
         } finally {
-            // Restore everything perfectly
             element.innerHTML = element.dataset.origBtnHtml;
             element.style.pointerEvents = 'auto';
             element.style.opacity = '1';
