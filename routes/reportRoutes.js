@@ -1,9 +1,11 @@
+// routes/reportRoutes.js
 const express = require('express');
 const router = express.Router();
 const Customer = require('../models/Customer');
-const { isAuthenticated } = require('../middleware/auth');
+const isAuthenticated = require('../middleware/auth');
 const { getISTDate, getRuns, getPayout, calculateLogic } = require('../utils/helpers');
 
+// Full Analytics Dashboard Route
 router.get('/analytics', isAuthenticated, async (req, res) => {
     try {
         const monthQuery = req.query.month; 
@@ -49,17 +51,14 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
             if (monthOffset === 'all') { isEntryThisMonth = true; isActThisMonth = true; } 
             else { if (cEntry >= start && cEntry < end) isEntryThisMonth = true; if (cAct >= start && cAct < end) isActThisMonth = true; }
 
-            // 🔥 STRICT FIX: Reject "Existing" status completely from being treated as a new entry
             let isExisting = (c.subType === 'Existing' || c.category === 'Existing');
 
-            // Total entries mein bhi isExisting ko filter kar diya
             if (isEntryThisMonth && !isExisting) { 
                 stats.total++; 
             }
 
             if (isActThisMonth) {
                 let isCarry = false; if (monthOffset !== 'all') { isCarry = (cEntry < start); }
-
                 const istNow = new Date(new Date().getTime() + (330 * 60000));
                 let isActuallyActivated = (cAct <= istNow) || (c.status === 'completed');
                 
@@ -102,18 +101,32 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
             }
 
             const istNowForPending = new Date(new Date().getTime() + (330 * 60000));
+            // Show all pending upcoming activations if viewing "Current Month" or "All Time" to prevent queue dropping
             if (c.status === 'pending' && cAct > istNowForPending) {
-                if (monthOffset === 'all' || isActThisMonth || isEntryThisMonth) {
-                    c.dynamicActDate = cAct; pendingListRaw.push(c);
+                if (monthOffset === 'all' || monthOffset === 0 || isActThisMonth || isEntryThisMonth) {
+                    c.dynamicActDate = cAct; 
+                    pendingListRaw.push(c);
                 }
             }
         });
 
-        const pendingList = pendingListRaw.filter(c => !(c.category === 'Family' && c.familyRole === 'Primary')).sort((a, b) => a.dynamicActDate - b.dynamicActDate);
+        // Ensure Primary MNP/NC pending items are not ignored and accurately shown
+        const pendingList = pendingListRaw.sort((a, b) => a.dynamicActDate - b.dynamicActDate);
+
+        if (req.headers.accept && req.headers.accept.includes('application/json')) {
+            return res.json({ success: true, headerTitle, stats, pendingList });
+        }
+
         res.render('analytics', { stats, pendingList, page: 'analytics', monthOffset, headerTitle, daterange });
-    } catch (err) { res.redirect('/'); }
+    } catch (err) { 
+        if (req.headers.accept && req.headers.accept.includes('application/json')) {
+            return res.status(500).json({ success: false, error: err.message });
+        }
+        res.redirect('/'); 
+    }
 });
 
+// Call Log Endpoint
 router.post('/log-call/:id', isAuthenticated, async (req, res) => {
     try {
         const { pageType, reason, notes } = req.body;
@@ -122,6 +135,7 @@ router.post('/log-call/:id', isAuthenticated, async (req, res) => {
     } catch (err) { res.status(500).json({ success: false }); }
 });
 
+// Home Page Agenda API
 router.get('/api/agenda', isAuthenticated, async (req, res) => {
     try {
         const today = new Date();
@@ -162,10 +176,13 @@ router.get('/api/agenda', isAuthenticated, async (req, res) => {
                 }
             }
         });
-        res.json({ pendingVerifications, pendingBills, total: pendingVerifications + pendingBills });
-    } catch (err) { res.status(500).json({ pendingVerifications: 0, pendingBills: 0, total: 0 }); }
+        
+        const fullRecordsPool = await Customer.find({ status: 'pending' }).limit(15).lean();
+        res.json({ pendingVerifications, pendingBills, total: pendingVerifications + pendingBills, records: fullRecordsPool });
+    } catch (err) { res.status(500).json({ pendingVerifications: 0, pendingBills: 0, total: 0, records: [] }); }
 });
 
+// Database Data Backup Output
 router.get('/backup', isAuthenticated, async (req, res) => {
     try {
         const allCustomers = await Customer.find().lean();

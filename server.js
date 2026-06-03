@@ -7,6 +7,8 @@ const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit'); 
+const cors = require('cors'); 
+const os = require('os'); // Added for network ip extraction
 
 // --- Import Modular Routes & Models ---
 const authRoutes = require('./routes/authRoutes');
@@ -25,7 +27,13 @@ const PORT = process.env.PORT || 3000;
 const SESSION_SECRET = process.env.SESSION_SECRET || 'supersecretkey';
 const MONGO_URI = process.env.MONGO_URI;
 
-// --- SECURITY MIDDLEWARES ---
+// --- CORS & SECURITY OPENED FOR ANDROID DESIGNING ---
+app.use(cors({
+    origin: '*', // Allows cross platform handshake for design pipelines
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(helmet({ 
     contentSecurityPolicy: false,
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
@@ -55,13 +63,12 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 
-// 🔥 FIX FOR RENDER: Trust proxy
 app.set('trust proxy', 1);
 
-// --- SESSION SETUP (PWA Persistent Fix Applied) ---
+// --- SESSION SETUP (PWA Persistent Fix) ---
 app.use(session({
     secret: SESSION_SECRET,
-    name: 'vHub_session', // Persistent Cookie Name
+    name: 'vHub_session', 
     resave: true, 
     saveUninitialized: false,
     rolling: true,
@@ -92,7 +99,7 @@ const connectDB = async () => {
         Customer.collection.createIndex({ name: 1 }).catch(()=>{});
         Customer.collection.createIndex({ status: 1, activationDate: -1 }).catch(()=>{});
         Customer.collection.createIndex({ category: 1 }).catch(()=>{});
-        console.log('⚡ Smart Indexes Activated: Search & Load will be 10x faster!');
+        console.log('⚡ Smart Indexes Activated: Search & Load optimized!');
         
     } 
     catch (err) { console.error('❌ MongoDB Error:', err.message); setTimeout(connectDB, 5000); }
@@ -113,10 +120,9 @@ app.post('/power-off', (req, res) => {
             <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
         </head>
         <body style="font-family:'Inter', sans-serif; text-align:center; padding:50px 20px; background:#f8fafc; color:#0f172a; display:flex; flex-direction:column; align-items:center; justify-content:center; height:80vh; margin:0;">
-            <div style="font-size:4.5rem; color:#ef4444; margin-bottom:15px; animation: scaleDown 0.5s ease-out;"><i class="ri-shut-down-line"></i></div>
+            <div style="font-size:4.5rem; color:#ef4444; margin-bottom:15px;"><i class="ri-shut-down-line"></i></div>
             <h2 style="margin:0 0 10px 0; font-size:1.5rem;">Server Turned Off</h2>
-            <p style="color:#64748b; font-size:0.95rem; max-width:300px; line-height:1.5;">Aapka session aur WhatsApp connection safe hai. Aap ab is tab ko close kar sakte hain. Wapas chalane ke liye Termux se server start karein.</p>
-            <style>@keyframes scaleDown { from{transform:scale(1.2); opacity:0;} to{transform:scale(1); opacity:1;} }</style>
+            <p style="color:#64748b; font-size:0.95rem; max-width:300px; line-height:1.5;">Termux session aur WhatsApp channel state closed.</p>
         </body>
         </html>
     `);
@@ -129,7 +135,7 @@ app.post('/power-off', (req, res) => {
 // 1. PUBLIC ROUTES
 app.use('/', authRoutes);
 
-// 🔒 THE IRON GATE: Everything below requires login!
+// 🔒 THE IRON GATE: Authenticated Scope
 app.use(requireAuth); 
 
 // 🔥 API FOR REAL-TIME WA STATUS INDICATOR
@@ -155,12 +161,39 @@ app.use('/', require('./routes/actionRoutes'));
 app.use('/', require('./routes/billingRoutes'));
 app.use('/', require('./routes/reportRoutes'));
 
-app.get('*', (req, res) => { res.redirect('/'); });
+app.get('*', (req, res) => { 
+    if (req.headers['accept'] === 'application/json' || req.headers['authorization']) {
+        return res.status(404).json({ success: false, error: 'Resource not found' });
+    }
+    res.redirect('/'); 
+});
 
-// --- SERVER INITIALIZATION ---
-app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-    console.log(`🛡️ Security modules active!`);
+// --- PUBLIC ROUTING & SERVER INITIALIZATION ---
+// Listening on '0.0.0.0' allows external network or mobile interface hits
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`\n==================================================`);
+    console.log(`🚀 VerifyHub Backend Is Active Globally!`);
+    console.log(`==================================================`);
+    
+    // Dynamic network parsing logic block
+    const interfaces = os.networkInterfaces();
+    let ipFound = false;
+    
+    Object.keys(interfaces).forEach((interfaceName) => {
+        interfaces[interfaceName].forEach((iface) => {
+            // Filter internal loopbacks and isolate IPv4 addresses
+            if (iface.family === 'IPv4' && !iface.internal) {
+                console.log(`📡 Connected Interface [${interfaceName}]: http://${iface.address}:${PORT}`);
+                ipFound = true;
+            }
+        });
+    });
+    
+    if (!ipFound) {
+        console.log(`🔗 Isolated Device Mode Loopback: http://127.0.0.1:${PORT}`);
+    }
+    console.log(`==================================================\n`);
+    
     connectToWhatsApp();
     startCronJobs();
 });

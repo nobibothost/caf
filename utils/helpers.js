@@ -15,6 +15,7 @@ const RULES = {
     VERIFICATION_DELAY: 3 
 };
 
+// Get IST Date Range
 function getISTDate(offsetMonths = 0) {
     const d = new Date();
     const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
@@ -32,6 +33,7 @@ function getISTDate(offsetMonths = 0) {
     return { start, end, now: new Date() }; 
 }
 
+// Parse Date String to IST
 function parseISTDateString(dateStr, preserveTimeFrom = null) {
     let targetIstHours, targetIstMins, targetIstSecs, targetIstMs;
     if (preserveTimeFrom) {
@@ -65,6 +67,7 @@ function parseISTDateString(dateStr, preserveTimeFrom = null) {
     return new Date(istTimestamp - (330 * 60000));
 }
 
+// Get Score/Runs
 function getRuns(category, subType) {
     if (category === 'Family') {
         if (subType === 'MNP' || subType === 'NMNP') return 3;
@@ -76,6 +79,7 @@ function getRuns(category, subType) {
     }
 }
 
+// Get Incentive/Payout
 function getPayout(category, subType, plan) {
     const isMNP = (subType === 'MNP' || subType === 'NMNP');
     if (category === 'Family') {
@@ -88,6 +92,7 @@ function getPayout(category, subType, plan) {
     }
 }
 
+// Generate Email OTP HTML
 const getEmailTemplate = (otp, type = 'Login') => {
     const formattedOtp = otp.toString().split('').join(' ');
     return `
@@ -120,6 +125,7 @@ const getEmailTemplate = (otp, type = 'Login') => {
     </html>`;
 };
 
+// Calculate Date Rules
 function calculateLogic(baseDate, type) {
     const activationDelay = RULES.ACTIVATION_DELAY[type] !== undefined ? RULES.ACTIVATION_DELAY[type] : 0;
     const realActivationDate = new Date(baseDate);
@@ -134,6 +140,7 @@ function calculateLogic(baseDate, type) {
     return { realActivationDate, realVerificationDate };
 }
 
+// Auto Migrate Group IDs
 async function autoMigrateGroupIds() {
     const unmigrated = await Customer.find({ $or: [{ groupId: { $exists: false } }, { groupId: '' }] });
     if(unmigrated.length === 0) return;
@@ -156,6 +163,7 @@ async function autoMigrateGroupIds() {
     }
 }
 
+// Core Card Grouping Logic
 async function fetchGroupedCustomers(baseQuery, sortObj) {
     const unmigratedCount = await Customer.countDocuments({ $or: [{ groupId: { $exists: false } }, { groupId: '' }] });
     if (unmigratedCount > 0) await autoMigrateGroupIds();
@@ -197,8 +205,6 @@ async function fetchGroupedCustomers(baseQuery, sortObj) {
         fam.secondaries.sort((a, b) => b.createdAt - a.createdAt);
     });
 
-    // 🔥 TIMELINE BUG FIX: Now groups by BOTH GroupID and DATE! 
-    // This allows Secondaries created on different dates to render as independent cards on their correct timeline dates.
     let seenGroupsByDate = new Set(); 
 
     matchingDocs.forEach(doc => {
@@ -206,17 +212,15 @@ async function fetchGroupedCustomers(baseQuery, sortObj) {
         if (st === 'existing') return;
 
         if (doc.category === 'Family') {
-            // Determine the date key based on sorting logic (mostly createdAt for timeline)
-            const refDate = doc.verificationDate || doc.createdAt;
-            const dateKey = new Date(refDate).toISOString().split('T')[0];
-            const compositeKey = `${doc.groupId}_${dateKey}`;
+            // Using absolute ID as composite key guarantees every actionable item renders individually
+            const compositeKey = doc._id.toString();
 
             if (!seenGroupsByDate.has(compositeKey)) {
                 seenGroupsByDate.add(compositeKey);
                 const fullFam = fullFamiliesMap.get(doc.groupId);
                 if (!fullFam) return; 
 
-                // SMART INHERITANCE: Automatically show old remarks & call logs on secondary if missing
+                // Smart Inheritance for Secondary Remarks/CallLogs
                 if (fullFam.primary) {
                     if (!doc.remarks || doc.remarks.trim() === '') {
                         doc.remarks = fullFam.primary.remarks;
@@ -275,6 +279,7 @@ async function fetchGroupedCustomers(baseQuery, sortObj) {
     return result;
 }
 
+// Universal Redirect Handler
 const safeRedirect = (req, res) => {
     const returnUrl = req.body.returnUrl;
     if (returnUrl && returnUrl.startsWith('/')) {

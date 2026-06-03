@@ -3,18 +3,47 @@ const qrcode = require('qrcode-terminal');
 const pino = require('pino');
 const mongoose = require('mongoose');
 
+// Database model for adding entries
+const Customer = require('../models/Customer'); 
+
 let sock;
 let currentQr = null;     
 let isConnected = false;  
+
+// Temporary memory for WhatsApp text commands
+const pendingEntries = {};
 
 // 🔥 BACKEND IN-MEMORY CACHE FOR DPs
 const backendDpCache = new Map();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 Hours Cache
 
-// Web server ko status batane ke liye function
 function getWaState() {
     return { isConnected, qr: currentQr };
 }
+
+// =====================================================================
+// NEW HELPERS FOR BOT RELIABILITY
+// =====================================================================
+
+// Wait up to 2 minutes for connection to establish
+const waitForConnection = async () => {
+    let attempts = 0;
+    while (!isConnected && attempts < 24) { // 24 * 5s = 120s (2 mins)
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        attempts++;
+    }
+    return isConnected;
+};
+
+// Deep extraction to bypass Disappearing Messages (Ephemeral)
+const extractText = (msg) => {
+    if (!msg.message) return "";
+    return msg.message.conversation || 
+           msg.message.extendedTextMessage?.text || 
+           msg.message.ephemeralMessage?.message?.extendedTextMessage?.text ||
+           msg.message.ephemeralMessage?.message?.conversation || 
+           "";
+};
 
 // =====================================================================
 // THE JUGAAD: CUSTOM MONGODB AUTH ENGINE & SMART CLEANER
@@ -93,7 +122,7 @@ async function cleanMongoSessionData() {
             updatedAt: { $lt: SEVEN_DAYS_AGO }
         });
         if (result.deletedCount > 0) {
-            console.log(`🧹 [MongoDB Cleaner] Auto-Cleaned ${result.deletedCount} old keys. Space Saved!`);
+            console.log(`🧹 [MongoDB Cleaner] Auto-Cleaned ${result.deletedCount} old keys.`);
         }
     } catch (err) {
         console.error('⚠️ [MongoDB Cleaner] Error:', err.message);
@@ -132,7 +161,6 @@ async function connectToWhatsApp() {
                 currentQr = qr;      
                 isConnected = false; 
                 
-                // console.clear() REMOVED so old logs stay visible
                 console.log('\n=================================================');
                 console.log('📱 SCAN THIS QR CODE WITH YOUR WHATSAPP');
                 console.log('=================================================\n');
@@ -165,7 +193,6 @@ async function connectToWhatsApp() {
                 isConnected = true;  
                 currentQr = null;    
                 
-                // console.clear() REMOVED so old logs stay visible
                 console.log('\n✅ ===========================================');
                 console.log('✅ Cloud WhatsApp Connected Successfully!');
                 console.log('✅ ===========================================\n');
@@ -177,6 +204,114 @@ async function connectToWhatsApp() {
         });
 
         sock.ev.on('creds.update', saveCreds);
+
+        // =====================================================================
+        // WHATSAPP NATURAL LANGUAGE TEXT BOT & WAIT LOGIC
+        // =====================================================================
+        sock.ev.on('messages.upsert', async (m) => {
+            try {
+                const msg = m.messages[0];
+                if (!msg || msg.key.fromMe) return;
+
+                const senderJid = msg.key.remoteJid;
+                if (!senderJid) return;
+                
+                // Normalizing sender number to strictly check with 91
+                let cleanSender = senderJid.split('@')[0].replace(/\D/g, ''); 
+                if (cleanSender.length === 10) cleanSender = '91' + cleanSender; 
+
+                // Normalizing admin number from environment variable
+                let cleanAdmin = String(process.env.ADMIN_WA_NUMBER || "8657973703").replace(/\D/g, '');
+                if (cleanAdmin.length === 10) cleanAdmin = '91' + cleanAdmin; 
+                
+                // Block unauthorized numbers instantly
+                if (cleanSender !== cleanAdmin) return;
+
+                // WAIT UP TO 2 MINUTES IF NOT FULLY CONNECTED
+                const isReadyNow = await waitForConnection();
+                if (!isReadyNow) {
+                    console.log("⏳ WhatsApp took too long to connect. Dropped message.");
+                    return;
+                }
+
+                // Deep Text Extract (Bypasses Disappearing Messages)
+                const text = extractText(msg);
+                if (!text) return;
+
+                const replyText = text.trim().toLowerCase();
+
+                // 1. Check for YES/NO Confirmation
+                if (pendingEntries[senderJid]) {
+                    if (['yes', 'y', 'ha', 'haan', 'm yes'].includes(replyText)) {
+                        const data = pendingEntries[senderJid];
+                        
+                        // Database Save Logic (Adding single SIM count)
+                        const newCustomer = new Customer({
+                            name: data.name,
+                            mobile: data.mobile,
+                            category: data.isFamily ? 'Family' : data.type,
+                            subType: data.type, 
+                            gender: 'KEEP',
+                            status: 'pending',
+                            createdAt: new Date(),
+                            activationDate: new Date(),
+                            plan: data.isFamily ? '701' : '451'
+                        });
+                        
+                        await newCustomer.save();
+                        
+                        const ackMsg = `✅ Entry saved successfully!\n👤 *${data.name}* (${data.mobile})\n📌 ${data.isFamily ? 'Family ' + data.type : data.type}\n📊 Gross count mein +1 SIM add ho gayi hai.`;
+                        await sock.sendMessage(senderJid, { text: ackMsg });
+                        
+                        delete pendingEntries[senderJid];
+                        return;
+                    } else if (['no', 'n', 'na', 'nahi'].includes(replyText)) {
+                        delete pendingEntries[senderJid];
+                        await sock.sendMessage(senderJid, { text: `❌ Entry cancel kar di gayi hai.` });
+                        return;
+                    }
+                }
+
+                // 2. Natural Language Processing Flow
+                const numberMatch = text.match(/\b[6-9]\d{9}\b/);
+                if (!numberMatch) return; 
+
+                const mobile = numberMatch[0];
+                const upperText = text.toUpperCase();
+                
+                let type = 'NC';
+                if (upperText.includes('MNP')) type = 'MNP';
+                else if (upperText.includes('NMNP')) type = 'NMNP';
+                else if (upperText.includes('P2P')) type = 'P2P';
+                else if (upperText.includes('PDR')) type = 'PDR';
+
+                const isFamily = upperText.includes('FAMILY');
+
+                // Name extraction by removing stop words
+                let nameText = text.replace(mobile, '');
+                const stopWords = ['ka', 'ko', 'naya', 'add', 'kar', 'do', 'kardo', 'hai', 'number', 'entry', 'ye', 'yeh', 'mera', 'family', 'mnp', 'nmnp', 'p2p', 'pdr', 'nc', 'please', 'plz', 'karo', 'karna', 'ek', 'meri'];
+                
+                let words = nameText.split(/\s+/).filter(w => {
+                    let cleanWord = w.toLowerCase().replace(/[^a-z]/g, '');
+                    return cleanWord.length > 0 && !stopWords.includes(cleanWord);
+                });
+
+                let name = words.length > 0 ? words.slice(0, 2).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : 'Customer';
+
+                pendingEntries[senderJid] = { name, mobile, type, isFamily };
+
+                // Apply correct DD/MM/YYYY date formatting
+                const today = new Date();
+                const formattedDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+
+                const confirmText = `📝 *Nayi Entry Ka Format:*\n\n👤 *Name:* ${name}\n📱 *Number:* ${mobile}\n📌 *Type:* ${isFamily ? 'Family ' + type : type}\n📅 *Date:* ${formattedDate}\n\nKya ise save karna hai? *(Yes / No)*`;
+                await sock.sendMessage(senderJid, { text: confirmText });
+
+            } catch (error) {
+                console.error('WhatsApp Bot AI Error:', error);
+            }
+        });
+
     } catch (err) {
         console.error("Critical WA Startup Error:", err);
         setTimeout(connectToWhatsApp, 5000);

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const Customer = require('../models/Customer');
-const { isAuthenticated } = require('../middleware/auth');
+const isAuthenticated = require('../middleware/auth'); // Fixed destructured undefined callback mapping rule
 
 const delay = (ms) => new Promise(res => setTimeout(res, ms));
 

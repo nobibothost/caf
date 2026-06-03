@@ -1,28 +1,30 @@
-// middleware/auth.js
-// =====================================================================
-// STRICT AUTHENTICATION LOCK (IRON GATE)
-// =====================================================================
+const jwt = require('jsonwebtoken');
 
-const requireAuth = (req, res, next) => {
-    // Check if session exists and user is marked as authenticated
-    if (req.session && req.session.isAuthenticated) {
-        return next(); // User is logged in, let them pass
+module.exports = (req, res, next) => {
+    // Check for Android Native Auth Token Header
+    const authHeader = req.headers['authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1];
+        try {
+            // Verify access token with server runtime environment secret key
+            const decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecretkey');
+            req.user = decoded;
+            req.session.isLoggedIn = true; // Sync flag state for server modules
+            req.session.isAuthenticated = true;
+            return next();
+        } catch (err) {
+            return res.status(401).json({ success: false, error: 'Token invalid or expired' });
+        }
     }
 
-    // Agar request kisi API se aayi hai (fetch/ajax)
-    if (req.xhr || (req.headers.accept && req.headers.accept.includes('json')) || req.path.startsWith('/api/') || req.path.startsWith('/send-wa')) {
-        console.warn(`[SECURITY] Blocked unauthorized API access attempt to: ${req.path} from IP: ${req.ip}`);
-        return res.status(401).json({ 
-            success: false, 
-            msg: "Unauthorized! Please login to access this resource." 
-        });
+    // Existing Web Cookie Session Fallback Rule
+    if (req.session && (req.session.isLoggedIn || req.session.isAuthenticated)) {
+        return next();
     }
 
-    // Agar normal page request hai, toh login page par fek do
+    // Contextual Unauthorized Return Policy for REST pipelines
+    if (req.headers['accept'] === 'application/json') {
+        return res.status(401).json({ success: false, error: 'Authentication required' });
+    }
     res.redirect('/login');
 };
-
-// 🔥 FIX: Export isAuthenticated alias so old route files don't crash
-requireAuth.isAuthenticated = requireAuth;
-
-module.exports = requireAuth;

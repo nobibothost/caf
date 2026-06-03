@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const Customer = require('../models/Customer');
-const { isAuthenticated } = require('../middleware/auth');
+const isAuthenticated = require('../middleware/auth'); // Fixed destructured undefined handler
 const { parseISTDateString, calculateLogic, safeRedirect } = require('../utils/helpers');
 const { getFinalActDate, guessGenderAI } = require('../utils/smartHelpers');
 const { sendAutoWaMessage, getProfilePicUrl } = require('../utils/whatsapp'); 
@@ -429,7 +429,6 @@ router.post('/delete/:id', isAuthenticated, async (req, res) => {
             }
         }
         
-        // 🔥 Trigger Delete Toast
         res.cookie('hubToast', 'Record Deleted Successfully! 🗑️', { maxAge: 5000, httpOnly: false });
         safeRedirect(req, res);
     } catch (err) { safeRedirect(req, res); } 
@@ -449,7 +448,6 @@ router.post('/complete/:id', isAuthenticated, async (req, res) => {
             if (doc) await Customer.findByIdAndUpdate(docId, { status: 'completed' });
         }
         
-        // 🔥 Trigger Done Toast
         res.cookie('hubToast', 'Verification Marked as Done! ✅', { maxAge: 5000, httpOnly: false });
         safeRedirect(req, res);
     } catch (err) { safeRedirect(req, res); } 
@@ -474,7 +472,6 @@ router.post('/activate/:id', isAuthenticated, async (req, res) => {
             }
         }
         
-        // 🔥 Trigger Activated Toast
         res.cookie('hubToast', 'Activated Successfully! 🚀', { maxAge: 5000, httpOnly: false });
         safeRedirect(req, res);
     } catch (err) { safeRedirect(req, res); } 

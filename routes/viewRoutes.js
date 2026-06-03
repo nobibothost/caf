@@ -2,7 +2,8 @@
 const express = require('express');
 const router = express.Router();
 const Customer = require('../models/Customer');
-const { isAuthenticated } = require('../middleware/auth');
+const Note = require('../models/Note'); 
+const isAuthenticated = require('../middleware/auth'); 
 const { getISTDate, fetchGroupedCustomers } = require('../utils/helpers');
 
 const ITEMS_PER_PAGE = 10;
@@ -38,8 +39,14 @@ router.get('/', isAuthenticated, async (req, res) => {
         } else {
             const { start, end } = getISTDate(monthOffset);
             const displayMonth = new Date(start); displayMonth.setMinutes(displayMonth.getMinutes() + 330);
-            if (utcEndOfDay < end) query.verificationDate = { $gte: start, $lte: utcEndOfDay };
-            else query.verificationDate = { $gte: start, $lt: end };
+            
+            if (monthOffset === 0) {
+                // Current month shows all pending verifications up to today
+                query.verificationDate = { $lte: utcEndOfDay };
+            } else {
+                query.verificationDate = { $gte: start, $lt: end };
+            }
+            
             headerTitle = "Pending: " + monthNames[displayMonth.getMonth()] + " " + displayMonth.getFullYear();
         }
         
@@ -75,7 +82,14 @@ router.get('/all', isAuthenticated, async (req, res) => {
         const fullCustomers = await fetchGroupedCustomers(query, { createdAt: -1 });
         const totalPages = Math.ceil(fullCustomers.length / ITEMS_PER_PAGE);
         const paginatedCustomers = fullCustomers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
-        res.render('all', { customers: paginatedCustomers, page: 'all', monthOffset, headerTitle, currentPage: page, totalPages, daterange });
+        
+        // Fetch notes data required by all.ejs
+        const notes = await Note.find().populate('customerId').sort({ createdAt: -1 });
+
+        // Fetch recent active customers list for smart searchable context inside notes creation modal box
+        const recentCustomers = await Customer.find({ subType: { $nin: ['Existing', 'existing'] } }).select('name mobile').limit(100).lean();
+
+        res.render('all', { customers: paginatedCustomers, notes: notes, recentCustomers: recentCustomers, page: 'all', monthOffset, headerTitle, currentPage: page, totalPages, daterange });
     } catch (err) { res.redirect('/'); }
 });
 
@@ -110,7 +124,6 @@ router.get('/search', isAuthenticated, async (req, res) => {
         let fullCustomers = [];
         if (q) {
             const regex = new RegExp(q, 'i');
-            // 🔥 STRICT MATCHING FIX: Removed linkedPrimaryNumber and linkedPrimaryName so it only searches exactly for the person you typed!
             fullCustomers = await fetchGroupedCustomers({ $or: [{ name: regex }, { mobile: regex }] }, { createdAt: -1 });
         }
         const totalPages = Math.ceil(fullCustomers.length / ITEMS_PER_PAGE);

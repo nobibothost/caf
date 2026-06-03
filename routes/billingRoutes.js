@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const Customer = require('../models/Customer');
-const { isAuthenticated } = require('../middleware/auth');
+const isAuthenticated = require('../middleware/auth');
 const { getISTDate, calculateLogic, safeRedirect } = require('../utils/helpers');
 
 const ITEMS_PER_PAGE = 10;
@@ -16,10 +16,14 @@ const getOrdinalSuffix = (i) => {
 
 router.get('/pdd', isAuthenticated, async (req, res) => {
     try {
-        const page = parseInt(req.query.page) || 1; const monthQuery = req.query.month;
+        const page = parseInt(req.query.page) || 1; 
+        const monthQuery = req.query.month;
         let monthOffset = (monthQuery === 'all') ? 'all' : ((monthQuery === undefined) ? 0 : parseInt(monthQuery));
-        let startQuery = req.query.start; let endQuery = req.query.end; let isCustomDate = startQuery && endQuery;
-        let daterange = ''; let headerTitle = "PDD Tracking";
+        let startQuery = req.query.start; 
+        let endQuery = req.query.end; 
+        let isCustomDate = startQuery && endQuery;
+        let daterange = ''; 
+        let headerTitle = "PDD Tracking";
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         let filterStart, filterEnd;
 
@@ -51,8 +55,9 @@ router.get('/pdd', isAuthenticated, async (req, res) => {
             const actVal = actYear * 10000 + actMonth * 100 + actDay;
 
             if (calcBillVal >= actVal) {
-                const cycleKey = `${billYear}-${String(billMonth + 1).padStart(2, '0')}`;
-                if (!c.paidMonths || !c.paidMonths.includes(cycleKey)) {
+                const safeMonth = billMonth + 1;
+                const dynamicCycleKey = `${billYear}-${String(safeMonth).padStart(2, '0')}`;
+                if (!c.paidMonths || !c.paidMonths.includes(dynamicCycleKey)) {
                     const exactBillDate = new Date(Date.UTC(billYear, billMonth, c.billDate, 0, 0, 0) - (330 * 60000));
                     const exactDueDate = new Date(exactBillDate.getTime() + (10 * 24 * 60 * 60 * 1000));
                     let cycleNum = (billYear - actYear) * 12 + (billMonth - actMonth);
@@ -64,7 +69,7 @@ router.get('/pdd', isAuthenticated, async (req, res) => {
                     if (effectiveCycle <= maxBills) {
                         let cycleString = getOrdinalSuffix(effectiveCycle) + " Bill";
                         c.exactBillDate = exactBillDate; c.exactDueDate = exactDueDate;
-                        pendingBillsRaw.push({ ...c, cycleKey, cycleString });
+                        pendingBillsRaw.push({ ...c, cycleKey: dynamicCycleKey, cycleString });
                     }
                 }
             }
@@ -73,10 +78,21 @@ router.get('/pdd', isAuthenticated, async (req, res) => {
         let pendingBills = pendingBillsRaw;
         if (monthOffset !== 'all') { pendingBills = pendingBillsRaw.filter(b => b.exactBillDate >= filterStart && b.exactBillDate < filterEnd); }
         pendingBills.sort((a, b) => a.exactBillDate - b.exactBillDate);
+
+        // 🔥 DUAL INTERFACE HANDSHAKE INTEGRATION RULE: Direct JSON bypass fallback for Android layout interceptors
+        if (req.headers.accept && req.headers.accept.includes('application/json')) {
+            return res.json({ success: true, headerTitle, data: pendingBills });
+        }
+
         const totalPages = Math.ceil(pendingBills.length / ITEMS_PER_PAGE);
         const paginatedBills = pendingBills.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
         res.render('pdd', { pendingBills: paginatedBills, page: 'pdd', headerTitle, currentPage: page, totalPages, monthOffset, daterange });
-    } catch (err) { res.redirect('/'); }
+    } catch (err) { 
+        if (req.headers.accept && req.headers.accept.includes('application/json')) {
+            return res.status(500).json({ success: false, error: err.message });
+        }
+        res.redirect('/'); 
+    }
 });
 
 router.post('/pay-bill/:id', isAuthenticated, async (req, res) => {
@@ -144,8 +160,16 @@ router.post('/pay-all-bills', isAuthenticated, async (req, res) => {
         });
 
         if (bulkOps.length > 0) { await Customer.bulkWrite(bulkOps); }
+        if (req.headers.accept && req.headers.accept.includes('application/json')) {
+            return res.json({ success: true, message: "Bulk billing process successfully updated." });
+        }
         safeRedirect(req, res);
-    } catch(err) { safeRedirect(req, res); }
+    } catch(err) { 
+        if (req.headers.accept && req.headers.accept.includes('application/json')) {
+            return res.status(500).json({ success: false, error: err.message });
+        }
+        safeRedirect(req, res); 
+    }
 });
 
 module.exports = router;
