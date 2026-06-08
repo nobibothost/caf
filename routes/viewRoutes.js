@@ -41,8 +41,9 @@ router.get('/', isAuthenticated, async (req, res) => {
             const displayMonth = new Date(start); displayMonth.setMinutes(displayMonth.getMinutes() + 330);
             
             if (monthOffset === 0) {
-                // Current month shows all pending verifications up to today
-                query.verificationDate = { $lte: utcEndOfDay };
+                // FIXED: Shows verifications strictly between the 1st of this month up to today boundary.
+                // This correctly collects activations matching late cycle transitions from the past month.
+                query.verificationDate = { $gte: start, $lte: utcEndOfDay };
             } else {
                 query.verificationDate = { $gte: start, $lt: end };
             }
