@@ -5,47 +5,68 @@ const bodyParser = require('body-parser');
 const path = require('path');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
-const axios = require('axios');
 const helmet = require('helmet');
+const cors = require('cors'); 
+const os = require('os'); // Added for network ip extraction
 
 // --- Import Modular Routes & Models ---
 const authRoutes = require('./routes/authRoutes');
-const customerRoutes = require('./routes/customerRoutes');
-const Customer = require('./models/Customer');
+const aiRoutes = require('./routes/aiRoutes');
+const Customer = require('./models/Customer'); 
+
+// --- Import Security Middleware ---
+const requireAuth = require('./middleware/auth');
+
+// --- Import Helpers, WhatsApp Engine & Scheduler ---
+const { connectToWhatsApp, getWaState } = require('./utils/whatsapp'); 
+const { startCronJobs } = require('./utils/scheduler'); 
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-// --- CONFIGURATION ---
-const EMAIL_SERVICE_URL = process.env.EMAIL_SERVICE_URL || 'http://localhost:5000';
-const ADMIN_EMAIL_RECEIVER = process.env.ADMIN_EMAIL_RECEIVER || 'your-email@gmail.com';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'supersecretkey';
 const MONGO_URI = process.env.MONGO_URI;
 
-// --- MIDDLEWARE ---
+// --- CORS & SECURITY OPENED FOR ANDROID DESIGNING ---
+app.use(cors({
+    origin: '*', // Allows cross platform handshake for design pipelines
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(helmet({ 
     contentSecurityPolicy: false,
-    referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    xPoweredBy: false 
 }));
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
+
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 
-// --- SESSION SETUP ---
+app.set('trust proxy', 1);
+
+// --- SESSION SETUP (PWA Persistent Fix) ---
 app.use(session({
     secret: SESSION_SECRET,
-    resave: false,
+    name: 'vHub_session', 
+    resave: true, 
     saveUninitialized: false,
+    rolling: true,
     store: MongoStore.create({
         mongoUrl: MONGO_URI,
         collectionName: 'sessions',
-        ttl: 14 * 24 * 60 * 60, 
+        ttl: 365 * 24 * 60 * 60, 
         autoRemove: 'native',
-        touchAfter: 24 * 3600
+        touchAfter: 1
     }),
-    cookie: { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'strict' }
+    cookie: { 
+        httpOnly: true, 
+        maxAge: 30 * 24 * 60 * 60 * 1000, 
+        sameSite: 'lax', 
+        secure: process.env.NODE_ENV === 'production' 
+    }
 }));
 
 // --- DB CONNECTION ---
@@ -55,6 +76,13 @@ const connectDB = async () => {
             maxPoolSize: 10, minPoolSize: 2, socketTimeoutMS: 45000, serverSelectionTimeoutMS: 5000, family: 4              
         });
         console.log('✅ MongoDB Connected'); 
+        
+        Customer.collection.createIndex({ mobile: 1 }).catch(()=>{});
+        Customer.collection.createIndex({ name: 1 }).catch(()=>{});
+        Customer.collection.createIndex({ status: 1, activationDate: -1 }).catch(()=>{});
+        Customer.collection.createIndex({ category: 1 }).catch(()=>{});
+        console.log('⚡ Smart Indexes Activated: Search & Load optimized!');
+        
     } 
     catch (err) { console.error('❌ MongoDB Error:', err.message); setTimeout(connectDB, 5000); }
 };
@@ -63,84 +91,88 @@ connectDB();
 // --- GLOBAL ROUTES & MOUNTING ---
 app.get('/health', (req, res) => res.status(200).send('OK'));
 
+app.post('/power-off', (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Server Stopped</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700&display=swap" rel="stylesheet">
+            <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+        </head>
+        <body style="font-family:'Inter', sans-serif; text-align:center; padding:50px 20px; background:#f8fafc; color:#0f172a; display:flex; flex-direction:column; align-items:center; justify-content:center; height:80vh; margin:0;">
+            <div style="font-size:4.5rem; color:#ef4444; margin-bottom:15px;"><i class="ri-shut-down-line"></i></div>
+            <h2 style="margin:0 0 10px 0; font-size:1.5rem;">Server Turned Off</h2>
+            <p style="color:#64748b; font-size:0.95rem; max-width:300px; line-height:1.5;">Termux session aur WhatsApp channel state closed.</p>
+        </body>
+        </html>
+    `);
+    console.log("🛑 Server shutdown requested via Web UI. Exiting in 1 second...");
+    setTimeout(() => {
+        process.exit(0);
+    }, 1000);
+});
+
+// 1. PUBLIC ROUTES
 app.use('/', authRoutes);
-app.use('/', customerRoutes);
 
-app.get('*', (req, res) => { res.redirect('/'); });
+// 🔒 THE IRON GATE: Authenticated Scope
+app.use(requireAuth); 
 
-// --- SERVER & DAILY CRON JOBS ---
-app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-    const PING_INTERVAL = 5 * 60 * 1000; 
-    const TARGET_URL = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
+// 🔥 API FOR REAL-TIME WA STATUS INDICATOR
+app.get('/api/wa-status', (req, res) => {
+    const waState = getWaState();
+    res.json({ isConnected: waState.isConnected });
+});
+
+// 🔥 SECURE WHATSAPP STATUS ROUTE
+app.get('/whatsapp', (req, res) => {
+    const waState = getWaState();
+    res.render('whatsapp', { 
+        isConnected: waState.isConnected, 
+        qr: waState.qr, 
+        page: 'whatsapp' 
+    });
+});
+
+// 2. PRIVATE ROUTES
+app.use('/api/ai', aiRoutes);
+app.use('/', require('./routes/viewRoutes'));
+app.use('/', require('./routes/actionRoutes')); 
+app.use('/', require('./routes/billingRoutes'));
+app.use('/', require('./routes/reportRoutes'));
+
+app.get('*', (req, res) => { 
+    if (req.headers['accept'] === 'application/json' || req.headers['authorization']) {
+        return res.status(404).json({ success: false, error: 'Resource not found' });
+    }
+    res.redirect('/'); 
+});
+
+// --- PUBLIC ROUTING & SERVER INITIALIZATION ---
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`\n==================================================`);
+    console.log(`🚀 VerifyHub Backend Is Active Globally!`);
+    console.log(`==================================================`);
     
-    global.lastDailyEmail = null;
-
-    setInterval(async () => { 
-        try { 
-            await axios.get(`${TARGET_URL}/health`);
-            
-            const istNow = new Date(new Date().getTime() + (330 * 60000));
-            const hours = istNow.getUTCHours();
-            const todayStr = istNow.toISOString().split('T')[0];
-
-            if (hours === 10 && global.lastDailyEmail !== todayStr) {
-                global.lastDailyEmail = todayStr;
-                
-                const pendingCount = await Customer.countDocuments({ status: 'pending', activationDate: { $lte: new Date(istNow.getTime() - (330*60000)) } });
-                
-                let msg = `
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                </head>
-                <body style="margin: 0; padding: 0; background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-                    <div style="display:none;font-size:1px;color:#333333;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">
-                        🔔 Daily Alert: Aaj aapke paas ${pendingCount} forms pending hain complete karne ke liye.
-                    </div>
-                    
-                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f4f7f6; padding: 20px;">
-                        <tr>
-                            <td align="center">
-                                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 480px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.05);">
-                                    <tr>
-                                        <td style="background: linear-gradient(135deg, #10b981, #059669); padding: 30px 20px; text-align: center;">
-                                            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: 1px;">VerifyHub Daily Alert</h1>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 40px 30px; text-align: center;">
-                                            <h2 style="margin: 0 0 20px 0; color: #1e293b; font-size: 22px;">Good Morning, Admin! ☀️</h2>
-                                            
-                                            <div style="background-color: #fffbeb; border: 1px solid #fde68a; padding: 25px; border-radius: 12px; margin-bottom: 25px;">
-                                                <span style="font-size: 42px; font-weight: 800; color: #d97706; display: block; margin-bottom: 5px; line-height: 1;">${pendingCount}</span>
-                                                <span style="font-size: 15px; font-weight: 600; color: #92400e;">Pending Tasks For Today</span>
-                                            </div>
-                                            
-                                            <p style="margin: 0; color: #64748b; font-size: 15px; line-height: 1.6;">
-                                                Aapke dashboard par <b>${pendingCount}</b> forms activation ya verification ke liye pending hain. Kripya login karke inhe complete karein aur apni revenue secure karein.
-                                            </p>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td style="background-color: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0;">
-                                            &copy; ${new Date().getFullYear()} VerifyHub System<br>Automated Daily Report
-                                        </td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-                    </table>
-                </body>
-                </html>`;
-                
-                await axios.post(`${EMAIL_SERVICE_URL}/send-email`, { 
-                    recipient: ADMIN_EMAIL_RECEIVER, 
-                    subject: `Daily Alert: ${pendingCount} Pending Tasks`, 
-                    message: msg 
-                });
+    const interfaces = os.networkInterfaces();
+    let ipFound = false;
+    
+    Object.keys(interfaces).forEach((interfaceName) => {
+        interfaces[interfaceName].forEach((iface) => {
+            if (iface.family === 'IPv4' && !iface.internal) {
+                console.log(`📡 Connected Interface [${interfaceName}]: http://${iface.address}:${PORT}`);
+                ipFound = true;
             }
-        } catch (err) {} 
-    }, PING_INTERVAL);
+        });
+    });
+    
+    if (!ipFound) {
+        console.log(`🔗 Isolated Device Mode Loopback: http://127.0.0.1:${PORT}`);
+    }
+    console.log(`==================================================\n`);
+    
+    connectToWhatsApp();
+    startCronJobs();
 });
