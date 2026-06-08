@@ -67,7 +67,7 @@
                         else if (mainType === 'NMNP') tintClass = 'bg-tint-NMNP';
                         else if (mainType === 'PDR') tintClass = 'bg-tint-PDR';
                         else if (mainType === 'Family' || mainType === 'Existing') tintClass = 'bg-tint-Family';
-                        %>
+                    %>
                         <div class="card search-item <%= customer.isFamilyGroup ? 'bg-tint-Family' : tintClass %>" <%= customer.isFamilyGroup ? 'style="border-left: 4px solid #06b6d4 !important;"' : '' %>>
                             
                             <div class="card-top">
@@ -127,7 +127,7 @@
                                     %>
 
                                     <div class="family-section primary-sec bg-tint-<%= pBadge === 'Existing' ? 'default' : pBadge %>" style="margin-bottom: 0; padding: 12px; border-radius: 12px; border-bottom: none; display: flex; flex-direction: column; gap: 10px;">
-                                       <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
                                             <span class="fs-label primary-label" style="color: var(--primary); margin: 0;">
                                                 <% if (customer.triggerDoc && customer.triggerDoc.familyRole === 'Secondary') { %>
                                                     <i class="ri-user-add-line"></i> Add-on Connection <span class="badge badge-<%= customer.triggerDoc.subType %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= customer.triggerDoc.subType %></span>
@@ -185,19 +185,31 @@
                                     </div>
                                     
                                     <div id="tree_data_<%= customer._id.toString() %>" style="display: none;">
-                                        <div class="bg-tint-<%= pBadge === 'Existing' ? 'default' : pBadge %>" style="padding: 15px; border-radius: 12px; margin-bottom: 15px;">
+                                        
+                                        <% 
+                                            // 🔥 NEW FIX: Dedicated variable strictly for the Primary Account inside the tree. 
+                                            // It ignores the add-on's triggerDoc.subType to prevent overwriting "Existing".
+                                            let truePrimaryBadge = 'Existing';
+                                            if (customer.primary && customer.primary.subType && customer.primary.subType !== 'Existing') {
+                                                truePrimaryBadge = customer.primary.subType;
+                                            } else if (customer.linkedPrimaryStatus && customer.linkedPrimaryStatus !== 'Existing' && customer.linkedPrimaryStatus !== '') {
+                                                truePrimaryBadge = customer.linkedPrimaryStatus;
+                                            }
+                                        %>
+                                        
+                                        <div class="bg-tint-<%= truePrimaryBadge === 'Existing' ? 'default' : truePrimaryBadge %>" style="padding: 15px; border-radius: 12px; margin-bottom: 15px;">
                                             <div style="display:flex; justify-content: space-between; align-items: center;">
                                                 <span class="fs-label" style="color: #475569; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;">
                                                     <i class="ri-star-fill" style="color: #eab308;"></i> Primary Account 
-                                                    <% if(pBadge !== 'Existing'){ %>
-                                                        <span class="badge badge-<%= pBadge %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= pBadge %></span>
+                                                    <% if(truePrimaryBadge !== 'Existing'){ %>
+                                                        <span class="badge badge-<%= truePrimaryBadge %>" style="font-size: 0.6rem; padding: 2px 5px;"><%= truePrimaryBadge %></span>
                                                     <% } else { %>
                                                         <span class="badge" style="background:#e2e8f0; color:#475569; font-size: 0.6rem; padding: 2px 5px;">Existing</span>
                                                     <% } %>
                                                 </span>
                                                 <span style="font-size: 0.65rem; font-weight: 600; color: var(--success); padding: 2px 0;">Status: <%= customer.primary ? customer.primary.status.toUpperCase() : 'ACTIVE' %></span>
                                             </div>
-                                           <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
                                                 <div style="display:flex; align-items:center; gap:10px;">
                                                     <div style="width:40px; height:40px; border-radius:50%; overflow:hidden; border:2px solid rgba(0,255,136,0.3); background:#f8fafc; display: flex; align-items: center; justify-content: center; flex-shrink:0; position:relative;">
                                                         <img src="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iI2RmZTVlNyIvPjxwYXRoIGQ9Ik01MCA0OGExNCAxNCAwIDEwMC0yOCAxNCAxNCAwIDAwMCAyOHptMCA3Yy0xNiAwLTMxIDEwLTM0IDIzYTUwIDUwIDAgMDA2OCAwYy0zLTEzLTE4LTIzLTM0LTIzeiIgZmlsbD0iI2ZmZiIvPjwvc3ZnPg==" class="whatsapp-dp" data-number="<%= customer.linkedPrimaryNumber %>" onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iI2RmZTVlNyIvPjxwYXRoIGQ9Ik01MCA0OGExNCAxNCAwIDEwMC0yOCAxNCAxNCAwIDAwMCAyOHptMCA3Yy0xNiAwLTMxIDEwLTM0IDIzYTUwIDUwIDAgMDA2OCAwYy0zLTEzLTE4LTIzLTM0LTIzeiIgZmlsbD0iI2ZmZiIvPjwvc3ZnPg==';" style="width:100%; height:100%; object-fit:cover; z-index: 1; position: relative;">
@@ -212,7 +224,7 @@
                                                     <a href="tel:8657973703,<%= customer.linkedPrimaryNumber %>" class="icon-btn-round-call large" onclick="handleCallClick(event, this)" data-id="<%= customer.primary ? customer.primary._id : 'N/A' %>" data-page="verification"><i class="ri-phone-fill"></i></a>
                                                 </div>
                                             </div>
-                                            <% if (pBadge !== 'Existing' && customer.primary) { %>
+                                            <% if (truePrimaryBadge !== 'Existing' && customer.primary) { %>
                                                 <div style="margin-top: 12px; font-size: 0.75rem; color: #64748b; font-weight: 500; display: flex; gap: 12px; background: rgba(255,255,255,0.6); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.05);">
                                                     <span><i class="ri-calendar-line"></i> Entry: <strong><%= new Date(new Date(customer.primary.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></strong></span>
                                                     <span style="color: var(--primary);"><i class="ri-flashlight-line"></i> Act Date: <strong><%= new Date(new Date(customer.primary.activationDate || customer.primary.createdAt).getTime() + 330*60000).toISOString().split('T')[0].split('-').reverse().join('/') %></strong></span>
